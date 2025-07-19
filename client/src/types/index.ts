@@ -53,6 +53,7 @@ export interface AppSettings {
   theme: 'light' | 'dark';
   language: 'pt-BR';
   currency: 'BRL';
+  geminiApiKey?: string;
   aiSettings?: {
     grokApiKey?: string;
     geminiApiKey?: string;

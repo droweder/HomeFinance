@@ -27,6 +27,7 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
     theme: 'light',
     language: 'pt-BR', // Fixed to Brazilian Portuguese
     currency: 'BRL', // Fixed to Brazilian Real
+    geminiApiKey: '',
     aiSettings: {
       grokApiKey: '',
       geminiApiKey: '',
@@ -44,6 +45,7 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
         ...parsed,
         language: 'pt-BR',
         currency: 'BRL',
+        geminiApiKey: parsed.geminiApiKey || '',
         aiSettings: {
           grokApiKey: '',
           geminiApiKey: '',

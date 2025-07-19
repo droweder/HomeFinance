@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Bot, Send, User, Loader2, AlertCircle, Settings, TrendingUp, TrendingDown, DollarSign, Sparkles } from 'lucide-react';
+import { Bot, Send, User, Loader2, AlertCircle, Settings, TrendingUp, TrendingDown, DollarSign, Sparkles, Brain, BarChart3, PieChart, Target, Lightbulb, Calculator } from 'lucide-react';
 import { useSettings } from '../context/SettingsContext';
 import { useFinance } from '../context/FinanceContext';
 import { useFinanceCalculations } from '../hooks/useFinanceCalculations';
@@ -42,7 +42,7 @@ const FinancialAIChat: React.FC = () => {
     {
       id: '1',
       type: 'ai',
-      content: '🤖 Olá! Sou seu assistente financeiro inteligente powered by Gemini AI.\n\nPosso analisar seus dados financeiros e fornecer insights personalizados sobre:\n\n💰 Análise de gastos e receitas\n📊 Padrões de consumo\n💡 Sugestões de economia\n📈 Tendências financeiras\n🎯 Planejamento orçamentário\n\nComo posso ajudar você hoje?',
+      content: 'Olá! Sou seu assistente financeiro inteligente powered by Gemini AI.\n\nTenho acesso aos seus dados financeiros e posso fornecer insights personalizados sobre:\n\n• Análise detalhada de gastos e receitas\n• Padrões de consumo e tendências\n• Sugestões específicas de economia\n• Planejamento orçamentário personalizado\n• Identificação de oportunidades financeiras\n\nComo posso ajudar você hoje?',
       timestamp: new Date(),
     }
   ]);
@@ -59,8 +59,7 @@ const FinancialAIChat: React.FC = () => {
   }, [messages]);
 
   const isAIConfigured = () => {
-    const aiSettings = settings.aiSettings;
-    return aiSettings?.enableAI && aiSettings.geminiApiKey;
+    return settings.geminiApiKey && settings.geminiApiKey.trim() !== '';
   };
 
   const buildFinancialContext = () => {
@@ -74,34 +73,61 @@ const FinancialAIChat: React.FC = () => {
       upcomingExpenses: totalUpcomingExpenses,
     };
 
-    // Top 5 categorias de despesas
+    // Top 10 categorias de despesas
     const topCategories = Object.entries(expensesByCategory)
       .sort(([,a], [,b]) => b - a)
-      .slice(0, 5)
+      .slice(0, 10)
       .map(([category, amount]) => ({
         category,
         amount,
         percentage: totalExpensesThisMonth > 0 ? (amount / totalExpensesThisMonth * 100).toFixed(1) : '0'
       }));
 
-    // Tendência dos últimos meses
-    const recentTrend = monthlyTrend.slice(-3);
+    // Tendência dos últimos 6 meses
+    const recentTrend = monthlyTrend.slice(-6);
 
-    // Estatísticas gerais
+    // Estatísticas detalhadas
     const stats = {
       totalExpenseRecords: expenses.length,
       totalIncomeRecords: income.length,
       totalCategories: categories.length,
       averageExpenseAmount: expenses.length > 0 ? (expenses.reduce((sum, exp) => sum + exp.amount, 0) / expenses.length) : 0,
       averageIncomeAmount: income.length > 0 ? (income.reduce((sum, inc) => sum + inc.amount, 0) / income.length) : 0,
+      mostExpensiveTransaction: expenses.length > 0 ? Math.max(...expenses.map(e => e.amount)) : 0,
+      largestIncomeSource: income.length > 0 ? Math.max(...income.map(i => i.amount)) : 0,
+      creditCardExpenses: expenses.filter(e => e.isCreditCard).reduce((sum, e) => sum + e.amount, 0),
+      unpaidExpenses: expenses.filter(e => !e.paid).reduce((sum, e) => sum + e.amount, 0),
     };
+
+    // Análise de padrões de gastos por dia da semana
+    const expensesByDayOfWeek = expenses.reduce((acc, expense) => {
+      const dayOfWeek = new Date(expense.date).getDay();
+      const dayNames = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+      const dayName = dayNames[dayOfWeek];
+      acc[dayName] = (acc[dayName] || 0) + expense.amount;
+      return acc;
+    }, {} as Record<string, number>);
+
+    // Análise de gastos por local (se disponível)
+    const expensesByLocation = expenses
+      .filter(e => e.location && e.location.trim() !== '')
+      .reduce((acc, expense) => {
+        acc[expense.location!] = (acc[expense.location!] || 0) + expense.amount;
+        return acc;
+      }, {} as Record<string, number>);
+
+    const topLocations = Object.entries(expensesByLocation)
+      .sort(([,a], [,b]) => b - a)
+      .slice(0, 5);
 
     return {
       currentMonth,
       basicData,
       topCategories,
       recentTrend,
-      stats
+      stats,
+      expensesByDayOfWeek,
+      topLocations
     };
   };
 
@@ -110,47 +136,61 @@ const FinancialAIChat: React.FC = () => {
     
     return `Você é um assistente financeiro especializado em análise de dados pessoais. Analise os dados financeiros fornecidos e responda à pergunta do usuário de forma clara, objetiva e útil.
 
-DADOS FINANCEIROS DO USUÁRIO (${context.currentMonth}):
+DADOS FINANCEIROS COMPLETOS DO USUÁRIO (${context.currentMonth}):
 
-📊 RESUMO MENSAL:
+📊 RESUMO MENSAL ATUAL:
 - Receitas: R$ ${context.basicData.totalIncome.toFixed(2)}
 - Despesas: R$ ${context.basicData.totalExpenses.toFixed(2)}
 - Saldo: R$ ${context.basicData.balance.toFixed(2)}
-- Despesas Futuras: R$ ${context.basicData.upcomingExpenses.toFixed(2)}
+- Despesas Futuras/Pendentes: R$ ${context.basicData.upcomingExpenses.toFixed(2)}
 
-🏆 TOP 5 CATEGORIAS DE DESPESAS:
+📈 ESTATÍSTICAS GERAIS:
+- Total de Transações de Despesas: ${context.stats.totalExpenseRecords}
+- Total de Transações de Receitas: ${context.stats.totalIncomeRecords}
+- Categorias Ativas: ${context.stats.totalCategories}
+- Gasto Médio por Transação: R$ ${context.stats.averageExpenseAmount.toFixed(2)}
+- Receita Média por Transação: R$ ${context.stats.averageIncomeAmount.toFixed(2)}
+- Maior Despesa Individual: R$ ${context.stats.mostExpensiveTransaction.toFixed(2)}
+- Maior Receita Individual: R$ ${context.stats.largestIncomeSource.toFixed(2)}
+- Gastos no Cartão de Crédito: R$ ${context.stats.creditCardExpenses.toFixed(2)}
+- Despesas Não Pagas: R$ ${context.stats.unpaidExpenses.toFixed(2)}
+
+🏆 TOP 10 CATEGORIAS DE DESPESAS:
 ${context.topCategories.map((cat, i) => 
   `${i + 1}. ${cat.category}: R$ ${cat.amount.toFixed(2)} (${cat.percentage}%)`
 ).join('\n')}
 
-📈 TENDÊNCIA DOS ÚLTIMOS 3 MESES:
-${context.recentTrend.map(month => 
-  `${month.month}: Receitas R$ ${month.totalIncome.toFixed(2)} | Despesas R$ ${month.totalExpenses.toFixed(2)} | Saldo R$ ${month.balance.toFixed(2)}`
+📅 PADRÃO DE GASTOS POR DIA DA SEMANA:
+${Object.entries(context.expensesByDayOfWeek).map(([day, amount]) => 
+  `${day}: R$ ${amount.toFixed(2)}`
 ).join('\n')}
 
-📋 ESTATÍSTICAS GERAIS:
-- Total de registros de despesas: ${context.stats.totalExpenseRecords}
-- Total de registros de receitas: ${context.stats.totalIncomeRecords}
-- Categorias cadastradas: ${context.stats.totalCategories}
-- Valor médio por despesa: R$ ${context.stats.averageExpenseAmount.toFixed(2)}
-- Valor médio por receita: R$ ${context.stats.averageIncomeAmount.toFixed(2)}
+🏪 TOP 5 LOCAIS DE MAIOR GASTO:
+${context.topLocations.map(([location, amount], i) => 
+  `${i + 1}. ${location}: R$ ${amount.toFixed(2)}`
+).join('\n')}
+
+📊 TENDÊNCIA DOS ÚLTIMOS 6 MESES:
+${context.recentTrend.map(month => 
+  `${month.month}: Receitas R$ ${month.income.toFixed(2)} | Despesas R$ ${month.expenses.toFixed(2)} | Saldo R$ ${(month.income - month.expenses).toFixed(2)}`
+).join('\n')}
 
 PERGUNTA DO USUÁRIO: ${userQuestion}
 
 INSTRUÇÕES PARA RESPOSTA:
 1. Use os dados fornecidos para dar uma resposta precisa e personalizada
-2. Seja específico com números e percentuais quando relevante
+2. Seja específico com números e percentuais quando relevante  
 3. Forneça insights acionáveis e sugestões práticas
 4. Use emojis para tornar a resposta mais visual e amigável
 5. Mantenha um tom profissional mas acessível
 6. Se a pergunta não puder ser respondida com os dados disponíveis, explique isso claramente
-7. Limite a resposta a no máximo 300 palavras para ser concisa
+7. Limite a resposta a no máximo 400 palavras para ser informativa mas concisa
 
 Responda em português brasileiro:`;
   };
 
   const callGeminiAPI = async (prompt: string): Promise<string> => {
-    const apiKey = settings.aiSettings?.geminiApiKey;
+    const apiKey = settings.geminiApiKey;
     
     if (!apiKey) {
       throw new Error('Chave da API Gemini não configurada');
@@ -244,8 +284,53 @@ Responda em português brasileiro:`;
     return generatedText;
   };
 
-  const handleSendMessage = async () => {
-    if (!inputMessage.trim() || isLoading) return;
+  const quickQuestions = [
+    {
+      icon: <BarChart3 className="w-4 h-4" />,
+      text: "Como estão meus gastos este mês?",
+      category: "análise"
+    },
+    {
+      icon: <Target className="w-4 h-4" />,
+      text: "Onde posso economizar?",
+      category: "economia"
+    },
+    {
+      icon: <PieChart className="w-4 h-4" />,
+      text: "Qual categoria gasto mais?",
+      category: "categorias"
+    },
+    {
+      icon: <TrendingUp className="w-4 h-4" />,
+      text: "Como está minha tendência financeira?",
+      category: "tendência"
+    },
+    {
+      icon: <Calculator className="w-4 h-4" />,
+      text: "Tenho um bom controle financeiro?",
+      category: "avaliação"
+    },
+    {
+      icon: <DollarSign className="w-4 h-4" />,
+      text: "Quais são meus maiores gastos?",
+      category: "gastos"
+    }
+  ];
+
+  const handleQuickQuestion = (question: string) => {
+    setInputMessage(question);
+    // Auto-send after a brief delay to give visual feedback
+    setTimeout(() => {
+      setInputMessage('');
+      handleSendMessage(question);
+    }, 100);
+  };
+
+  const handleSendMessage = async (customMessage?: string) => {
+    const messageToSend = customMessage || inputMessage.trim();
+    if (!messageToSend || isLoading) return;
+
+    if (!customMessage) setInputMessage('');
 
     if (!isAIConfigured()) {
       const errorMessage: ChatMessage = {
@@ -261,12 +346,11 @@ Responda em português brasileiro:`;
     const userMessage: ChatMessage = {
       id: Date.now().toString(),
       type: 'user',
-      content: inputMessage.trim(),
+      content: messageToSend,
       timestamp: new Date(),
     };
 
     setMessages(prev => [...prev, userMessage]);
-    setInputMessage('');
     setIsLoading(true);
 
     // Adicionar mensagem de loading
@@ -322,19 +406,6 @@ Responda em português brasileiro:`;
       e.preventDefault();
       handleSendMessage();
     }
-  };
-
-  const quickQuestions = [
-    "Como estão meus gastos este mês?",
-    "Onde posso economizar?",
-    "Qual categoria gasto mais?",
-    "Como está minha tendência financeira?",
-    "Tenho um bom controle financeiro?",
-    "Quais são meus maiores gastos?"
-  ];
-
-  const handleQuickQuestion = (question: string) => {
-    setInputMessage(question);
   };
 
   if (!isAIConfigured()) {
@@ -419,6 +490,45 @@ Responda em português brasileiro:`;
       <div className="flex-1 flex flex-col max-w-4xl mx-auto w-full">
         {/* Messages Area - Scrollable */}
         <div className="flex-1 overflow-y-auto px-4 py-6">
+          {/* Quick Questions - Show only when no messages */}
+          {messages.length === 0 && (
+            <div className="mb-8">
+              <div className="text-center mb-6">
+                <div className="mx-auto w-20 h-20 bg-gradient-to-br from-purple-100 to-blue-100 dark:from-purple-900 dark:to-blue-900 rounded-full flex items-center justify-center mb-4">
+                  <Brain className="w-10 h-10 text-purple-600 dark:text-purple-400" />
+                </div>
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+                  Como posso ajudar?
+                </h2>
+                <p className="text-gray-600 dark:text-gray-400">
+                  Escolha uma pergunta rápida ou digite sua própria questão sobre suas finanças
+                </p>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-w-2xl mx-auto">
+                {quickQuestions.map((question, index) => (
+                  <button
+                    key={index}
+                    onClick={() => handleQuickQuestion(question.text)}
+                    className="flex items-center gap-3 p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:border-purple-300 dark:hover:border-purple-600 hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-all text-left group"
+                  >
+                    <div className="p-2 bg-purple-100 dark:bg-purple-900 rounded-lg group-hover:bg-purple-200 dark:group-hover:bg-purple-800 transition-colors">
+                      {question.icon}
+                    </div>
+                    <div className="flex-1">
+                      <span className="text-sm font-medium text-gray-900 dark:text-white">
+                        {question.text}
+                      </span>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">
+                        {question.category}
+                      </p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="space-y-6">
             {messages.map((message) => (
               <div

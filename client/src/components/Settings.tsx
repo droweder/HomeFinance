@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Settings as SettingsIcon, Palette, Tag, CreditCard, Plus, Edit2, Trash2, Upload, Download, FileText, Wifi, WifiOff, CheckCircle, AlertCircle, Clock, Database, Bot, Eye, EyeOff, Key } from 'lucide-react';
+import { Settings as SettingsIcon, Palette, Tag, CreditCard, Plus, Edit2, Trash2, Upload, Download, FileText, Wifi, WifiOff, CheckCircle, AlertCircle, Clock, Database, Bot, Eye, EyeOff, Key, Brain, Lightbulb } from 'lucide-react';
 import { useSettings } from '../context/SettingsContext';
 import { useFinance } from '../context/FinanceContext';
 import { useAccounts } from '../context/AccountContext';
@@ -23,14 +23,8 @@ const Settings: React.FC = () => {
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
   const [categorySearch, setCategorySearch] = useState('');
   const [accountSearch, setAccountSearch] = useState('');
-  const [showGrokKey, setShowGrokKey] = useState(false);
   const [showGeminiKey, setShowGeminiKey] = useState(false);
-  const [tempAISettings, setTempAISettings] = useState(settings.aiSettings || {
-    grokApiKey: '',
-    geminiApiKey: '',
-    preferredProvider: 'gemini' as 'grok' | 'gemini',
-    enableAI: false,
-  });
+  const [tempGeminiKey, setTempGeminiKey] = useState(settings.geminiApiKey || '');
 
   const handleThemeToggle = () => {
     updateSettings({ theme: settings.theme === 'light' ? 'dark' : 'light' });
@@ -68,21 +62,37 @@ const Settings: React.FC = () => {
     setEditingAccount(null);
   };
 
-  const handleSaveAISettings = () => {
-    updateSettings({ aiSettings: tempAISettings });
-    alert('Configurações de IA salvas com sucesso!');
+  const handleSaveGeminiKey = () => {
+    updateSettings({ geminiApiKey: tempGeminiKey });
+    alert('Chave da API Gemini salva com sucesso!');
   };
 
-  const handleTestAPI = async (provider: 'grok' | 'gemini') => {
-    const apiKey = provider === 'grok' ? tempAISettings.grokApiKey : tempAISettings.geminiApiKey;
-    
-    if (!apiKey) {
-      alert(`Por favor, insira a chave da API ${provider === 'grok' ? 'Grok' : 'Gemini'} primeiro.`);
+  const handleTestGeminiAPI = async () => {
+    if (!tempGeminiKey) {
+      alert('Por favor, insira a chave da API Gemini primeiro.');
       return;
     }
 
-    // Placeholder para teste futuro
-    alert(`Teste da API ${provider === 'grok' ? 'Grok' : 'Gemini'} será implementado em breve.`);
+    try {
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${tempGeminiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: 'Teste de conexão' }] }]
+          })
+        }
+      );
+      
+      if (response.ok) {
+        alert('✅ API Gemini funcionando corretamente!');
+      } else {
+        alert('❌ Erro na API Gemini. Verifique sua chave.');
+      }
+    } catch (error) {
+      alert('❌ Erro ao testar a API Gemini.');
+    }
   };
 
   const expenseCategories = categories.filter(cat => 
@@ -262,122 +272,51 @@ const Settings: React.FC = () => {
             </div>
           </div>
 
-          {/* Configurações de IA */}
+          {/* Assistente IA - Gemini */}
           <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
             <div className="flex items-center gap-3 mb-6">
-              <div className="p-2 bg-purple-100 dark:bg-purple-900 rounded-lg">
-                <Bot className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+              <div className="p-2 bg-gradient-to-r from-blue-100 to-purple-100 dark:from-blue-900 dark:to-purple-900 rounded-lg">
+                <Brain className="w-5 h-5 text-purple-600 dark:text-purple-400" />
               </div>
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Inteligência Artificial</h3>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Assistente IA Financeiro</h3>
                 <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Configure APIs para análises inteligentes dos seus dados financeiros
+                  Configure a API do Gemini para análises inteligentes dos seus dados
                 </p>
               </div>
             </div>
 
-            {/* Habilitar IA */}
-            <div className="mb-6">
-              <div className="flex items-center justify-between">
+            <div className="space-y-4">
+              {/* Status da IA */}
+              <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 bg-green-100 dark:bg-green-900 rounded-lg">
-                    <Bot className="w-4 h-4 text-green-600 dark:text-green-400" />
-                  </div>
-                  <div>
-                    <h4 className="text-md font-semibold text-gray-900 dark:text-white">Habilitar IA</h4>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                      Ative para usar análises inteligentes
-                    </p>
-                  </div>
+                  <div className={`w-3 h-3 rounded-full ${tempGeminiKey ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {tempGeminiKey ? 'API Configurada' : 'API Não Configurada'}
+                  </span>
                 </div>
-                <button
-                  onClick={() => setTempAISettings(prev => ({ ...prev, enableAI: !prev.enableAI }))}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                    tempAISettings.enableAI ? 'bg-green-600' : 'bg-gray-200 dark:bg-gray-600'
-                  }`}
-                >
-                  <span
-                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                      tempAISettings.enableAI ? 'translate-x-6' : 'translate-x-1'
-                    }`}
-                  />
-                </button>
-              </div>
-            </div>
-
-            {/* Configurações de API */}
-            <div className="space-y-6">
-              {/* Grok API */}
-              <div className="border border-gray-200 dark:border-gray-600 rounded-lg p-4">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-black dark:bg-white rounded-lg flex items-center justify-center">
-                      <span className="text-white dark:text-black font-bold text-sm">X</span>
-                    </div>
-                    <div>
-                      <h4 className="font-semibold text-gray-900 dark:text-white">Grok API (X.AI)</h4>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">API da xAI para análises avançadas</p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => handleTestAPI('grok')}
-                    disabled={!tempAISettings.grokApiKey}
-                    className="px-3 py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-                  >
-                    Testar
-                  </button>
-                </div>
-                <div className="relative">
-                  <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
-                    <Key className="w-4 h-4 text-gray-400" />
-                  </div>
-                  <input
-                    type={showGrokKey ? 'text' : 'password'}
-                    value={tempAISettings.grokApiKey}
-                    onChange={(e) => setTempAISettings(prev => ({ ...prev, grokApiKey: e.target.value }))}
-                    className="w-full border border-gray-300 dark:border-gray-600 rounded-lg pl-10 pr-12 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500 dark:bg-gray-700 dark:text-white"
-                    placeholder="xai-..."
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowGrokKey(!showGrokKey)}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                  >
-                    {showGrokKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
+                {tempGeminiKey && (
+                  <span className="px-3 py-1 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-300 text-xs font-medium rounded-full">
+                    Ativo
+                  </span>
+                )}
               </div>
 
-              {/* Gemini API */}
-              <div className="border border-gray-200 dark:border-gray-600 rounded-lg p-4">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-                      <span className="text-white font-bold text-sm">G</span>
-                    </div>
-                    <div>
-                      <h4 className="font-semibold text-gray-900 dark:text-white">Gemini API (Google)</h4>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">API do Google para análises inteligentes</p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => handleTestAPI('gemini')}
-                    disabled={!tempAISettings.geminiApiKey}
-                    className="px-3 py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-                  >
-                    Testar
-                  </button>
-                </div>
+              {/* Campo da API Key */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Chave da API Gemini
+                </label>
                 <div className="relative">
                   <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
                     <Key className="w-4 h-4 text-gray-400" />
                   </div>
                   <input
                     type={showGeminiKey ? 'text' : 'password'}
-                    value={tempAISettings.geminiApiKey}
-                    onChange={(e) => setTempAISettings(prev => ({ ...prev, geminiApiKey: e.target.value }))}
-                    className="w-full border border-gray-300 dark:border-gray-600 rounded-lg pl-10 pr-12 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500 dark:bg-gray-700 dark:text-white"
-                    placeholder="AIza..."
+                    value={tempGeminiKey}
+                    onChange={(e) => setTempGeminiKey(e.target.value)}
+                    className="w-full border border-gray-300 dark:border-gray-600 rounded-lg pl-10 pr-12 py-3 focus:outline-none focus:ring-2 focus:ring-purple-500 dark:bg-gray-700 dark:text-white"
+                    placeholder="AIzaSy..."
                   />
                   <button
                     type="button"
@@ -387,54 +326,53 @@ const Settings: React.FC = () => {
                     {showGeminiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
-              </div>
-
-              {/* Provedor Preferido */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Provedor Preferido
-                </label>
-                <select
-                  value={tempAISettings.preferredProvider}
-                  onChange={(e) => setTempAISettings(prev => ({ ...prev, preferredProvider: e.target.value as 'grok' | 'gemini' }))}
-                  className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500 dark:bg-gray-700 dark:text-white"
-                >
-                  <option value="gemini">Gemini (Google) - Recomendado</option>
-                  <option value="grok">Grok (X.AI)</option>
-                </select>
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  Escolha qual API usar por padrão para análises
+                  Obtenha sua chave gratuita em <a href="https://makersuite.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">Google AI Studio</a>
                 </p>
               </div>
 
-              {/* Botão Salvar */}
-              <div className="flex justify-end">
+              {/* Botões de Ação */}
+              <div className="flex gap-3">
                 <button
-                  onClick={handleSaveAISettings}
-                  className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium"
+                  onClick={handleTestGeminiAPI}
+                  disabled={!tempGeminiKey}
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
                 >
-                  Salvar Configurações de IA
+                  Testar API
+                </button>
+                <button
+                  onClick={handleSaveGeminiKey}
+                  disabled={!tempGeminiKey}
+                  className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+                >
+                  Salvar Chave
                 </button>
               </div>
-            </div>
 
-            {/* Informações de Segurança */}
-            <div className="mt-6 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
-              <div className="flex items-start gap-2">
-                <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400 mt-0.5" />
-                <div>
-                  <h4 className="font-medium text-amber-900 dark:text-amber-300">Informações de Segurança</h4>
-                  <ul className="text-sm text-amber-800 dark:text-amber-400 mt-2 space-y-1">
-                    <li>• As chaves de API são armazenadas localmente no seu navegador</li>
-                    <li>• Seus dados financeiros são anonimizados antes de serem enviados para análise</li>
-                    <li>• Informações pessoais como descrições e locais não são compartilhadas</li>
-                    <li>• Você pode revogar o acesso a qualquer momento removendo as chaves</li>
-                  </ul>
+              {/* Info sobre recursos */}
+              <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                <div className="flex items-start gap-3">
+                  <Lightbulb className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5" />
+                  <div>
+                    <h4 className="text-sm font-medium text-blue-900 dark:text-blue-200 mb-1">
+                      Recursos do Assistente IA
+                    </h4>
+                    <ul className="text-xs text-blue-700 dark:text-blue-300 space-y-1">
+                      <li>• Análise detalhada de gastos e receitas</li>
+                      <li>• Identificação de padrões de consumo</li>
+                      <li>• Sugestões personalizadas de economia</li>
+                      <li>• Planejamento orçamentário inteligente</li>
+                    </ul>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
 
+        </div>
+
+        {/* Coluna Direita - Gerenciamento de Dados */}
+        <div className="space-y-6">
           {/* Importar/Exportar Dados */}
           <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
             <div className="flex items-center gap-3 mb-4">
@@ -633,7 +571,6 @@ const Settings: React.FC = () => {
           </div>
         </div>
       </div>
-
       {/* Modals */}
       {showCategoryForm && (
         <CategoryForm
