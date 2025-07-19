@@ -311,9 +311,9 @@ const DailyAccountSummary: React.FC = () => {
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
             <div className="overflow-x-auto max-h-[calc(100vh-280px)]">
               <table className="w-full">
-                <thead className="bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600 sticky top-32 z-20">
+                <thead className="bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600 sticky top-0 z-20">
                   <tr>
-                    <th className="text-left py-2 px-3 font-medium text-gray-900 dark:text-white sticky left-0 bg-gray-50 dark:bg-gray-700">
+                    <th className="text-left py-2 px-3 font-medium text-gray-900 dark:text-white sticky left-0 bg-gray-50 dark:bg-gray-700 z-30">
                       Data
                     </th>
                     {visibleAccounts.map(account => (
@@ -326,7 +326,7 @@ const DailyAccountSummary: React.FC = () => {
                     </th>
                   </tr>
                   <tr className="bg-gray-50 dark:bg-gray-700">
-                    <th className="py-1.5 px-3 sticky left-0 bg-gray-50 dark:bg-gray-700"></th>
+                    <th className="py-1.5 px-3 sticky left-0 bg-gray-50 dark:bg-gray-700 z-30"></th>
                     {visibleAccounts.map(account => (
                       <React.Fragment key={account.id}>
                         <th className="text-left py-1.5 px-2 text-xs font-medium text-gray-600 dark:text-gray-400">Entrada</th>
@@ -340,7 +340,7 @@ const DailyAccountSummary: React.FC = () => {
                 <tbody>
                   {dailySummaries.map((summary, index) => (
                     <tr key={summary.date} className={`border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors ${index === 0 ? 'bg-blue-25 dark:bg-blue-900/10' : ''}`}>
-                      <td className="py-1 px-3 font-medium text-gray-900 dark:text-white sticky left-0 bg-white dark:bg-gray-800">
+                      <td className="py-1 px-3 font-medium text-gray-900 dark:text-white sticky left-0 bg-white dark:bg-gray-800 z-10">
                         <div className="flex items-center gap-2">
                           <Calendar className="w-4 h-4 text-gray-400" />
                           {formatDate(summary.date)}
