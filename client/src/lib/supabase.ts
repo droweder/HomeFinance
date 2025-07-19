@@ -161,6 +161,41 @@ export interface Database {
           user_id?: string;
         };
       };
+      transfers: {
+        Row: {
+          id: string;
+          date: string;
+          amount: number;
+          from_account: string;
+          to_account: string;
+          description: string;
+          created_at: string;
+          updated_at: string;
+          user_id: string;
+        };
+        Insert: {
+          id?: string;
+          date: string;
+          amount: number;
+          from_account: string;
+          to_account: string;
+          description: string;
+          created_at?: string;
+          updated_at?: string;
+          user_id: string;
+        };
+        Update: {
+          id?: string;
+          date?: string;
+          amount?: number;
+          from_account?: string;
+          to_account?: string;
+          description?: string;
+          created_at?: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+      };
     };
   };
 }
