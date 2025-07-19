@@ -4,6 +4,7 @@ import { useSettings } from '../context/SettingsContext';
 import { useFinance } from '../context/FinanceContext';
 import { useFinanceCalculations } from '../hooks/useFinanceCalculations';
 import { useAIChatHistory } from '../hooks/useAIChatHistory';
+import { useToast } from './ui/toast';
 
 interface ChatMessage {
   id: string;
@@ -38,6 +39,7 @@ const FinancialAIChat: React.FC = () => {
     expensesByCategory,
     monthlyTrend 
   } = useFinanceCalculations();
+  const { showError, showSuccess } = useToast();
   
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
@@ -66,12 +68,12 @@ const FinancialAIChat: React.FC = () => {
   const buildFinancialContext = () => {
     const currentMonth = new Date().toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
     
-    // Dados básicos do mês atual
+    // Dados básicos do mês atual com verificação de segurança
     const basicData = {
-      totalExpenses: totalExpensesThisMonth,
-      totalIncome: totalIncomeThisMonth,
-      balance: balanceThisMonth,
-      upcomingExpenses: totalUpcomingExpenses,
+      totalExpenses: totalExpensesThisMonth || 0,
+      totalIncome: totalIncomeThisMonth || 0,
+      balance: balanceThisMonth || 0,
+      upcomingExpenses: totalUpcomingExpenses || 0,
     };
 
     // Top 10 categorias de despesas
@@ -80,40 +82,40 @@ const FinancialAIChat: React.FC = () => {
       .slice(0, 10)
       .map(([category, amount]) => ({
         category,
-        amount,
-        percentage: totalExpensesThisMonth > 0 ? (amount / totalExpensesThisMonth * 100).toFixed(1) : '0'
+        amount: amount || 0,
+        percentage: (totalExpensesThisMonth || 0) > 0 ? ((amount || 0) / (totalExpensesThisMonth || 1) * 100).toFixed(1) : '0'
       }));
 
     // Tendência dos últimos 6 meses
     const recentTrend = monthlyTrend.slice(-6);
 
-    // Estatísticas detalhadas
+    // Estatísticas detalhadas com verificação de segurança
     const stats = {
-      totalExpenseRecords: expenses.length,
-      totalIncomeRecords: income.length,
-      totalCategories: categories.length,
-      averageExpenseAmount: expenses.length > 0 ? (expenses.reduce((sum, exp) => sum + exp.amount, 0) / expenses.length) : 0,
-      averageIncomeAmount: income.length > 0 ? (income.reduce((sum, inc) => sum + inc.amount, 0) / income.length) : 0,
-      mostExpensiveTransaction: expenses.length > 0 ? Math.max(...expenses.map(e => e.amount)) : 0,
-      largestIncomeSource: income.length > 0 ? Math.max(...income.map(i => i.amount)) : 0,
-      creditCardExpenses: expenses.filter(e => e.isCreditCard).reduce((sum, e) => sum + e.amount, 0),
-      unpaidExpenses: expenses.filter(e => !e.paid).reduce((sum, e) => sum + e.amount, 0),
+      totalExpenseRecords: expenses?.length || 0,
+      totalIncomeRecords: income?.length || 0,
+      totalCategories: categories?.length || 0,
+      averageExpenseAmount: (expenses?.length || 0) > 0 ? (expenses.reduce((sum, exp) => sum + (exp.amount || 0), 0) / expenses.length) : 0,
+      averageIncomeAmount: (income?.length || 0) > 0 ? (income.reduce((sum, inc) => sum + (inc.amount || 0), 0) / income.length) : 0,
+      mostExpensiveTransaction: (expenses?.length || 0) > 0 ? Math.max(...expenses.map(e => e.amount || 0)) : 0,
+      largestIncomeSource: (income?.length || 0) > 0 ? Math.max(...income.map(i => i.amount || 0)) : 0,
+      creditCardExpenses: expenses?.filter(e => e.isCreditCard).reduce((sum, e) => sum + (e.amount || 0), 0) || 0,
+      unpaidExpenses: expenses?.filter(e => !e.paid).reduce((sum, e) => sum + (e.amount || 0), 0) || 0,
     };
 
     // Análise de padrões de gastos por dia da semana
-    const expensesByDayOfWeek = expenses.reduce((acc, expense) => {
+    const expensesByDayOfWeek = (expenses || []).reduce((acc, expense) => {
       const dayOfWeek = new Date(expense.date).getDay();
       const dayNames = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
       const dayName = dayNames[dayOfWeek];
-      acc[dayName] = (acc[dayName] || 0) + expense.amount;
+      acc[dayName] = (acc[dayName] || 0) + (expense.amount || 0);
       return acc;
     }, {} as Record<string, number>);
 
     // Análise de gastos por local (se disponível)
-    const expensesByLocation = expenses
+    const expensesByLocation = (expenses || [])
       .filter(e => e.location && e.location.trim() !== '')
       .reduce((acc, expense) => {
-        acc[expense.location!] = (acc[expense.location!] || 0) + expense.amount;
+        acc[expense.location!] = (acc[expense.location!] || 0) + (expense.amount || 0);
         return acc;
       }, {} as Record<string, number>);
 
@@ -334,13 +336,7 @@ Responda em português brasileiro:`;
     if (!customMessage) setInputMessage('');
 
     if (!isAIConfigured()) {
-      const errorMessage: ChatMessage = {
-        id: Date.now().toString(),
-        type: 'error',
-        content: '❌ Por favor, configure a API do Gemini nas configurações primeiro.',
-        timestamp: new Date(),
-      };
-      setMessages(prev => [...prev, errorMessage]);
+      showError('API não configurada', 'Configure sua chave Gemini nas configurações primeiro.');
       return;
     }
 
@@ -387,16 +383,12 @@ Responda em português brasileiro:`;
     } catch (error: any) {
       console.error('❌ Erro ao processar mensagem:', error);
       
-      // Remover mensagem de loading e adicionar mensagem de erro
-      setMessages(prev => {
-        const withoutLoading = prev.filter(msg => !msg.isLoading);
-        return [...withoutLoading, {
-          id: (Date.now() + 3).toString(),
-          type: 'error',
-          content: `❌ Erro ao processar sua solicitação: ${error.message}\n\nVerifique se sua chave da API Gemini está correta nas configurações.`,
-          timestamp: new Date(),
-        }];
-      });
+      // Remover mensagem de loading
+      setMessages(prev => prev.filter(msg => !msg.isLoading));
+      
+      // Exibir notificação toast elegante em vez de mensagem no chat
+      showError('Erro na IA', `${error.message}. Verifique sua chave API nas configurações.`);
+      
     } finally {
       setIsLoading(false);
     }
