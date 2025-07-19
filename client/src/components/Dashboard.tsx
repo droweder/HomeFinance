@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { TrendingUp, TrendingDown, DollarSign, AlertCircle, PieChart, BarChart3 } from 'lucide-react';
 import { useFinanceCalculations } from '../hooks/useFinanceCalculations';
 import { useSettings } from '../context/SettingsContext';
@@ -15,13 +15,40 @@ const Dashboard: React.FC = () => {
 
   const { formatCurrency, settings } = useSettings();
 
-  // Debug para verificar valores no Dashboard
-  console.log('📊 Dashboard Debug:', {
-    totalExpensesThisMonth,
-    totalIncomeThisMonth,
-    balanceThisMonth,
-    totalUpcomingExpenses
-  });
+  // Memoized calculations to prevent unnecessary recalculations
+  const categoryData = useMemo(() => {
+    console.log('🔄 Recalculating category data...');
+    
+    const data = Object.entries(expensesByCategory)
+      .filter(([category, amount]) => {
+        // Filtrar categorias com valores válidos
+        if (amount <= 0) {
+          console.warn('⚠️ Categoria filtrada (valor inválido):', { category, amount });
+          return false;
+        }
+        return true;
+      })
+      .map(([category, amount]) => ({
+        category,
+        amount,
+        percentage: totalExpensesThisMonth > 0 ? (amount / totalExpensesThisMonth) * 100 : 0,
+      }))
+      .sort((a, b) => b.amount - a.amount); // Ordenar por valor decrescente
+
+    console.log('✅ Category data calculated:', data.length, 'categories');
+    return data;
+  }, [expensesByCategory, totalExpensesThisMonth]);
+
+  // Debug only when values actually change
+  useMemo(() => {
+    console.log('📊 Dashboard Debug - Financial summary:', {
+      totalExpensesThisMonth,
+      totalIncomeThisMonth,
+      balanceThisMonth,
+      totalUpcomingExpenses,
+      categoriesCount: categoryData.length
+    });
+  }, [totalExpensesThisMonth, totalIncomeThisMonth, balanceThisMonth, totalUpcomingExpenses, categoryData.length]);
 
   const StatCard: React.FC<{
     title: string;
@@ -51,34 +78,6 @@ const Dashboard: React.FC = () => {
       )}
     </div>
   );
-
-  // Processar dados de categoria com validação e ordenação
-  const categoryData = Object.entries(expensesByCategory)
-    .filter(([category, amount]) => {
-      // Filtrar categorias com valores válidos
-      if (amount <= 0) {
-        console.warn('⚠️ Categoria filtrada (valor inválido):', { category, amount });
-        return false;
-      }
-      return true;
-    })
-    .map(([category, amount]) => ({
-      category,
-      amount,
-      percentage: totalExpensesThisMonth > 0 ? (amount / totalExpensesThisMonth) * 100 : 0,
-    }))
-    .sort((a, b) => b.amount - a.amount); // Ordenar por valor decrescente
-
-  console.log('📊 Dashboard Debug - Dados de categoria processados:', {
-    totalCategorias: categoryData.length,
-    categorias: categoryData.map(cat => ({ 
-      categoria: cat.category, 
-      valor: cat.amount, 
-      percentual: cat.percentage.toFixed(1) + '%' 
-    })),
-    somaTotal: categoryData.reduce((sum, cat) => sum + cat.amount, 0),
-    totalEsperado: totalExpensesThisMonth
-  });
 
   const labels = {
     title: settings.language === 'pt-BR' ? 'Dashboard' : 'Dashboard',

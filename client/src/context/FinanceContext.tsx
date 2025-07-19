@@ -85,7 +85,10 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
     },
   });
 
-  // Load data from Supabase when user is authenticated
+  // Track if data has been loaded to prevent unnecessary reloads
+  const [dataLoaded, setDataLoaded] = useState(false);
+
+  // Load data from Supabase when user is authenticated (only once per session)
   useEffect(() => {
     const fetchData = async () => {
       if (!currentUser) {
@@ -93,8 +96,16 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
         setExpenses([]);
         setIncome([]);
         setCategories([]);
+        setDataLoaded(false);
         setIsLoading(false);
         setLoadingError(null);
+        return;
+      }
+
+      // Avoid reloading if data is already loaded for this user
+      if (dataLoaded) {
+        console.log('ℹ️ Data already loaded, skipping fetch');
+        setIsLoading(false);
         return;
       }
 
@@ -157,7 +168,7 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
           installmentNumber: exp.installment_number,
           totalInstallments: exp.total_installments,
           installmentGroup: exp.installment_group,
-          dueDate: exp.due_date,
+          dueDate: exp.date, // Using date column instead of due_date
           isCreditCard: exp.is_credit_card,
           createdAt: exp.created_at,
         }));
@@ -194,6 +205,7 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
         }
 
         console.log('🎉 All financial data loaded successfully!');
+        setDataLoaded(true);
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
         console.error('❌ Critical error loading data:', error);
@@ -202,6 +214,7 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
         setExpenses([]);
         setIncome([]);
         setCategories([]);
+        setDataLoaded(false);
       } finally {
         setIsLoading(false);
       }
@@ -216,8 +229,20 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
       throw new Error('User not authenticated');
     }
 
+    // Optimistic update - add expense immediately with temp ID
+    const tempId = `temp-${Date.now()}`;
+    const optimisticExpense: Expense = {
+      id: tempId,
+      ...expense,
+      dueDate: expense.date, // Use date as dueDate
+      createdAt: new Date().toISOString(),
+    };
+
+    setExpenses(prev => [optimisticExpense, ...prev]);
+    console.log('⚡ Optimistic expense added');
+
     try {
-      console.log('💾 Adding expense to Supabase:', expense);
+      console.log('💾 Syncing expense to Supabase...');
       
       const { data, error } = await withSupabaseRetry(() =>
         supabase
@@ -234,7 +259,7 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
             installment_number: expense.installmentNumber || null,
             total_installments: expense.totalInstallments || null,
             installment_group: expense.installmentGroup || null,
-            due_date: expense.dueDate || null,
+            due_date: expense.date, // Use date field as due_date
             is_credit_card: expense.isCreditCard || false,
             user_id: currentUser.id,
           })
@@ -243,11 +268,14 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
       );
 
       if (error) {
-        console.error('❌ Error adding expense:', error);
+        console.error('❌ Error syncing expense:', error);
+        // Revert optimistic update on error
+        setExpenses(prev => prev.filter(exp => exp.id !== tempId));
         throw new Error(`Supabase error: ${error.message}`);
       }
 
-      const newExpense: Expense = {
+      // Replace temp expense with real data from database
+      const confirmedExpense: Expense = {
         id: data.id,
         date: data.date,
         category: data.category,
@@ -260,13 +288,13 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
         installmentNumber: data.installment_number,
         totalInstallments: data.total_installments,
         installmentGroup: data.installment_group,
-        dueDate: data.due_date,
+        dueDate: data.date, // Map date to dueDate for consistency
         isCreditCard: data.is_credit_card,
         createdAt: data.created_at,
       };
 
-      setExpenses(prev => [newExpense, ...prev]);
-      console.log('✅ Expense added successfully:', newExpense.id);
+      setExpenses(prev => prev.map(exp => exp.id === tempId ? confirmedExpense : exp));
+      console.log('✅ Expense synced successfully:', confirmedExpense.id);
     } catch (error) {
       console.error('❌ Error adding expense:', error);
       throw error;
@@ -279,8 +307,19 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
       throw new Error('User not authenticated');
     }
 
+    // Optimistic update - add income immediately with temp ID
+    const tempId = `temp-${Date.now()}`;
+    const optimisticIncome: Income = {
+      id: tempId,
+      ...income,
+      createdAt: new Date().toISOString(),
+    };
+
+    setIncome(prev => [optimisticIncome, ...prev]);
+    console.log('⚡ Optimistic income added');
+
     try {
-      console.log('💾 Adding income to Supabase:', income);
+      console.log('💾 Syncing income to Supabase...');
       
       const { data, error } = await withSupabaseRetry(() =>
         supabase
@@ -299,11 +338,14 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
       );
 
       if (error) {
-        console.error('❌ Error adding income:', error);
+        console.error('❌ Error syncing income:', error);
+        // Revert optimistic update on error
+        setIncome(prev => prev.filter(inc => inc.id !== tempId));
         throw new Error(`Supabase error: ${error.message}`);
       }
 
-      const newIncome: Income = {
+      // Replace temp income with real data from database
+      const confirmedIncome: Income = {
         id: data.id,
         date: data.date,
         source: data.source,
@@ -314,8 +356,8 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
         createdAt: data.created_at,
       };
 
-      setIncome(prev => [newIncome, ...prev]);
-      console.log('✅ Income added successfully:', newIncome.id);
+      setIncome(prev => prev.map(inc => inc.id === tempId ? confirmedIncome : inc));
+      console.log('✅ Income synced successfully:', confirmedIncome.id);
     } catch (error) {
       console.error('❌ Error adding income:', error);
       throw error;
@@ -366,6 +408,13 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
       return;
     }
 
+    // Optimistic update - update UI immediately
+    const previousExpenses = [...expenses];
+    setExpenses(prev => prev.map(expense => 
+      expense.id === id ? { ...expense, ...updatedExpense } : expense
+    ));
+    console.log('⚡ Optimistic expense update');
+
     try {
       const updateData: any = {};
       if (updatedExpense.date !== undefined) updateData.date = updatedExpense.date;
@@ -376,7 +425,7 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
       if (updatedExpense.location !== undefined) updateData.location = updatedExpense.location;
       if (updatedExpense.paid !== undefined) updateData.paid = updatedExpense.paid;
       if (updatedExpense.isCreditCard !== undefined) updateData.is_credit_card = updatedExpense.isCreditCard;
-      if (updatedExpense.dueDate !== undefined) updateData.due_date = updatedExpense.dueDate;
+      if (updatedExpense.dueDate !== undefined) updateData.due_date = updatedExpense.date || updatedExpense.dueDate;
 
       const { error } = await withSupabaseRetry(() =>
         supabase
@@ -387,16 +436,16 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
       );
 
       if (error) {
-        console.error('❌ Error updating expense:', error);
-        return;
+        console.error('❌ Error syncing expense update:', error);
+        // Revert optimistic update on error
+        setExpenses(previousExpenses);
+        throw new Error(`Update failed: ${error.message}`);
       }
 
-      setExpenses(prev => prev.map(expense => 
-        expense.id === id ? { ...expense, ...updatedExpense } : expense
-      ));
-      console.log('✅ Expense updated');
+      console.log('✅ Expense update synced');
     } catch (error) {
       console.error('❌ Error updating expense:', error);
+      throw error;
     }
   };
 
@@ -476,6 +525,12 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
       return;
     }
 
+    // Optimistic update - remove from UI immediately
+    const previousExpenses = [...expenses];
+    const expenseToDelete = expenses.find(exp => exp.id === id);
+    setExpenses(prev => prev.filter(expense => expense.id !== id));
+    console.log('⚡ Optimistic expense deletion');
+
     try {
       const { error } = await withSupabaseRetry(() =>
         supabase
@@ -486,14 +541,16 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
       );
 
       if (error) {
-        console.error('❌ Error deleting expense:', error);
-        return;
+        console.error('❌ Error syncing expense deletion:', error);
+        // Revert optimistic update on error
+        setExpenses(previousExpenses);
+        throw new Error(`Delete failed: ${error.message}`);
       }
 
-      setExpenses(prev => prev.filter(expense => expense.id !== id));
-      console.log('✅ Expense deleted');
+      console.log('✅ Expense deletion synced');
     } catch (error) {
       console.error('❌ Error deleting expense:', error);
+      throw error;
     }
   };
 

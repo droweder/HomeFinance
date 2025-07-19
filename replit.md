@@ -1,0 +1,115 @@
+# Personal Finance Management Application
+
+## Overview
+
+This is a full-stack personal finance management application built with React, Express, Drizzle ORM, and PostgreSQL. The application allows users to track expenses, income, categories, and accounts with features like installment management, AI financial insights, CSV import/export, and real-time synchronization with Supabase.
+
+## User Preferences
+
+Preferred communication style: Simple, everyday language.
+
+## System Architecture
+
+### Frontend Architecture
+- **Framework**: React 18 with TypeScript
+- **Build Tool**: Vite for fast development and optimized builds
+- **UI Library**: Radix UI components with Tailwind CSS for styling
+- **State Management**: React Context API for global state management
+- **Data Fetching**: TanStack React Query for server state management
+- **Styling**: Tailwind CSS with shadcn/ui component system
+
+### Backend Architecture
+- **Framework**: Express.js with TypeScript
+- **Database ORM**: Drizzle ORM for type-safe database operations
+- **Database**: PostgreSQL (configured for Neon serverless)
+- **Authentication**: Passport.js with local strategy and bcrypt for password hashing
+- **Session Management**: Express sessions with PostgreSQL storage
+
+### Database Schema
+The application uses PostgreSQL with the following main tables:
+- `users`: User accounts with email and hashed passwords
+- `expenses`: Expense tracking with installment support
+- `income`: Income tracking with source categorization
+- `categories`: User-defined categories for income/expenses
+- `accounts`: Financial accounts with initial balances
+
+## Key Components
+
+### Authentication System
+- Email/password authentication using Passport.js
+- Secure password hashing with bcrypt
+- Session-based authentication with persistent storage
+- User registration and login flows
+
+### Financial Data Management
+- **Expense Tracking**: Detailed expense records with categories, payment methods, locations, and installment support
+- **Income Tracking**: Income records with sources and account associations
+- **Category Management**: User-defined categories for both income and expenses
+- **Account Management**: Financial account tracking with balance calculations
+
+### Advanced Features
+- **Installment Management**: Support for tracking installment payments over time
+- **Credit Card Integration**: Special handling for credit card transactions
+- **AI Financial Assistant**: Integration with Gemini AI for financial insights and analysis
+- **CSV Import/Export**: Bulk data management capabilities
+- **Dark/Light Theme**: User preference-based theming
+
+## Data Flow
+
+### Frontend to Backend
+1. React components interact with Context providers
+2. Context providers make API calls to Express routes
+3. Express routes use Drizzle ORM to interact with PostgreSQL
+4. Results flow back through the same chain
+
+### Database Integration
+- Drizzle ORM handles all database operations with type safety
+- Connection pooling through Neon serverless PostgreSQL
+- Automatic migrations and schema management
+
+### External Synchronization
+- Supabase integration for real-time data synchronization
+- Offline capability with retry mechanisms
+- Connection status monitoring and error handling
+
+## External Dependencies
+
+### Core Dependencies
+- **@neondatabase/serverless**: PostgreSQL serverless connection
+- **@supabase/supabase-js**: Real-time data synchronization
+- **@tanstack/react-query**: Server state management
+- **drizzle-orm**: Type-safe database ORM
+- **bcryptjs**: Password hashing
+- **passport**: Authentication middleware
+
+### UI Dependencies
+- **@radix-ui/react-***: Accessible UI components
+- **tailwindcss**: Utility-first CSS framework
+- **class-variance-authority**: Component variant management
+- **cmdk**: Command palette component
+
+### Development Dependencies
+- **vite**: Build tool and development server
+- **typescript**: Type checking and compilation
+- **tsx**: TypeScript execution for Node.js
+
+## Deployment Strategy
+
+### Development Environment
+- Vite development server for frontend hot reloading
+- tsx for running TypeScript backend with hot reloading
+- Replit integration with runtime error overlay
+
+### Production Build
+1. Frontend built with Vite to static assets
+2. Backend compiled with esbuild to single JavaScript file
+3. Assets served by Express with proper routing
+4. Database migrations applied via Drizzle Kit
+
+### Environment Configuration
+- Database URL configuration for PostgreSQL connection
+- Session secret for authentication security
+- Supabase credentials for real-time synchronization
+- AI service API keys for financial insights
+
+The application follows a monorepo structure with shared TypeScript types between frontend and backend, ensuring type safety across the entire application stack. The architecture supports both development and production deployments with proper error handling, logging, and monitoring capabilities.

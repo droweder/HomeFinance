@@ -9,25 +9,15 @@ export const useFinanceCalculations = () => {
   const currentYear = new Date().getFullYear();
 
   const calculations = useMemo(() => {
-    console.log('🔍 Debug - Dados brutos:', {
+    console.log('🔄 Recalculating financial metrics...');
+    
+    // Only log basic stats to reduce console noise
+    const debugStats = {
       totalExpenses: expenses.length,
       totalIncome: income.length,
-      currentMonth,
-      currentYear,
-      expectedExpenses: 3530,
-      actualExpenses: expenses.length,
-      missingExpenses: expenses.length < 3530 ? 3530 - expenses.length : 0
-    });
-
-    // Log todas as despesas brutas para debug
-    console.log('📋 Debug - Todas as despesas:', expenses.map(exp => ({
-      id: exp.id,
-      date: exp.date,
-      dueDate: exp.dueDate,
-      category: exp.category,
-      amount: exp.amount,
-      description: exp.description
-    })));
+      currentMonth: `${currentYear}-${(currentMonth + 1).toString().padStart(2, '0')}`
+    };
+    console.log('📊 Financial data:', debugStats);
 
     // Current month calculations - usar dueDate se disponível, senão date
     const currentMonthExpenses = expenses.filter(expense => {
@@ -36,14 +26,7 @@ export const useFinanceCalculations = () => {
       const expenseDate = new Date(dateToUse);
       const isCurrentMonth = expenseDate.getMonth() === currentMonth && expenseDate.getFullYear() === currentYear;
       
-      if (isCurrentMonth) {
-        console.log('✅ Despesa do mês atual:', {
-          category: expense.category,
-          amount: expense.amount,
-          date: dateToUse,
-          description: expense.description
-        });
-      }
+      // Remove individual expense logging to reduce noise
       
       return isCurrentMonth;
     });
@@ -52,37 +35,28 @@ export const useFinanceCalculations = () => {
       const incomeDate = new Date(incomeItem.date);
       const isCurrentMonth = incomeDate.getMonth() === currentMonth && incomeDate.getFullYear() === currentYear;
       
-      if (isCurrentMonth) {
-        console.log('✅ Receita do mês atual:', {
-          source: incomeItem.source,
-          amount: incomeItem.amount,
-          date: incomeItem.date
-        });
-      }
+      // Remove individual income logging to reduce noise
       
       return isCurrentMonth;
     });
 
     const totalExpensesThisMonth = currentMonthExpenses.reduce((sum, expense) => {
-      const amount = expense.amount || 0;
-      console.log('💰 Somando despesa:', { category: expense.category, amount, runningTotal: sum + amount });
-      return sum + amount;
+      return sum + (expense.amount || 0);
     }, 0);
 
     const totalIncomeThisMonth = currentMonthIncome.reduce((sum, incomeItem) => {
-      const amount = incomeItem.amount || 0;
-      console.log('💰 Somando receita:', { source: incomeItem.source, amount, runningTotal: sum + amount });
-      return sum + amount;
+      return sum + (incomeItem.amount || 0);
     }, 0);
 
     const balanceThisMonth = totalIncomeThisMonth - totalExpensesThisMonth;
 
-    console.log('💰 Debug - Cálculos do mês atual:', {
-      despesasFiltradas: currentMonthExpenses.length,
-      receitasFiltradas: currentMonthIncome.length,
-      totalDespesas: totalExpensesThisMonth,
-      totalReceitas: totalIncomeThisMonth,
-      saldo: balanceThisMonth
+    // Log final summary only
+    console.log('📈 Monthly totals:', {
+      expenses: currentMonthExpenses.length,
+      income: currentMonthIncome.length,
+      totalExpenses: totalExpensesThisMonth,
+      totalIncome: totalIncomeThisMonth,
+      balance: balanceThisMonth
     });
 
     // Upcoming expenses (future dates from today)
@@ -98,51 +72,13 @@ export const useFinanceCalculations = () => {
     });
     const totalUpcomingExpenses = upcomingExpenses.reduce((sum, expense) => sum + (expense.amount || 0), 0);
 
-    // Category breakdown - MELHORADO para capturar todas as categorias
-    console.log('📊 Debug - Iniciando agregação por categoria...');
-    
+    // Category aggregation - optimized without excessive logging
     const expensesByCategory = currentMonthExpenses.reduce((acc, expense) => {
-      // Tratar categorias nulas ou indefinidas
       const category = expense.category || 'Sem Categoria';
       const amount = expense.amount || 0;
-      
-      console.log('📂 Processando categoria:', {
-        originalCategory: expense.category,
-        processedCategory: category,
-        amount: amount,
-        currentTotal: acc[category] || 0
-      });
-      
       acc[category] = (acc[category] || 0) + amount;
-      
-      console.log('📂 Categoria atualizada:', {
-        category: category,
-        newTotal: acc[category]
-      });
-      
       return acc;
     }, {} as Record<string, number>);
-
-    console.log('📊 Debug - Despesas por categoria (resultado final):', expensesByCategory);
-    
-    // Verificar se o total das categorias bate com o total geral
-    const totalFromCategories = Object.values(expensesByCategory).reduce((sum, amount) => sum + amount, 0);
-    console.log('🔍 Verificação de consistência:', {
-      totalGeralDespesas: totalExpensesThisMonth,
-      totalDasCategorias: totalFromCategories,
-      diferenca: Math.abs(totalExpensesThisMonth - totalFromCategories),
-      saoIguais: Math.abs(totalExpensesThisMonth - totalFromCategories) < 0.01
-    });
-
-    // Verificar se há categorias com valores zerados ou negativos
-    Object.entries(expensesByCategory).forEach(([category, amount]) => {
-      if (amount <= 0) {
-        console.warn('⚠️ Categoria com valor suspeito:', { category, amount });
-      }
-      if (amount > 100000) {
-        console.warn('⚠️ Categoria com valor muito alto:', { category, amount });
-      }
-    });
 
     // Monthly trend (last 6 months)
     const monthlyTrend: MonthlyData[] = [];
@@ -171,15 +107,10 @@ export const useFinanceCalculations = () => {
       });
     }
 
-    // Log final dos resultados
-    console.log('📈 Debug - Resultados finais:', {
-      totalExpensesThisMonth,
-      totalIncomeThisMonth,
-      balanceThisMonth,
-      totalUpcomingExpenses,
-      numeroDeCategoriasComDespesas: Object.keys(expensesByCategory).length,
-      categoriasEncontradas: Object.keys(expensesByCategory),
-      monthlyTrendLength: monthlyTrend.length
+    // Final summary (minimal logging)
+    console.log('✅ Calculations complete:', {
+      categories: Object.keys(expensesByCategory).length,
+      monthlyData: monthlyTrend.length
     });
 
     return {
