@@ -340,7 +340,7 @@ const DailyAccountSummary: React.FC = () => {
                 <tbody>
                   {dailySummaries.map((summary, index) => (
                     <tr key={summary.date} className={`border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors ${index === 0 ? 'bg-blue-25 dark:bg-blue-900/10' : ''}`}>
-                      <td className="py-1.5 px-3 font-medium text-gray-900 dark:text-white sticky left-0 bg-white dark:bg-gray-800">
+                      <td className="py-1 px-3 font-medium text-gray-900 dark:text-white sticky left-0 bg-white dark:bg-gray-800">
                         <div className="flex items-center gap-2">
                           <Calendar className="w-4 h-4 text-gray-400" />
                           {formatDate(summary.date)}
@@ -350,13 +350,13 @@ const DailyAccountSummary: React.FC = () => {
                         const accountData = summary.accounts[account.id];
                         return (
                           <React.Fragment key={account.id}>
-                            <td className="py-1.5 px-2 text-green-600 dark:text-green-400 text-sm">
+                            <td className="py-1 px-2 text-green-600 dark:text-green-400 text-sm">
                               {accountData?.dailyIncome > 0 ? formatCurrency(accountData.dailyIncome) : '-'}
                             </td>
-                            <td className="py-1.5 px-2 text-red-600 dark:text-red-400 text-sm">
+                            <td className="py-1 px-2 text-red-600 dark:text-red-400 text-sm">
                               {accountData?.dailyExpenses > 0 ? formatCurrency(accountData.dailyExpenses) : '-'}
                             </td>
-                            <td className={`py-1.5 px-2 font-medium text-sm ${
+                            <td className={`py-1 px-2 font-medium text-sm ${
                               (accountData?.finalBalance || 0) >= 0 
                                 ? 'text-green-600 dark:text-green-400' 
                                 : 'text-red-600 dark:text-red-400'
@@ -366,7 +366,7 @@ const DailyAccountSummary: React.FC = () => {
                           </React.Fragment>
                         );
                       })}
-                      <td className={`py-1.5 px-3 font-bold bg-blue-50 dark:bg-blue-900/20 ${
+                      <td className={`py-1 px-3 font-bold bg-blue-50 dark:bg-blue-900/20 ${
                         summary.totalDailyBalance >= 0 
                           ? 'text-green-600 dark:text-green-400' 
                           : 'text-red-600 dark:text-red-400'

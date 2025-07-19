@@ -30,9 +30,9 @@ const Dashboard: React.FC = () => {
                expense.isCreditCard;
       });
       
-      // Agrupar por conta
+      // Agrupar por método de pagamento (cartão de crédito)
       const accountTotals = monthExpenses.reduce((acc, expense) => {
-        const account = expense.account || 'Sem conta';
+        const account = expense.paymentMethod || 'Sem conta';
         acc[account] = (acc[account] || 0) + expense.amount;
         return acc;
       }, {});

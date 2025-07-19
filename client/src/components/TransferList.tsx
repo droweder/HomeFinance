@@ -181,7 +181,7 @@ const TransferList: React.FC = () => {
               <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
                 {sortedTransfers.map((transfer) => (
                   <tr key={transfer.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                    <td className="py-4 px-4">
+                    <td className="py-1 px-4">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900 rounded-lg flex items-center justify-center">
                           <Calendar className="w-4 h-4 text-blue-600 dark:text-blue-400" />
@@ -191,7 +191,7 @@ const TransferList: React.FC = () => {
                         </span>
                       </div>
                     </td>
-                    <td className="py-4 px-4">
+                    <td className="py-1 px-4">
                       <div className="flex items-center gap-2">
                         <DollarSign className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                         <span className="text-sm font-medium text-blue-600 dark:text-blue-400">
@@ -199,22 +199,22 @@ const TransferList: React.FC = () => {
                         </span>
                       </div>
                     </td>
-                    <td className="py-4 px-4">
+                    <td className="py-1 px-4">
                       <span className="text-sm text-gray-900 dark:text-white">
                         {getAccountName(transfer.fromAccount)}
                       </span>
                     </td>
-                    <td className="py-4 px-4">
+                    <td className="py-1 px-4">
                       <span className="text-sm text-gray-900 dark:text-white">
                         {getAccountName(transfer.toAccount)}
                       </span>
                     </td>
-                    <td className="py-4 px-4">
+                    <td className="py-1 px-4">
                       <span className="text-sm text-gray-600 dark:text-gray-400">
                         {transfer.description || '-'}
                       </span>
                     </td>
-                    <td className="py-4 px-4">
+                    <td className="py-1 px-4">
                       <div className="flex items-center justify-end gap-2">
                         <button
                           onClick={() => handleEdit(transfer)}

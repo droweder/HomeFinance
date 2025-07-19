@@ -162,4 +162,5 @@ The application follows a monorepo structure with shared TypeScript types betwee
 - ✅ **Daily Summary Integration**: Enhanced Daily Account Summary with integrated cards in the filter bar area
 - ✅ **Credit Card Monthly Details**: Enhanced Dashboard to show individual credit card values separated by month with percentage breakdown
 - ✅ **Sticky Headers**: Implemented proper sticky table headers in Daily Account Summary that remain visible when scrolling
-- ✅ **Table Optimization**: Increased visible rows in all tables (Expenses, Income, Daily Summary) with compact padding and dynamic heights
+- ✅ **Table Optimization**: Increased visible rows in all tables (Expenses, Income, Transfers, Daily Summary) with compact padding and dynamic heights
+- ✅ **Credit Card Analysis Fix**: Corrected Dashboard to use paymentMethod field instead of account for proper credit card categorization
