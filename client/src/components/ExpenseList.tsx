@@ -36,55 +36,86 @@ const ExpenseList: React.FC = () => {
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [tempFilters, setTempFilters] = useState(filters.expenses);
 
-  const filteredExpenses = expenses.filter(expense => {
-    const expenseFilters = filters.expenses;
-    
-    // Log para debug de filtros
-    console.log('🔍 Filtrando despesa:', {
-      id: expense.id,
-      category: expense.category,
-      date: expense.date,
-      dueDate: expense.dueDate,
-      dateToUse: expense.dueDate || expense.date,
-      filtros: expenseFilters
+  // Função para agrupar despesas por installment_group
+  const groupedExpenses = useMemo(() => {
+    if (!filters.expenses.groupInstallments) {
+      return expenses.filter(expense => {
+        const expenseFilters = filters.expenses;
+        
+        if (expenseFilters.category && expense.category !== expenseFilters.category) return false;
+        if (expenseFilters.account && expense.paymentMethod !== expenseFilters.account) return false;
+        
+        const dateToUse = expense.dueDate || expense.date;
+        if (expenseFilters.startDate && dateToUse < expenseFilters.startDate) return false;
+        if (expenseFilters.endDate && dateToUse > expenseFilters.endDate) return false;
+        if (expenseFilters.description && !expense.description?.toLowerCase().includes(expenseFilters.description.toLowerCase())) return false;
+        if (expenseFilters.location && !expense.location?.toLowerCase().includes(expenseFilters.location.toLowerCase())) return false;
+        
+        return true;
+      });
+    }
+
+    // Aplicar filtros básicos primeiro
+    const basicFilteredExpenses = expenses.filter(expense => {
+      const expenseFilters = filters.expenses;
+      
+      if (expenseFilters.category && expense.category !== expenseFilters.category) return false;
+      if (expenseFilters.account && expense.paymentMethod !== expenseFilters.account) return false;
+      
+      const dateToUse = expense.dueDate || expense.date;
+      if (expenseFilters.startDate && dateToUse < expenseFilters.startDate) return false;
+      if (expenseFilters.endDate && dateToUse > expenseFilters.endDate) return false;
+      if (expenseFilters.description && !expense.description?.toLowerCase().includes(expenseFilters.description.toLowerCase())) return false;
+      if (expenseFilters.location && !expense.location?.toLowerCase().includes(expenseFilters.location.toLowerCase())) return false;
+      
+      return true;
     });
+
+    // Agrupar despesas por installment_group
+    const groups = new Map<string, Expense[]>();
+    const standaloneExpenses: Expense[] = [];
+
+    basicFilteredExpenses.forEach(expense => {
+      if (expense.isInstallment && expense.installmentGroup) {
+        if (!groups.has(expense.installmentGroup)) {
+          groups.set(expense.installmentGroup, []);
+        }
+        groups.get(expense.installmentGroup)!.push(expense);
+      } else {
+        standaloneExpenses.push(expense);
+      }
+    });
+
+    // Criar despesas representativas para cada grupo
+    const groupRepresentatives: Expense[] = [];
     
-    if (expenseFilters.category && expense.category !== expenseFilters.category) return false;
-    if (expenseFilters.account && expense.paymentMethod !== expenseFilters.account) return false;
-    
-    // Debug de filtros de data
-    const dateToUse = expense.dueDate || expense.date;
-    if (expenseFilters.startDate) {
-      const passesStartDate = dateToUse >= expenseFilters.startDate;
-      console.log('📅 Filtro data inicial:', {
-        dateToUse,
-        startDate: expenseFilters.startDate,
-        passes: passesStartDate
-      });
-      if (!passesStartDate) return false;
-    }
-    
-    if (expenseFilters.endDate) {
-      const passesEndDate = dateToUse <= expenseFilters.endDate;
-      console.log('📅 Filtro data final:', {
-        dateToUse,
-        endDate: expenseFilters.endDate,
-        passes: passesEndDate
-      });
-      if (!passesEndDate) return false;
-    }
-    
-    if (expenseFilters.description && !expense.description?.toLowerCase().includes(expenseFilters.description.toLowerCase())) return false;
-    if (expenseFilters.location && !expense.location?.toLowerCase().includes(expenseFilters.location.toLowerCase())) return false;
-    
-    // Filtro de agrupamento de parcelas
-    if (expenseFilters.groupInstallments && expense.isInstallment) {
-      // Se o agrupamento está ativo, mostrar apenas a primeira parcela de cada grupo
-      return expense.installmentNumber === 1;
-    }
-    
-    return true;
-  });
+    groups.forEach((groupExpenses, groupId) => {
+      if (groupExpenses.length > 0) {
+        // Ordenar parcelas por número
+        groupExpenses.sort((a, b) => (a.installmentNumber || 0) - (b.installmentNumber || 0));
+        
+        // Usar a primeira parcela como representante, mas com dados consolidados
+        const representative = {
+          ...groupExpenses[0],
+          // Marcar como grupo para renderização especial
+          isGroupRepresentative: true,
+          groupedExpenses: groupExpenses,
+          // Calcular total do grupo
+          totalGroupAmount: groupExpenses.reduce((sum, exp) => sum + exp.amount, 0),
+          // Usar a data da primeira parcela
+          groupStartDate: groupExpenses[0].date,
+          // Usar a data da última parcela
+          groupEndDate: groupExpenses[groupExpenses.length - 1]?.dueDate || groupExpenses[groupExpenses.length - 1]?.date
+        };
+        
+        groupRepresentatives.push(representative);
+      }
+    });
+
+    return [...standaloneExpenses, ...groupRepresentatives];
+  }, [expenses, filters.expenses]);
+
+  const filteredExpenses = groupedExpenses;
 
   // Log do resultado da filtragem
   console.log('📊 Resultado da filtragem:', {
@@ -311,20 +342,44 @@ const ExpenseList: React.FC = () => {
                 </thead>
                 <tbody>
                   {sortedExpenses.map((expense) => (
-                    <tr key={expense.id} className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                    <tr key={expense.id} className={`border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors ${expense.isGroupRepresentative ? 'bg-blue-50 dark:bg-blue-900/20 border-l-4 border-l-blue-500' : ''}`}>
                       <td className="py-1.5 px-2">
-                        <span className="px-2 py-1 bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-300 rounded-full text-xs font-medium">
-                          {expense.category}
-                        </span>
+                        <div className="flex items-center gap-2">
+                          {expense.isGroupRepresentative && (
+                            <Package className="w-4 h-4 text-blue-600" />
+                          )}
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${expense.isGroupRepresentative 
+                            ? 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-300' 
+                            : 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-300'
+                          }`}>
+                            {expense.category}
+                          </span>
+                        </div>
                       </td>
                       <td className="py-1.5 px-2 text-sm text-gray-600 dark:text-gray-400">
                         {expense.location || '-'}
                       </td>
                       <td className="py-1.5 px-2 text-sm text-gray-600 dark:text-gray-400">
-                        {expense.description || '-'}
+                        <div>
+                          {expense.description || '-'}
+                          {expense.isGroupRepresentative && (
+                            <div className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                              📦 Grupo de {expense.groupedExpenses?.length} parcelas
+                            </div>
+                          )}
+                        </div>
                       </td>
                       <td className="py-1.5 px-2 text-sm font-medium text-gray-900 dark:text-white">
-                        {filters.expenses.groupInstallments && expense.isInstallment && expense.totalInstallments ? (
+                        {expense.isGroupRepresentative ? (
+                          <div>
+                            <div className="text-blue-600 dark:text-blue-400 font-bold">
+                              {formatCurrency(expense.totalGroupAmount || 0)}
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              Total de {expense.groupedExpenses?.length} parcelas
+                            </div>
+                          </div>
+                        ) : filters.expenses.groupInstallments && expense.isInstallment && expense.totalInstallments ? (
                           <div>
                             <div>{formatCurrency(expense.amount * expense.totalInstallments)}</div>
                             <div className="text-xs text-gray-500">
@@ -340,8 +395,13 @@ const ExpenseList: React.FC = () => {
                       </td>
                       <td className="py-1.5 px-2 text-sm">
                         {expense.isInstallment ? (
-                          <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-300 rounded-full text-xs">
-                            {filters.expenses.groupInstallments ? (
+                          <span className={`px-2 py-1 rounded-full text-xs ${expense.isGroupRepresentative 
+                            ? 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-300' 
+                            : 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-300'
+                          }`}>
+                            {expense.isGroupRepresentative ? (
+                              `${expense.totalInstallments}x (agrupado)`
+                            ) : filters.expenses.groupInstallments ? (
                               `${expense.totalInstallments}x`
                             ) : (
                               `${expense.installmentNumber}/${expense.totalInstallments}`
@@ -354,9 +414,16 @@ const ExpenseList: React.FC = () => {
                       <td className="py-1.5 px-2">
                         <div className="flex items-center gap-2">
                           <Calendar className="w-4 h-4 text-gray-400" />
-                          <span className="text-sm text-gray-600 dark:text-gray-400">
-                            {formatDate(expense.dueDate || expense.date)}
-                          </span>
+                          <div className="flex flex-col">
+                            <span className="text-sm text-gray-600 dark:text-gray-400">
+                              {formatDate(expense.dueDate || expense.date)}
+                            </span>
+                            {expense.isGroupRepresentative && expense.groupEndDate && (
+                              <span className="text-xs text-blue-600 dark:text-blue-400">
+                                até {formatDate(expense.groupEndDate)}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </td>
                       <td className="py-1.5 px-2">
@@ -364,12 +431,14 @@ const ExpenseList: React.FC = () => {
                           <button
                             onClick={() => handleEdit(expense)}
                             className="p-1.5 text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900 rounded-lg transition-colors"
+                            title={expense.isGroupRepresentative ? "Editar grupo de parcelas" : "Editar despesa"}
                           >
                             <Edit2 className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => handleDelete(expense.id)}
                             className="p-1.5 text-red-600 hover:bg-red-100 dark:hover:bg-red-900 rounded-lg transition-colors"
+                            title={expense.isGroupRepresentative ? "Excluir grupo de parcelas" : "Excluir despesa"}
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>

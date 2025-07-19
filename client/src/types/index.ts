@@ -14,6 +14,12 @@ export interface Expense {
   isCreditCard?: boolean;
   paid?: boolean;
   createdAt: string;
+  // Propriedades para agrupamento de parcelas
+  isGroupRepresentative?: boolean;
+  groupedExpenses?: Expense[];
+  totalGroupAmount?: number;
+  groupStartDate?: string;
+  groupEndDate?: string;
 }
 
 export interface Income {
