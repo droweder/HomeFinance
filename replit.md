@@ -154,3 +154,6 @@ The application follows a monorepo structure with shared TypeScript types betwee
 - ✅ **Compact Layout**: Integrated total cards into filter bar for Expenses and Income pages saving vertical space
 - ✅ **Dashboard Enhancements**: Added credit card analysis by month, unpaid expenses tracker, and biggest expense indicator
 - ✅ **Improved Metrics**: New dashboard layout with 7 key indicators including credit card spending visualization
+- ✅ **Period Labels**: Added time period references to all dashboard cards (current month, year, all periods)
+- ✅ **Credit Card Details**: Enhanced credit card analysis to show account names and amounts instead of transaction count
+- ✅ **Account Breakdown**: Credit card chart now displays spending by account with proper grouping and visual hierarchy

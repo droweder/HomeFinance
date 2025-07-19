@@ -30,14 +30,20 @@ const Dashboard: React.FC = () => {
                expense.isCreditCard;
       });
       
+      // Agrupar por conta
+      const accountTotals = monthExpenses.reduce((acc, expense) => {
+        const account = expense.account || 'Sem conta';
+        acc[account] = (acc[account] || 0) + expense.amount;
+        return acc;
+      }, {});
+      
       const total = monthExpenses.reduce((sum, expense) => sum + expense.amount, 0);
-      const count = monthExpenses.length;
       
       monthlyData.push({
         month: month + 1,
         monthName: new Date(currentYear, month).toLocaleDateString('pt-BR', { month: 'short' }),
         total,
-        count
+        accounts: accountTotals
       });
     }
     
@@ -122,12 +128,16 @@ const Dashboard: React.FC = () => {
     value: string;
     icon: React.ReactNode;
     trend?: 'up' | 'down' | 'neutral';
+    period?: string;
     className?: string;
-  }> = ({ title, value, icon, trend, className = '' }) => (
+  }> = ({ title, value, icon, trend, period, className = '' }) => (
     <div className={`bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700 ${className}`}>
       <div className="flex items-center justify-between">
         <div>
           <p className="text-sm font-medium text-gray-600 dark:text-gray-400">{title}</p>
+          {period && (
+            <p className="text-xs text-gray-500 dark:text-gray-500 mb-1">{period}</p>
+          )}
           <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{value}</p>
         </div>
         <div className="p-3 bg-blue-50 dark:bg-blue-900 rounded-lg">
@@ -146,6 +156,9 @@ const Dashboard: React.FC = () => {
     </div>
   );
 
+  const currentMonthName = new Date().toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+  const currentYear = new Date().getFullYear();
+
   const labels = {
     title: settings.language === 'pt-BR' ? 'Dashboard' : 'Dashboard',
     subtitle: settings.language === 'pt-BR' ? 'Visão geral da sua atividade financeira' : 'Overview of your financial activity',
@@ -161,6 +174,9 @@ const Dashboard: React.FC = () => {
     monthlyTrend: settings.language === 'pt-BR' ? 'Tendência Mensal' : 'Monthly Trend',
     income: settings.language === 'pt-BR' ? 'Receitas' : 'Income',
     expenses: settings.language === 'pt-BR' ? 'Despesas' : 'Expenses',
+    monthPeriod: currentMonthName,
+    yearPeriod: `Ano ${currentYear}`,
+    allTimePeriod: 'Todos os períodos',
     alertMessage: settings.language === 'pt-BR' ? 
       `Suas despesas excedem suas receitas este mês em ${formatCurrency(Math.abs(balanceThisMonth))}` :
       `Your expenses exceed your income this month by ${formatCurrency(Math.abs(balanceThisMonth))}`,
@@ -183,24 +199,28 @@ const Dashboard: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             <StatCard
               title={labels.totalIncome}
+              period={labels.monthPeriod}
               value={formatCurrency(totalIncomeThisMonth)}
               icon={<TrendingUp className="w-6 h-6 text-green-600" />}
               trend="up"
             />
             <StatCard
               title={labels.totalExpenses}
+              period={labels.monthPeriod}
               value={formatCurrency(totalExpensesThisMonth)}
               icon={<TrendingDown className="w-6 h-6 text-red-600" />}
               trend="down"
             />
             <StatCard
               title={labels.balance}
+              period={labels.monthPeriod}
               value={formatCurrency(balanceThisMonth)}
               icon={<DollarSign className="w-6 h-6 text-blue-600" />}
               className={balanceThisMonth < 0 ? 'border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/20' : ''}
             />
             <StatCard
               title={labels.creditCardMonth}
+              period={labels.monthPeriod}
               value={formatCurrency(additionalMetrics.creditCardThisMonth)}
               icon={<CreditCard className="w-6 h-6 text-purple-600" />}
             />
@@ -210,17 +230,20 @@ const Dashboard: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
             <StatCard
               title={labels.upcomingExpenses}
+              period="Próximas datas"
               value={formatCurrency(totalUpcomingExpenses)}
               icon={<Calendar className="w-6 h-6 text-amber-600" />}
             />
             <StatCard
               title={labels.unpaidExpenses}
+              period={labels.allTimePeriod}
               value={formatCurrency(additionalMetrics.unpaidExpenses)}
               icon={<AlertCircle className="w-6 h-6 text-orange-600" />}
               className={additionalMetrics.unpaidExpenses > 0 ? 'border-orange-200 bg-orange-50 dark:border-orange-800 dark:bg-orange-900/20' : ''}
             />
             <StatCard
               title={labels.biggestExpense}
+              period={labels.monthPeriod}
               value={formatCurrency(additionalMetrics.biggestExpense)}
               icon={<Target className="w-6 h-6 text-red-600" />}
             />
@@ -252,20 +275,33 @@ const Dashboard: React.FC = () => {
                 </div>
                 
                 {creditCardAnalysis.map((month) => (
-                  <div key={month.month} className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-purple-100 dark:bg-purple-900 rounded flex items-center justify-center">
-                        <span className="text-xs font-medium text-purple-600 dark:text-purple-400">
-                          {month.monthName}
+                  <div key={month.month} className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-purple-100 dark:bg-purple-900 rounded flex items-center justify-center">
+                          <span className="text-xs font-medium text-purple-600 dark:text-purple-400">
+                            {month.monthName}
+                          </span>
+                        </div>
+                        <span className="text-sm font-medium text-gray-900 dark:text-white">
+                          {formatCurrency(month.total)}
                         </span>
                       </div>
-                      <span className="text-sm text-gray-600 dark:text-gray-400">
-                        {month.count} transações
-                      </span>
                     </div>
-                    <span className="font-medium text-gray-900 dark:text-white">
-                      {formatCurrency(month.total)}
-                    </span>
+                    {Object.keys(month.accounts).length > 0 && (
+                      <div className="ml-11 space-y-1">
+                        {Object.entries(month.accounts).map(([account, amount]) => (
+                          <div key={account} className="flex items-center justify-between text-xs">
+                            <span className="text-gray-600 dark:text-gray-400 truncate pr-2">
+                              {account}
+                            </span>
+                            <span className="text-purple-600 dark:text-purple-400 font-medium">
+                              {formatCurrency(amount as number)}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
