@@ -77,27 +77,27 @@ const FinancialAIChat: React.FC = () => {
     };
 
     // Top 10 categorias de despesas
-    const topCategories = Object.entries(expensesByCategory)
-      .sort(([,a], [,b]) => b - a)
+    const topCategories = Object.entries(expensesByCategory || {})
+      .sort(([,a], [,b]) => (b || 0) - (a || 0))
       .slice(0, 10)
       .map(([category, amount]) => ({
         category,
-        amount: amount || 0,
-        percentage: (totalExpensesThisMonth || 0) > 0 ? ((amount || 0) / (totalExpensesThisMonth || 1) * 100).toFixed(1) : '0'
+        amount: Number(amount || 0),
+        percentage: (totalExpensesThisMonth || 0) > 0 ? (((amount || 0) / (totalExpensesThisMonth || 1)) * 100).toFixed(1) : '0.0'
       }));
 
     // Tendência dos últimos 6 meses
-    const recentTrend = monthlyTrend.slice(-6);
+    const recentTrend = (monthlyTrend || []).slice(-6);
 
     // Estatísticas detalhadas com verificação de segurança
     const stats = {
       totalExpenseRecords: expenses?.length || 0,
       totalIncomeRecords: income?.length || 0,
       totalCategories: categories?.length || 0,
-      averageExpenseAmount: (expenses?.length || 0) > 0 ? (expenses.reduce((sum, exp) => sum + (exp.amount || 0), 0) / expenses.length) : 0,
-      averageIncomeAmount: (income?.length || 0) > 0 ? (income.reduce((sum, inc) => sum + (inc.amount || 0), 0) / income.length) : 0,
-      mostExpensiveTransaction: (expenses?.length || 0) > 0 ? Math.max(...expenses.map(e => e.amount || 0)) : 0,
-      largestIncomeSource: (income?.length || 0) > 0 ? Math.max(...income.map(i => i.amount || 0)) : 0,
+      averageExpenseAmount: (expenses?.length || 0) > 0 ? Number((expenses.reduce((sum, exp) => sum + (exp.amount || 0), 0) / expenses.length).toFixed(2)) : 0,
+      averageIncomeAmount: (income?.length || 0) > 0 ? Number((income.reduce((sum, inc) => sum + (inc.amount || 0), 0) / income.length).toFixed(2)) : 0,
+      mostExpensiveTransaction: (expenses?.length || 0) > 0 ? Math.max(...expenses.map(e => Number(e.amount || 0))) : 0,
+      largestIncomeSource: (income?.length || 0) > 0 ? Math.max(...income.map(i => Number(i.amount || 0))) : 0,
       creditCardExpenses: expenses?.filter(e => e.isCreditCard).reduce((sum, e) => sum + (e.amount || 0), 0) || 0,
       unpaidExpenses: expenses?.filter(e => !e.paid).reduce((sum, e) => sum + (e.amount || 0), 0) || 0,
     };
@@ -142,40 +142,40 @@ const FinancialAIChat: React.FC = () => {
 DADOS FINANCEIROS COMPLETOS DO USUÁRIO (${context.currentMonth}):
 
 📊 RESUMO MENSAL ATUAL:
-- Receitas: R$ ${context.basicData.totalIncome.toFixed(2)}
-- Despesas: R$ ${context.basicData.totalExpenses.toFixed(2)}
-- Saldo: R$ ${context.basicData.balance.toFixed(2)}
-- Despesas Futuras/Pendentes: R$ ${context.basicData.upcomingExpenses.toFixed(2)}
+- Receitas: R$ ${Number(context.basicData.totalIncome || 0).toFixed(2)}
+- Despesas: R$ ${Number(context.basicData.totalExpenses || 0).toFixed(2)}
+- Saldo: R$ ${Number(context.basicData.balance || 0).toFixed(2)}
+- Despesas Futuras/Pendentes: R$ ${Number(context.basicData.upcomingExpenses || 0).toFixed(2)}
 
 📈 ESTATÍSTICAS GERAIS:
 - Total de Transações de Despesas: ${context.stats.totalExpenseRecords}
 - Total de Transações de Receitas: ${context.stats.totalIncomeRecords}
 - Categorias Ativas: ${context.stats.totalCategories}
-- Gasto Médio por Transação: R$ ${context.stats.averageExpenseAmount.toFixed(2)}
-- Receita Média por Transação: R$ ${context.stats.averageIncomeAmount.toFixed(2)}
-- Maior Despesa Individual: R$ ${context.stats.mostExpensiveTransaction.toFixed(2)}
-- Maior Receita Individual: R$ ${context.stats.largestIncomeSource.toFixed(2)}
-- Gastos no Cartão de Crédito: R$ ${context.stats.creditCardExpenses.toFixed(2)}
-- Despesas Não Pagas: R$ ${context.stats.unpaidExpenses.toFixed(2)}
+- Gasto Médio por Transação: R$ ${Number(context.stats.averageExpenseAmount || 0).toFixed(2)}
+- Receita Média por Transação: R$ ${Number(context.stats.averageIncomeAmount || 0).toFixed(2)}
+- Maior Despesa Individual: R$ ${Number(context.stats.mostExpensiveTransaction || 0).toFixed(2)}
+- Maior Receita Individual: R$ ${Number(context.stats.largestIncomeSource || 0).toFixed(2)}
+- Gastos no Cartão de Crédito: R$ ${Number(context.stats.creditCardExpenses || 0).toFixed(2)}
+- Despesas Não Pagas: R$ ${Number(context.stats.unpaidExpenses || 0).toFixed(2)}
 
 🏆 TOP 10 CATEGORIAS DE DESPESAS:
 ${context.topCategories.map((cat, i) => 
-  `${i + 1}. ${cat.category}: R$ ${cat.amount.toFixed(2)} (${cat.percentage}%)`
+  `${i + 1}. ${cat.category}: R$ ${Number(cat.amount || 0).toFixed(2)} (${cat.percentage}%)`
 ).join('\n')}
 
 📅 PADRÃO DE GASTOS POR DIA DA SEMANA:
-${Object.entries(context.expensesByDayOfWeek).map(([day, amount]) => 
-  `${day}: R$ ${amount.toFixed(2)}`
+${Object.entries(context.expensesByDayOfWeek || {}).map(([day, amount]) => 
+  `${day}: R$ ${Number(amount || 0).toFixed(2)}`
 ).join('\n')}
 
 🏪 TOP 5 LOCAIS DE MAIOR GASTO:
-${context.topLocations.map(([location, amount], i) => 
-  `${i + 1}. ${location}: R$ ${amount.toFixed(2)}`
+${(context.topLocations || []).map(([location, amount], i) => 
+  `${i + 1}. ${location}: R$ ${Number(amount || 0).toFixed(2)}`
 ).join('\n')}
 
 📊 TENDÊNCIA DOS ÚLTIMOS 6 MESES:
 ${context.recentTrend.map(month => 
-  `${month.month}: Receitas R$ ${month.income.toFixed(2)} | Despesas R$ ${month.expenses.toFixed(2)} | Saldo R$ ${(month.income - month.expenses).toFixed(2)}`
+  `${month.month}: Receitas R$ ${Number(month.income || 0).toFixed(2)} | Despesas R$ ${Number(month.expenses || 0).toFixed(2)} | Saldo R$ ${Number((month.income || 0) - (month.expenses || 0)).toFixed(2)}`
 ).join('\n')}
 
 PERGUNTA DO USUÁRIO: ${userQuestion}
@@ -336,7 +336,7 @@ Responda em português brasileiro:`;
     if (!customMessage) setInputMessage('');
 
     if (!isAIConfigured()) {
-      showError('API não configurada', 'Configure sua chave Gemini nas configurações primeiro.');
+      showError('Configure sua chave Gemini nas configurações primeiro.');
       return;
     }
 
@@ -387,7 +387,7 @@ Responda em português brasileiro:`;
       setMessages(prev => prev.filter(msg => !msg.isLoading));
       
       // Exibir notificação toast elegante em vez de mensagem no chat
-      showError('Erro na IA', `${error.message}. Verifique sua chave API nas configurações.`);
+      showError(`${error.message}. Verifique sua chave API nas configurações.`);
       
     } finally {
       setIsLoading(false);
