@@ -97,38 +97,53 @@ const TransferList: React.FC = () => {
     return account ? account.name : 'Conta não encontrada';
   };
 
-  return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Transferências</h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            {sortedTransfers.length} transferência(s) {filteredTransfers.length !== transfers.length && `de ${transfers.length} total`}
-          </p>
-        </div>
-        
-        <div className="flex gap-3">
-          <button
-            onClick={() => setShowFilterModal(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-          >
-            <Filter size={20} />
-            Filtros
-          </button>
-          <button
-            onClick={() => setShowForm(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            <Plus size={20} />
-            Adicionar Transferência
-          </button>
-        </div>
-      </div>
+  // Calcular total transferido
+  const totalTransferred = sortedTransfers.reduce((sum, transfer) => sum + transfer.amount, 0);
 
-      {/* Lista de Transferências */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
-        {sortedTransfers.length === 0 ? (
+  return (
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Fixed Header */}
+        <div className="fixed top-16 left-0 right-0 z-30 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
+          <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Transferências</h1>
+                <p className="text-gray-600 dark:text-gray-400 mt-2">Gerencie suas transferências entre contas</p>
+              </div>
+              <div className="flex items-center gap-3">
+                {/* Total integrado na barra superior */}
+                <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                  <DollarSign className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                  <div>
+                    <span className="text-xs text-blue-600 dark:text-blue-400 font-medium">Total Transferido: </span>
+                    <span className="text-sm font-bold text-blue-700 dark:text-blue-300">{formatCurrency(totalTransferred)}</span>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowFilterModal(true)}
+                  className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-2"
+                >
+                  <Filter className="w-4 h-4" />
+                  Filtros
+                </button>
+                <button
+                  onClick={() => setShowForm(true)}
+                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+                >
+                  <Plus className="w-4 h-4" />
+                  Adicionar Transferência
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Content with top margin to account for fixed header */}
+        <div className="pt-32">
+          {/* Lista de Transferências */}
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
+            {sortedTransfers.length === 0 ? (
           <div className="p-12 text-center">
             <div className="mx-auto w-24 h-24 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mb-4">
               <ArrowRightLeft className="w-12 h-12 text-gray-400" />
@@ -220,9 +235,11 @@ const TransferList: React.FC = () => {
                   </tr>
                 ))}
               </tbody>
-            </table>
+              </table>
+            </div>
+          )}
           </div>
-        )}
+        </div>
       </div>
 
       {/* Modal de Filtros */}

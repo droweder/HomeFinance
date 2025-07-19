@@ -256,14 +256,35 @@ const DailyAccountSummary: React.FC = () => {
                 <p className="text-gray-600 dark:text-gray-400 mt-2">Visão geral diária do movimento financeiro por conta</p>
               </div>
               
-              {/* Botão de Filtros */}
-              <div className="flex items-center gap-4">
+              {/* Cards integrados na barra superior */}
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                  <DollarSign className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                  <div>
+                    <span className="text-xs text-blue-600 dark:text-blue-400 font-medium">Contas: </span>
+                    <span className="text-sm font-bold text-blue-700 dark:text-blue-300">{accounts.length}</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 px-3 py-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+                  <TrendingUp className="w-4 h-4 text-green-600 dark:text-green-400" />
+                  <div>
+                    <span className="text-xs text-green-600 dark:text-green-400 font-medium">Saldo Total: </span>
+                    <span className="text-sm font-bold text-green-700 dark:text-green-300">{formatCurrency(dailySummaries[0]?.totalDailyBalance || 0)}</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 px-3 py-2 bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg">
+                  <Calendar className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                  <div>
+                    <span className="text-xs text-purple-600 dark:text-purple-400 font-medium">Período: </span>
+                    <span className="text-sm font-bold text-purple-700 dark:text-purple-300">{dailySummaries.length} dias</span>
+                  </div>
+                </div>
                 <button
                   onClick={handleOpenFilterModal}
-                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+                  className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-2"
                 >
                   <Filter className="w-4 h-4" />
-                  Filtros
+                  Período
                 </button>
               </div>
             </div>
@@ -284,46 +305,7 @@ const DailyAccountSummary: React.FC = () => {
             </div>
           )}
 
-          {/* Resumo Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total de Contas</p>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">{accounts.length}</p>
-                </div>
-                <div className="p-3 bg-blue-50 dark:bg-blue-900 rounded-lg">
-                  <DollarSign className="w-6 h-6 text-blue-600 dark:text-blue-400" />
-                </div>
-              </div>
-            </div>
 
-            <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Saldo Total Atual</p>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                    {formatCurrency(dailySummaries[0]?.totalDailyBalance || 0)}
-                  </p>
-                </div>
-                <div className="p-3 bg-green-50 dark:bg-green-900 rounded-lg">
-                  <TrendingUp className="w-6 h-6 text-green-600 dark:text-green-400" />
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Período</p>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">{dailySummaries.length} dias</p>
-                </div>
-                <div className="p-3 bg-purple-50 dark:bg-purple-900 rounded-lg">
-                  <Calendar className="w-6 h-6 text-purple-600 dark:text-purple-400" />
-                </div>
-              </div>
-            </div>
-          </div>
 
           {/* Tabela de Resumo Diário */}
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">

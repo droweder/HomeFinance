@@ -14,7 +14,7 @@ const Dashboard: React.FC = () => {
     monthlyTrend,
   } = useFinanceCalculations();
 
-  const { expenses } = useFinance();
+  const { expenses, income } = useFinance();
   const { formatCurrency, settings } = useSettings();
 
   // Cálculos de cartão de crédito por mês
@@ -65,10 +65,10 @@ const Dashboard: React.FC = () => {
       })
       .reduce((sum, expense) => sum + expense.amount, 0);
     
-    // Despesas não pagas
-    const unpaidExpenses = expenses
-      .filter(expense => !expense.paid)
-      .reduce((sum, expense) => sum + expense.amount, 0);
+    // Receitas futuras
+    const futureIncome = income
+      .filter(inc => new Date(inc.date) > new Date())
+      .reduce((sum, inc) => sum + inc.amount, 0);
     
     // Maior gasto individual do mês
     const monthlyExpenses = expenses.filter(expense => {
@@ -82,7 +82,7 @@ const Dashboard: React.FC = () => {
     
     return {
       creditCardThisMonth,
-      unpaidExpenses,
+      futureIncome,
       biggestExpense,
       totalCreditCardYear: creditCardAnalysis.reduce((sum, month) => sum + month.total, 0)
     };
@@ -167,7 +167,7 @@ const Dashboard: React.FC = () => {
     balance: settings.language === 'pt-BR' ? 'Saldo' : 'Balance',
     upcomingExpenses: settings.language === 'pt-BR' ? 'Despesas Futuras' : 'Upcoming Expenses',
     creditCardMonth: settings.language === 'pt-BR' ? 'Cartão de Crédito' : 'Credit Card',
-    unpaidExpenses: settings.language === 'pt-BR' ? 'Despesas Não Pagas' : 'Unpaid Expenses',
+    futureIncome: settings.language === 'pt-BR' ? 'Receitas Futuras' : 'Future Income',
     biggestExpense: settings.language === 'pt-BR' ? 'Maior Gasto' : 'Biggest Expense',
     expensesByCategory: settings.language === 'pt-BR' ? 'Despesas por Categoria' : 'Expenses by Category',
     creditCardAnalysis: settings.language === 'pt-BR' ? 'Cartão de Crédito por Mês' : 'Credit Card by Month',
@@ -235,11 +235,11 @@ const Dashboard: React.FC = () => {
               icon={<Calendar className="w-6 h-6 text-amber-600" />}
             />
             <StatCard
-              title={labels.unpaidExpenses}
-              period={labels.allTimePeriod}
-              value={formatCurrency(additionalMetrics.unpaidExpenses)}
-              icon={<AlertCircle className="w-6 h-6 text-orange-600" />}
-              className={additionalMetrics.unpaidExpenses > 0 ? 'border-orange-200 bg-orange-50 dark:border-orange-800 dark:bg-orange-900/20' : ''}
+              title={labels.futureIncome}
+              period="Próximas datas"
+              value={formatCurrency(additionalMetrics.futureIncome)}
+              icon={<TrendingUp className="w-6 h-6 text-green-600" />}
+              className={additionalMetrics.futureIncome > 0 ? 'border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/20' : ''}
             />
             <StatCard
               title={labels.biggestExpense}
