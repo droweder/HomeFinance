@@ -3,12 +3,6 @@ import { supabase } from '../lib/supabase';
 import { User } from '../types';
 import { withAuthRetry } from '../utils/supabaseRetry';
 
-// Module-level flags to prevent excessive API calls
-let hasCheckedSession = false;
-let isCheckingSession = false;
-let sessionCheckPromise: Promise<void> | null = null;
-let hasInitialSessionChecked = false;
-
 interface AuthContextType {
   currentUser: User | null;
   login: (email: string, password: string) => Promise<boolean>;
@@ -37,113 +31,75 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [authToken, setAuthToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
-  const [lastTokenRefresh, setLastTokenRefresh] = useState<number>(0);
 
-  // Verificar sessão existente ao carregar
+  // Check existing session on load
   useEffect(() => {
     const checkSession = async () => {
-      // Return early if we've already checked the session initially
-      if (hasInitialSessionChecked) {
-        setIsLoading(false);
-        return;
-      }
-      
-      // Prevent multiple simultaneous session checks
-      if (isCheckingSession) {
-        console.log('🔄 Sessão já verificada ou em verificação, pulando');
-        setIsLoading(false);
-        return;
-      }
-      
-      // If there's already a session check in progress, wait for it
-      if (sessionCheckPromise) {
-        await sessionCheckPromise;
-        setIsLoading(false);
-        return;
-      }
-      
-      isCheckingSession = true;
-      sessionCheckPromise = (async () => {
-        try {
-          console.log('🔍 Verificando sessão existente...');
-          setAuthError(null);
+      try {
+        console.log('🔍 Verificando sessão existente...');
+        setAuthError(null);
+        
+        const { data: { session }, error } = await withAuthRetry(() => 
+          supabase.auth.getSession()
+        );
+        
+        if (session && session.user && !error) {
+          console.log('✅ Sessão encontrada para usuário:', session.user.email);
+          const user: User = {
+            id: session.user.id,
+            username: session.user.email || '',
+            password: '',
+            isAdmin: session.user.email === 'droweder@gmail.com',
+            createdAt: session.user.created_at || new Date().toISOString(),
+          };
           
-          const { data: { session }, error } = await withAuthRetry(() => 
-            supabase.auth.getSession()
-          );
-          
-          if (session && session.user && !error) {
-            console.log('✅ Sessão encontrada para usuário:', session.user.email);
-            const user: User = {
-              id: session.user.id,
-              username: session.user.email || '',
-              password: '', // Não armazenamos senha
-              isAdmin: session.user.email === 'droweder@gmail.com',
-              createdAt: session.user.created_at || new Date().toISOString(),
-            };
-            
-            setCurrentUser(user);
-            setAuthToken(session.access_token);
-            setLastTokenRefresh(Date.now());
-            console.log('✅ Usuário autenticado automaticamente');
-          } else {
-            console.log('ℹ️ Nenhuma sessão ativa - usuário precisa fazer login');
-            if (error) {
-              console.error('❌ Erro ao verificar sessão:', error);
-              setAuthError(`Erro de sessão: ${error.message}`);
-            }
+          setCurrentUser(user);
+          setAuthToken(session.access_token);
+          console.log('✅ Usuário autenticado automaticamente');
+        } else {
+          console.log('ℹ️ Nenhuma sessão ativa - usuário precisa fazer login');
+          if (error) {
+            console.error('❌ Erro ao verificar sessão:', error);
+            setAuthError(`Erro de sessão: ${error.message}`);
           }
-        } catch (error) {
-          setAuthError(`Erro de conexão: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
-          console.error('❌ Erro ao verificar sessão:', error);
-        } finally {
-          isCheckingSession = false;
-          sessionCheckPromise = null;
-          hasInitialSessionChecked = true;
         }
-      })();
-      
-      await sessionCheckPromise;
-      setIsLoading(false);
+      } catch (error) {
+        setAuthError(`Erro de conexão: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
+        console.error('❌ Erro ao verificar sessão:', error);
+      } finally {
+        setIsLoading(false);
+      }
     };
 
     checkSession();
 
-    // Escutar mudanças de autenticação com throttling
-    let authStateChangeTimeout: NodeJS.Timeout;
+    // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        // Throttle auth state changes to prevent excessive calls
-        clearTimeout(authStateChangeTimeout);
-        authStateChangeTimeout = setTimeout(() => {
-          console.log('🔄 Mudança de autenticação:', event);
-          setAuthError(null);
+        console.log('🔄 Mudança de autenticação:', event);
+        setAuthError(null);
+        
+        if (session && session.user) {
+          console.log('✅ Usuário logado:', session.user.email);
+          const user: User = {
+            id: session.user.id,
+            username: session.user.email || '',
+            password: '',
+            isAdmin: session.user.email === 'droweder@gmail.com',
+            createdAt: session.user.created_at || new Date().toISOString(),
+          };
           
-          if (session && session.user) {
-            console.log('✅ Usuário logado:', session.user.email);
-            const user: User = {
-              id: session.user.id,
-              username: session.user.email || '',
-              password: '',
-              isAdmin: session.user.email === 'droweder@gmail.com',
-              createdAt: session.user.created_at || new Date().toISOString(),
-            };
-            
-            setCurrentUser(user);
-            setAuthToken(session.access_token);
-            setLastTokenRefresh(Date.now());
-          } else {
-            console.log('❌ Usuário deslogado');
-            setCurrentUser(null);
-            setAuthToken(null);
-            setLastTokenRefresh(0);
-          }
-        }, 500); // 500ms throttle
+          setCurrentUser(user);
+          setAuthToken(session.access_token);
+        } else {
+          console.log('❌ Usuário deslogado');
+          setCurrentUser(null);
+          setAuthToken(null);
+        }
       }
     );
 
     return () => {
-      clearTimeout(authStateChangeTimeout);
       subscription.unsubscribe();
     };
   }, []);
@@ -165,17 +121,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       if (session && session.user) {
         console.log('✅ Login bem sucedido:', session.user.email);
-        const user: User = {
-          id: session.user.id,
-          username: session.user.email || '',
-          password: '',
-          isAdmin: session.user.email === 'droweder@gmail.com',
-          createdAt: session.user.created_at || new Date().toISOString(),
-        };
-
-        setCurrentUser(user);
-        setAuthToken(session.access_token);
-        setLastTokenRefresh(Date.now());
         return true;
       }
 
@@ -191,9 +136,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       await withAuthRetry(() => supabase.auth.signOut());
       setAuthError(null);
-      setCurrentUser(null);
-      setAuthToken(null);
-      setLastTokenRefresh(0);
       console.log('👋 Logout realizado');
     } catch (error) {
       console.error('❌ Erro no logout:', error);

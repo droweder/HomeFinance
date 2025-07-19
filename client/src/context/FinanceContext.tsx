@@ -4,6 +4,9 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthContext';
 import { withSupabaseRetry } from '../utils/supabaseRetry';
 
+// Import Account type from types file
+import { Account } from '../types';
+
 interface FinanceContextType {
   expenses: Expense[];
   income: Income[];
@@ -82,11 +85,11 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
     },
   });
 
-  // Buscar dados do Supabase quando o usuário estiver autenticado
+  // Load data from Supabase when user is authenticated
   useEffect(() => {
     const fetchData = async () => {
       if (!currentUser) {
-        console.log('⚠️ Usuário não autenticado - limpando dados');
+        console.log('⚠️ User not authenticated - clearing data');
         setExpenses([]);
         setIncome([]);
         setCategories([]);
@@ -96,12 +99,12 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
       }
 
       try {
-        console.log('🔄 Iniciando carregamento de dados para usuário:', currentUser.username);
+        console.log('🔄 Loading financial data for user:', currentUser.username);
         setIsLoading(true);
         setLoadingError(null);
 
-        // Buscar categorias
-        console.log('📂 Carregando categorias...');
+        // Load categories
+        console.log('📂 Loading categories...');
         const { data: categoriesData, error: categoriesError } = await withSupabaseRetry(() =>
           supabase
             .from('categories')
@@ -112,8 +115,8 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
         );
 
         if (categoriesError) {
-          console.error('❌ Erro ao buscar categorias:', categoriesError);
-          setLoadingError(`Erro ao carregar categorias: ${categoriesError.message}`);
+          console.error('❌ Error loading categories:', categoriesError);
+          setLoadingError(`Error loading categories: ${categoriesError.message}`);
           throw categoriesError;
         } else {
           const mappedCategories: Category[] = categoriesData.map(cat => ({
@@ -123,51 +126,23 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
             createdAt: cat.created_at,
           }));
           setCategories(mappedCategories);
-          console.log('✅ Categorias carregadas:', mappedCategories.length);
+          console.log('✅ Categories loaded:', mappedCategories.length);
         }
 
-        // Buscar despesas
-        console.log('💳 Carregando despesas...');
-        
-        // Implementar paginação conforme recomendação do Supabase
-        const allExpenses = [];
-        let pageNumber = 0;
-        const pageSize = 1000;
-        let hasMore = true;
-        
-        while (hasMore && pageNumber < 10) { // Máximo 10 páginas para segurança
-          const startRange = pageNumber * pageSize;
-          const endRange = startRange + pageSize - 1;
-          
-          const { data: pageData, error: pageError } = await withSupabaseRetry(() =>
-            supabase
-              .from('expenses')
-              .select('*')
-              .eq('user_id', currentUser.id)
-              .range(startRange, endRange)
-              .order('created_at', { ascending: false })
-          );
-          
-          if (pageError) {
-            console.error('❌ Erro ao carregar despesas:', pageError);
-            throw pageError;
-          }
-          
-          if (pageData && pageData.length > 0) {
-            allExpenses.push(...pageData);
-            
-            // Se retornou menos que o tamanho da página, chegamos ao fim
-            if (pageData.length < pageSize) {
-              hasMore = false;
-            } else {
-              pageNumber++;
-            }
-          } else {
-            hasMore = false;
-          }
+        // Load expenses
+        console.log('💳 Loading expenses...');
+        const { data: expensesData, error: expensesError } = await withSupabaseRetry(() =>
+          supabase
+            .from('expenses')
+            .select('*')
+            .eq('user_id', currentUser.id)
+            .order('created_at', { ascending: false })
+        );
+
+        if (expensesError) {
+          console.error('❌ Error loading expenses:', expensesError);
+          throw expensesError;
         }
-        
-        const expensesData = allExpenses;
 
         const mappedExpenses: Expense[] = expensesData.map(exp => ({
           id: exp.id,
@@ -187,10 +162,10 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
           createdAt: exp.created_at,
         }));
         setExpenses(mappedExpenses);
-        console.log('✅ Despesas carregadas:', mappedExpenses.length);
+        console.log('✅ Expenses loaded:', mappedExpenses.length);
 
-        // Buscar receitas
-        console.log('💰 Carregando receitas...');
+        // Load income
+        console.log('💰 Loading income...');
         const { data: incomeData, error: incomeError } = await withSupabaseRetry(() =>
           supabase
             .from('income')
@@ -200,8 +175,8 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
         );
 
         if (incomeError) {
-          console.error('❌ Erro ao buscar receitas:', incomeError);
-          setLoadingError(`Erro ao carregar receitas: ${incomeError.message}`);
+          console.error('❌ Error loading income:', incomeError);
+          setLoadingError(`Error loading income: ${incomeError.message}`);
           throw incomeError;
         } else {
           const mappedIncome: Income[] = incomeData.map(inc => ({
@@ -215,15 +190,15 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
             createdAt: inc.created_at,
           }));
           setIncome(mappedIncome);
-          console.log('✅ Receitas carregadas:', mappedIncome.length);
+          console.log('✅ Income loaded:', mappedIncome.length);
         }
 
-        console.log('🎉 Todos os dados carregados com sucesso!');
+        console.log('🎉 All financial data loaded successfully!');
       } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
-        console.error('❌ Erro crítico ao carregar dados:', error);
-        setLoadingError(`Falha no carregamento: ${errorMessage}`);
-        // Em caso de erro, limpar os dados para evitar estado inconsistente
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        console.error('❌ Critical error loading data:', error);
+        setLoadingError(`Loading failed: ${errorMessage}`);
+        // Clear data on error to avoid inconsistent state
         setExpenses([]);
         setIncome([]);
         setCategories([]);
@@ -237,12 +212,12 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
 
   const addExpense = async (expense: Omit<Expense, 'id' | 'createdAt'>) => {
     if (!currentUser) {
-      console.error('❌ Usuário não autenticado');
-      throw new Error('Usuário não autenticado');
+      console.error('❌ User not authenticated');
+      throw new Error('User not authenticated');
     }
 
     try {
-      console.log('💾 Adicionando despesa ao Supabase:', expense);
+      console.log('💾 Adding expense to Supabase:', expense);
       
       const { data, error } = await withSupabaseRetry(() =>
         supabase
@@ -268,8 +243,8 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
       );
 
       if (error) {
-        console.error('❌ Erro ao adicionar despesa:', error);
-        throw new Error(`Erro do Supabase: ${error.message}`);
+        console.error('❌ Error adding expense:', error);
+        throw new Error(`Supabase error: ${error.message}`);
       }
 
       const newExpense: Expense = {
@@ -291,21 +266,21 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
       };
 
       setExpenses(prev => [newExpense, ...prev]);
-      console.log('✅ Despesa adicionada com sucesso:', newExpense.id);
+      console.log('✅ Expense added successfully:', newExpense.id);
     } catch (error) {
-      console.error('❌ Erro ao adicionar despesa:', error);
-      throw error; // Re-throw para que o ImportCSV possa capturar
+      console.error('❌ Error adding expense:', error);
+      throw error;
     }
   };
 
   const addIncome = async (income: Omit<Income, 'id' | 'createdAt'>) => {
     if (!currentUser) {
-      console.error('❌ Usuário não autenticado');
-      throw new Error('Usuário não autenticado');
+      console.error('❌ User not authenticated');
+      throw new Error('User not authenticated');
     }
 
     try {
-      console.log('💾 Adicionando receita ao Supabase:', income);
+      console.log('💾 Adding income to Supabase:', income);
       
       const { data, error } = await withSupabaseRetry(() =>
         supabase
@@ -324,8 +299,8 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
       );
 
       if (error) {
-        console.error('❌ Erro ao adicionar receita:', error);
-        throw new Error(`Erro do Supabase: ${error.message}`);
+        console.error('❌ Error adding income:', error);
+        throw new Error(`Supabase error: ${error.message}`);
       }
 
       const newIncome: Income = {
@@ -340,16 +315,16 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
       };
 
       setIncome(prev => [newIncome, ...prev]);
-      console.log('✅ Receita adicionada com sucesso:', newIncome.id);
+      console.log('✅ Income added successfully:', newIncome.id);
     } catch (error) {
-      console.error('❌ Erro ao adicionar receita:', error);
-      throw error; // Re-throw para que o ImportCSV possa capturar
+      console.error('❌ Error adding income:', error);
+      throw error;
     }
   };
 
   const addCategory = async (category: Omit<Category, 'id' | 'createdAt'>) => {
     if (!currentUser) {
-      console.error('❌ Usuário não autenticado');
+      console.error('❌ User not authenticated');
       return;
     }
 
@@ -367,7 +342,7 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
       );
 
       if (error) {
-        console.error('❌ Erro ao adicionar categoria:', error);
+        console.error('❌ Error adding category:', error);
         return;
       }
 
@@ -379,15 +354,15 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
       };
 
       setCategories(prev => [...prev, newCategory]);
-      console.log('✅ Categoria adicionada');
+      console.log('✅ Category added');
     } catch (error) {
-      console.error('❌ Erro ao adicionar categoria:', error);
+      console.error('❌ Error adding category:', error);
     }
   };
 
   const updateExpense = async (id: string, updatedExpense: Partial<Expense>) => {
     if (!currentUser) {
-      console.error('❌ Usuário não autenticado');
+      console.error('❌ User not authenticated');
       return;
     }
 
@@ -412,22 +387,22 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
       );
 
       if (error) {
-        console.error('❌ Erro ao atualizar despesa:', error);
+        console.error('❌ Error updating expense:', error);
         return;
       }
 
       setExpenses(prev => prev.map(expense => 
         expense.id === id ? { ...expense, ...updatedExpense } : expense
       ));
-      console.log('✅ Despesa atualizada');
+      console.log('✅ Expense updated');
     } catch (error) {
-      console.error('❌ Erro ao atualizar despesa:', error);
+      console.error('❌ Error updating expense:', error);
     }
   };
 
   const updateIncome = async (id: string, updatedIncome: Partial<Income>) => {
     if (!currentUser) {
-      console.error('❌ Usuário não autenticado');
+      console.error('❌ User not authenticated');
       return;
     }
 
@@ -449,22 +424,22 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
       );
 
       if (error) {
-        console.error('❌ Erro ao atualizar receita:', error);
+        console.error('❌ Error updating income:', error);
         return;
       }
 
       setIncome(prev => prev.map(income => 
         income.id === id ? { ...income, ...updatedIncome } : income
       ));
-      console.log('✅ Receita atualizada');
+      console.log('✅ Income updated');
     } catch (error) {
-      console.error('❌ Erro ao atualizar receita:', error);
+      console.error('❌ Error updating income:', error);
     }
   };
 
   const updateCategory = async (id: string, updatedCategory: Partial<Category>) => {
     if (!currentUser) {
-      console.error('❌ Usuário não autenticado');
+      console.error('❌ User not authenticated');
       return;
     }
 
@@ -482,22 +457,22 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
       );
 
       if (error) {
-        console.error('❌ Erro ao atualizar categoria:', error);
+        console.error('❌ Error updating category:', error);
         return;
       }
 
       setCategories(prev => prev.map(category => 
         category.id === id ? { ...category, ...updatedCategory } : category
       ));
-      console.log('✅ Categoria atualizada');
+      console.log('✅ Category updated');
     } catch (error) {
-      console.error('❌ Erro ao atualizar categoria:', error);
+      console.error('❌ Error updating category:', error);
     }
   };
 
   const deleteExpense = async (id: string) => {
     if (!currentUser) {
-      console.error('❌ Usuário não autenticado');
+      console.error('❌ User not authenticated');
       return;
     }
 
@@ -511,20 +486,20 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
       );
 
       if (error) {
-        console.error('❌ Erro ao deletar despesa:', error);
+        console.error('❌ Error deleting expense:', error);
         return;
       }
 
       setExpenses(prev => prev.filter(expense => expense.id !== id));
-      console.log('✅ Despesa deletada');
+      console.log('✅ Expense deleted');
     } catch (error) {
-      console.error('❌ Erro ao deletar despesa:', error);
+      console.error('❌ Error deleting expense:', error);
     }
   };
 
   const deleteIncome = async (id: string) => {
     if (!currentUser) {
-      console.error('❌ Usuário não autenticado');
+      console.error('❌ User not authenticated');
       return;
     }
 
@@ -538,20 +513,20 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
       );
 
       if (error) {
-        console.error('❌ Erro ao deletar receita:', error);
+        console.error('❌ Error deleting income:', error);
         return;
       }
 
       setIncome(prev => prev.filter(income => income.id !== id));
-      console.log('✅ Receita deletada');
+      console.log('✅ Income deleted');
     } catch (error) {
-      console.error('❌ Erro ao deletar receita:', error);
+      console.error('❌ Error deleting income:', error);
     }
   };
 
   const deleteCategory = async (id: string) => {
     if (!currentUser) {
-      console.error('❌ Usuário não autenticado');
+      console.error('❌ User not authenticated');
       return;
     }
 
@@ -565,14 +540,14 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
       );
 
       if (error) {
-        console.error('❌ Erro ao deletar categoria:', error);
+        console.error('❌ Error deleting category:', error);
         return;
       }
 
       setCategories(prev => prev.filter(category => category.id !== id));
-      console.log('✅ Categoria deletada');
+      console.log('✅ Category deleted');
     } catch (error) {
-      console.error('❌ Erro ao deletar categoria:', error);
+      console.error('❌ Error deleting category:', error);
     }
   };
 
