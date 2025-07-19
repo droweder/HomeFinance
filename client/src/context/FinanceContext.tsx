@@ -110,7 +110,7 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
             .from('categories')
             .select('*')
             .eq('user_id', currentUser.id)
-            .limit(1000)
+            .limit(5000) // Increase limit for categories as well
             .order('created_at', { ascending: true })
         );
 
@@ -129,20 +129,46 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
           console.log('✅ Categories loaded:', mappedCategories.length);
         }
 
-        // Load ALL expenses - remove any limits to ensure complete data
-        console.log('💳 Loading ALL expenses...');
-        const { data: expensesData, error: expensesError } = await withSupabaseRetry(() =>
-          supabase
-            .from('expenses')
-            .select('*')
-            .eq('user_id', currentUser.id)
-            .order('created_at', { ascending: false })
-        );
+        // Load ALL expenses - use pagination to ensure we get all 3500+ records
+        console.log('💳 Loading ALL expenses (expecting 3500+)...');
+        let allExpenses: any[] = [];
+        let hasMore = true;
+        let offset = 0;
+        const batchSize = 1000;
 
-        if (expensesError) {
-          console.error('❌ Error loading expenses:', expensesError);
-          throw expensesError;
+        while (hasMore) {
+          const { data: batchData, error: batchError } = await withSupabaseRetry(() =>
+            supabase
+              .from('expenses')
+              .select('*')
+              .eq('user_id', currentUser.id)
+              .order('created_at', { ascending: false })
+              .range(offset, offset + batchSize - 1)
+          );
+
+          if (batchError) {
+            console.error('❌ Error loading expenses batch:', batchError);
+            throw batchError;
+          }
+
+          if (batchData && batchData.length > 0) {
+            allExpenses = [...allExpenses, ...batchData];
+            offset += batchSize;
+            console.log(`📦 Loaded batch: ${batchData.length} expenses (total: ${allExpenses.length})`);
+            
+            // If we got less than batchSize, we've reached the end
+            if (batchData.length < batchSize) {
+              hasMore = false;
+            }
+          } else {
+            hasMore = false;
+          }
         }
+
+        const expensesData = allExpenses;
+        const expensesError = null;
+
+        // Error handling already done in pagination loop above
 
         const mappedExpenses: Expense[] = expensesData.map(exp => ({
           id: exp.id,
@@ -162,9 +188,13 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
           createdAt: exp.created_at,
         }));
         setExpenses(mappedExpenses);
-        console.log('✅ Expenses loaded:', mappedExpenses.length);
+        console.log(`✅ ALL Expenses loaded: ${mappedExpenses.length} (expected: 3500+)`);
+        
+        if (mappedExpenses.length < 3000) {
+          console.warn(`⚠️ Loaded fewer expenses than expected! Got ${mappedExpenses.length}, expected 3500+`);
+        }
 
-        // Load ALL income - remove any limits to ensure complete data  
+        // Load ALL income - use high limit to ensure complete data
         console.log('💰 Loading ALL income...');
         const { data: incomeData, error: incomeError } = await withSupabaseRetry(() =>
           supabase
@@ -172,6 +202,7 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
             .select('*')
             .eq('user_id', currentUser.id)
             .order('created_at', { ascending: false })
+            .limit(10000) // Set high limit to ensure all records are loaded
         );
 
         if (incomeError) {
