@@ -1,0 +1,24 @@
+[build]
+  command = "npm run build"
+  publish = "dist/public"
+
+[build.environment]
+  NODE_VERSION = "18"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+[dev]
+  command = "npm run server"
+  port = 5000
+
+# Environment variables for Netlify
+[context.production.environment]
+  VITE_SUPABASE_URL = ""
+  VITE_SUPABASE_ANON_KEY = ""
+
+[context.deploy-preview.environment]
+  VITE_SUPABASE_URL = ""
+  VITE_SUPABASE_ANON_KEY = ""
