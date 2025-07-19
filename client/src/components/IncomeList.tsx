@@ -176,6 +176,14 @@ const IncomeList: React.FC = () => {
                 <p className="text-gray-600 dark:text-gray-400 mt-2">{labels.subtitle}</p>
               </div>
               <div className="flex items-center gap-3">
+                {/* Total integrado na barra superior */}
+                <div className="flex items-center gap-2 px-3 py-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+                  <DollarSign className="w-4 h-4 text-green-600 dark:text-green-400" />
+                  <div>
+                    <span className="text-xs text-green-600 dark:text-green-400 font-medium">{labels.totalIncome}: </span>
+                    <span className="text-sm font-bold text-green-700 dark:text-green-300">{formatCurrency(totalIncome)}</span>
+                  </div>
+                </div>
                 <button
                   onClick={handleOpenFilterModal}
                   className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-2"
@@ -197,18 +205,7 @@ const IncomeList: React.FC = () => {
 
         {/* Content with top margin to account for fixed header */}
         <div className="pt-32">
-          {/* Total Income Card */}
-          <div className="bg-gradient-to-r from-green-500 to-green-600 rounded-xl p-6 text-white mb-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-green-100 text-sm font-medium">{labels.totalIncome}</p>
-                <p className="text-3xl font-bold">{formatCurrency(totalIncome)}</p>
-              </div>
-              <div className="p-3 bg-green-400 bg-opacity-30 rounded-lg">
-                <DollarSign className="w-8 h-8" />
-              </div>
-            </div>
-          </div>
+
 
           {/* Income List */}
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">

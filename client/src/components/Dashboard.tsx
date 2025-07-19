@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
-import { TrendingUp, TrendingDown, DollarSign, AlertCircle, PieChart, BarChart3 } from 'lucide-react';
+import { TrendingUp, TrendingDown, DollarSign, AlertCircle, PieChart, BarChart3, CreditCard, Calendar, Target } from 'lucide-react';
 import { useFinanceCalculations } from '../hooks/useFinanceCalculations';
+import { useFinance } from '../context/FinanceContext';
 import { useSettings } from '../context/SettingsContext';
 
 const Dashboard: React.FC = () => {
@@ -13,7 +14,73 @@ const Dashboard: React.FC = () => {
     monthlyTrend,
   } = useFinanceCalculations();
 
+  const { expenses } = useFinance();
   const { formatCurrency, settings } = useSettings();
+
+  // Cálculos de cartão de crédito por mês
+  const creditCardAnalysis = useMemo(() => {
+    const currentYear = new Date().getFullYear();
+    const monthlyData = [];
+    
+    for (let month = 0; month < 12; month++) {
+      const monthExpenses = expenses.filter(expense => {
+        const expenseDate = new Date(expense.date);
+        return expenseDate.getFullYear() === currentYear && 
+               expenseDate.getMonth() === month &&
+               expense.isCreditCard;
+      });
+      
+      const total = monthExpenses.reduce((sum, expense) => sum + expense.amount, 0);
+      const count = monthExpenses.length;
+      
+      monthlyData.push({
+        month: month + 1,
+        monthName: new Date(currentYear, month).toLocaleDateString('pt-BR', { month: 'short' }),
+        total,
+        count
+      });
+    }
+    
+    return monthlyData;
+  }, [expenses]);
+
+  // Indicadores adicionais
+  const additionalMetrics = useMemo(() => {
+    const currentMonth = new Date().getMonth();
+    const currentYear = new Date().getFullYear();
+    
+    // Cartão de crédito este mês
+    const creditCardThisMonth = expenses
+      .filter(expense => {
+        const expenseDate = new Date(expense.date);
+        return expenseDate.getMonth() === currentMonth && 
+               expenseDate.getFullYear() === currentYear &&
+               expense.isCreditCard;
+      })
+      .reduce((sum, expense) => sum + expense.amount, 0);
+    
+    // Despesas não pagas
+    const unpaidExpenses = expenses
+      .filter(expense => !expense.paid)
+      .reduce((sum, expense) => sum + expense.amount, 0);
+    
+    // Maior gasto individual do mês
+    const monthlyExpenses = expenses.filter(expense => {
+      const expenseDate = new Date(expense.date);
+      return expenseDate.getMonth() === currentMonth && 
+             expenseDate.getFullYear() === currentYear;
+    });
+    
+    const biggestExpense = monthlyExpenses.length > 0 ? 
+      Math.max(...monthlyExpenses.map(e => e.amount)) : 0;
+    
+    return {
+      creditCardThisMonth,
+      unpaidExpenses,
+      biggestExpense,
+      totalCreditCardYear: creditCardAnalysis.reduce((sum, month) => sum + month.total, 0)
+    };
+  }, [expenses, creditCardAnalysis]);
 
   // Memoized calculations to prevent unnecessary recalculations
   const categoryData = useMemo(() => {
@@ -86,7 +153,11 @@ const Dashboard: React.FC = () => {
     totalExpenses: settings.language === 'pt-BR' ? 'Total de Despesas' : 'Total Expenses',
     balance: settings.language === 'pt-BR' ? 'Saldo' : 'Balance',
     upcomingExpenses: settings.language === 'pt-BR' ? 'Despesas Futuras' : 'Upcoming Expenses',
+    creditCardMonth: settings.language === 'pt-BR' ? 'Cartão de Crédito' : 'Credit Card',
+    unpaidExpenses: settings.language === 'pt-BR' ? 'Despesas Não Pagas' : 'Unpaid Expenses',
+    biggestExpense: settings.language === 'pt-BR' ? 'Maior Gasto' : 'Biggest Expense',
     expensesByCategory: settings.language === 'pt-BR' ? 'Despesas por Categoria' : 'Expenses by Category',
+    creditCardAnalysis: settings.language === 'pt-BR' ? 'Cartão de Crédito por Mês' : 'Credit Card by Month',
     monthlyTrend: settings.language === 'pt-BR' ? 'Tendência Mensal' : 'Monthly Trend',
     income: settings.language === 'pt-BR' ? 'Receitas' : 'Income',
     expenses: settings.language === 'pt-BR' ? 'Despesas' : 'Expenses',
@@ -129,9 +200,29 @@ const Dashboard: React.FC = () => {
               className={balanceThisMonth < 0 ? 'border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/20' : ''}
             />
             <StatCard
+              title={labels.creditCardMonth}
+              value={formatCurrency(additionalMetrics.creditCardThisMonth)}
+              icon={<CreditCard className="w-6 h-6 text-purple-600" />}
+            />
+          </div>
+
+          {/* Additional Metrics */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <StatCard
               title={labels.upcomingExpenses}
               value={formatCurrency(totalUpcomingExpenses)}
-              icon={<AlertCircle className="w-6 h-6 text-amber-600" />}
+              icon={<Calendar className="w-6 h-6 text-amber-600" />}
+            />
+            <StatCard
+              title={labels.unpaidExpenses}
+              value={formatCurrency(additionalMetrics.unpaidExpenses)}
+              icon={<AlertCircle className="w-6 h-6 text-orange-600" />}
+              className={additionalMetrics.unpaidExpenses > 0 ? 'border-orange-200 bg-orange-50 dark:border-orange-800 dark:bg-orange-900/20' : ''}
+            />
+            <StatCard
+              title={labels.biggestExpense}
+              value={formatCurrency(additionalMetrics.biggestExpense)}
+              icon={<Target className="w-6 h-6 text-red-600" />}
             />
           </div>
 
@@ -147,7 +238,39 @@ const Dashboard: React.FC = () => {
             </div>
           )}
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Credit Card Analysis */}
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">{labels.creditCardAnalysis}</h2>
+                <CreditCard className="w-5 h-5 text-purple-600" />
+              </div>
+              
+              <div className="space-y-3 max-h-96 overflow-y-auto">
+                <div className="text-xs text-gray-500 dark:text-gray-400 mb-4">
+                  Total do ano: {formatCurrency(additionalMetrics.totalCreditCardYear)}
+                </div>
+                
+                {creditCardAnalysis.map((month) => (
+                  <div key={month.month} className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 bg-purple-100 dark:bg-purple-900 rounded flex items-center justify-center">
+                        <span className="text-xs font-medium text-purple-600 dark:text-purple-400">
+                          {month.monthName}
+                        </span>
+                      </div>
+                      <span className="text-sm text-gray-600 dark:text-gray-400">
+                        {month.count} transações
+                      </span>
+                    </div>
+                    <span className="font-medium text-gray-900 dark:text-white">
+                      {formatCurrency(month.total)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
             {/* Expenses by Category */}
             <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
               <div className="flex items-center justify-between mb-6">

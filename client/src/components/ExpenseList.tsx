@@ -285,6 +285,17 @@ const ExpenseList: React.FC = () => {
                 <p className="text-gray-600 dark:text-gray-400 mt-2">{labels.subtitle}</p>
               </div>
               <div className="flex items-center gap-3">
+                {/* Total integrado na barra superior */}
+                <div className="flex items-center gap-2 px-3 py-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                  <DollarSign className="w-4 h-4 text-red-600 dark:text-red-400" />
+                  <div>
+                    <span className="text-xs text-red-600 dark:text-red-400 font-medium">{labels.totalExpenses}: </span>
+                    <span className="text-sm font-bold text-red-700 dark:text-red-300">{formatCurrency(totalExpenses)}</span>
+                    {filters.expenses.groupInstallments && (
+                      <span className="text-xs text-red-500 dark:text-red-400 ml-1">*</span>
+                    )}
+                  </div>
+                </div>
                 <button
                   onClick={handleOpenFilterModal}
                   className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-2"
@@ -306,23 +317,7 @@ const ExpenseList: React.FC = () => {
 
         {/* Content with top margin to account for fixed header */}
         <div className="pt-32">
-          {/* Total Expenses Card */}
-          <div className="bg-gradient-to-r from-red-500 to-red-600 rounded-xl p-6 text-white mb-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-red-100 text-sm font-medium">{labels.totalExpenses}</p>
-                <p className="text-3xl font-bold">{formatCurrency(totalExpenses)}</p>
-                {filters.expenses.groupInstallments && (
-                  <p className="text-red-200 text-xs mt-1">
-                    * Valores de parcelas agrupados
-                  </p>
-                )}
-              </div>
-              <div className="p-3 bg-red-400 bg-opacity-30 rounded-lg">
-                <DollarSign className="w-8 h-8" />
-              </div>
-            </div>
-          </div>
+
 
           {/* Expenses List */}
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
