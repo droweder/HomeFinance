@@ -85,10 +85,7 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
     },
   });
 
-  // Track if data has been loaded to prevent unnecessary reloads
-  const [dataLoaded, setDataLoaded] = useState(false);
-
-  // Load data from Supabase when user is authenticated (only once per session)
+  // Load data from Supabase when user is authenticated
   useEffect(() => {
     const fetchData = async () => {
       if (!currentUser) {
@@ -96,16 +93,8 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
         setExpenses([]);
         setIncome([]);
         setCategories([]);
-        setDataLoaded(false);
         setIsLoading(false);
         setLoadingError(null);
-        return;
-      }
-
-      // Avoid reloading if data is already loaded for this user
-      if (dataLoaded) {
-        console.log('ℹ️ Data already loaded, skipping fetch');
-        setIsLoading(false);
         return;
       }
 
@@ -140,8 +129,8 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
           console.log('✅ Categories loaded:', mappedCategories.length);
         }
 
-        // Load expenses
-        console.log('💳 Loading expenses...');
+        // Load ALL expenses - remove any limits to ensure complete data
+        console.log('💳 Loading ALL expenses...');
         const { data: expensesData, error: expensesError } = await withSupabaseRetry(() =>
           supabase
             .from('expenses')
@@ -175,8 +164,8 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
         setExpenses(mappedExpenses);
         console.log('✅ Expenses loaded:', mappedExpenses.length);
 
-        // Load income
-        console.log('💰 Loading income...');
+        // Load ALL income - remove any limits to ensure complete data  
+        console.log('💰 Loading ALL income...');
         const { data: incomeData, error: incomeError } = await withSupabaseRetry(() =>
           supabase
             .from('income')
@@ -205,7 +194,6 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
         }
 
         console.log('🎉 All financial data loaded successfully!');
-        setDataLoaded(true);
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
         console.error('❌ Critical error loading data:', error);
@@ -214,7 +202,6 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
         setExpenses([]);
         setIncome([]);
         setCategories([]);
-        setDataLoaded(false);
       } finally {
         setIsLoading(false);
       }

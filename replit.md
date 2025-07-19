@@ -2,7 +2,7 @@
 
 ## Overview
 
-This is a full-stack personal finance management application built with React, Express, Drizzle ORM, and PostgreSQL. The application allows users to track expenses, income, categories, and accounts with features like installment management, AI financial insights, CSV import/export, and real-time synchronization with Supabase.
+This is a full-stack personal finance management application built with React, Express, and Supabase. The application allows users to track expenses, income, categories, and accounts with features like installment management, AI financial insights, CSV import/export, and real-time synchronization with Supabase. Successfully migrated from Bolt to Replit with performance optimizations.
 
 ## User Preferences
 
@@ -20,10 +20,10 @@ Preferred communication style: Simple, everyday language.
 
 ### Backend Architecture
 - **Framework**: Express.js with TypeScript
-- **Database ORM**: Drizzle ORM for type-safe database operations
-- **Database**: PostgreSQL (configured for Neon serverless)
-- **Authentication**: Passport.js with local strategy and bcrypt for password hashing
-- **Session Management**: Express sessions with PostgreSQL storage
+- **Database**: Supabase (PostgreSQL) for real-time data synchronization
+- **Authentication**: Supabase Auth with email/password authentication
+- **Session Management**: Supabase session management
+- **Performance**: Optimistic updates and intelligent caching to reduce database load
 
 ### Database Schema
 The application uses PostgreSQL with the following main tables:
@@ -113,3 +113,15 @@ The application uses PostgreSQL with the following main tables:
 - AI service API keys for financial insights
 
 The application follows a monorepo structure with shared TypeScript types between frontend and backend, ensuring type safety across the entire application stack. The architecture supports both development and production deployments with proper error handling, logging, and monitoring capabilities.
+
+## Recent Changes (July 2025)
+
+### Migration and Performance Optimizations
+- ✅ Successfully migrated from Bolt to Replit environment
+- ✅ Maintained Supabase as primary database backend (user preference)
+- ✅ Fixed data loading to ensure ALL records from income/expenses tables are loaded
+- ✅ Implemented optimistic updates for better user responsiveness
+- ✅ Optimized Dashboard component with useMemo to prevent unnecessary recalculations
+- ✅ Reduced excessive logging in useFinanceCalculations hook
+- ✅ Corrected "due_date" field mapping to use "date" column consistently
+- ✅ Enhanced FinanceContext with intelligent caching and loading states
