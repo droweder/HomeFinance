@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { useFinance } from '../context/FinanceContext';
+import { useToast } from './ui/toast';
 import { useSettings } from '../context/SettingsContext';
 import { Category } from '../types';
 
@@ -11,6 +12,7 @@ interface CategoryFormProps {
 
 const CategoryForm: React.FC<CategoryFormProps> = ({ category, onClose }) => {
   const { addCategory, updateCategory } = useFinance();
+  const { showSuccess } = useToast();
   const { settings } = useSettings();
   const [formData, setFormData] = useState({
     name: '',
@@ -41,8 +43,10 @@ const CategoryForm: React.FC<CategoryFormProps> = ({ category, onClose }) => {
 
     if (category) {
       updateCategory(category.id, categoryData);
+      showSuccess('Categoria atualizada', `A categoria "${categoryData.name}" foi atualizada com sucesso.`);
     } else {
       addCategory(categoryData);
+      showSuccess('Categoria criada', `A categoria "${categoryData.name}" foi criada com sucesso.`);
     }
 
     onClose();

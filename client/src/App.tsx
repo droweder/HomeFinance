@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { ToastProvider } from './components/ui/toast';
 import { SettingsProvider } from './context/SettingsContext';
 import { AccountProvider } from './context/AccountContext';
 import { FinanceProvider } from './context/FinanceContext';
@@ -157,15 +158,17 @@ const AppContent: React.FC = () => {
 function App() {
   return (
     <ErrorBoundary>
-      <AuthProvider>
-        <SettingsProvider>
-          <AccountProvider>
-            <FinanceProvider>
-              <AppContent />
-            </FinanceProvider>
-          </AccountProvider>
-        </SettingsProvider>
-      </AuthProvider>
+      <ToastProvider>
+        <AuthProvider>
+          <SettingsProvider>
+            <AccountProvider>
+              <FinanceProvider>
+                <AppContent />
+              </FinanceProvider>
+            </AccountProvider>
+          </SettingsProvider>
+        </AuthProvider>
+      </ToastProvider>
     </ErrorBoundary>
   );
 }

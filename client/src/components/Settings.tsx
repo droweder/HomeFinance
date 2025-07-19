@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Settings as SettingsIcon, Palette, Tag, CreditCard, Plus, Edit2, Trash2, Upload, Download, FileText, Wifi, WifiOff, CheckCircle, AlertCircle, Clock, Database, Bot, Eye, EyeOff, Key, Brain, Lightbulb } from 'lucide-react';
 import { useSettings } from '../context/SettingsContext';
+import { useToast } from './ui/toast';
 import { useFinance } from '../context/FinanceContext';
 import { useAccounts } from '../context/AccountContext';
 import { useAuth } from '../context/AuthContext';
@@ -15,6 +16,7 @@ const Settings: React.FC = () => {
   const { categories, deleteCategory } = useFinance();
   const { accounts, deleteAccount } = useAccounts();
   const { currentUser } = useAuth();
+  const { showApiKeySuccess, showSuccess, showError } = useToast();
   const { isOnline, syncStatus, lastSyncTime, connectionStatus, syncData } = useSupabaseSync();
   const [showCategoryForm, setShowCategoryForm] = useState(false);
   const [showAccountForm, setShowAccountForm] = useState(false);
@@ -38,6 +40,7 @@ const Settings: React.FC = () => {
   const handleDeleteCategory = (id: string) => {
     if (window.confirm('Tem certeza que deseja excluir esta categoria?')) {
       deleteCategory(id);
+      showSuccess('Categoria excluída', 'A categoria foi removida com sucesso.');
     }
   };
 
@@ -49,6 +52,7 @@ const Settings: React.FC = () => {
   const handleDeleteAccount = (id: string) => {
     if (window.confirm('Tem certeza que deseja excluir esta conta?')) {
       deleteAccount(id);
+      showSuccess('Conta excluída', 'A conta foi removida com sucesso.');
     }
   };
 
@@ -63,8 +67,22 @@ const Settings: React.FC = () => {
   };
 
   const handleSaveGeminiKey = () => {
-    updateSettings({ geminiApiKey: tempGeminiKey });
-    alert('Chave da API Gemini salva com sucesso!');
+    updateSettings({ 
+      geminiApiKey: tempGeminiKey,
+      aiSettings: {
+        ...settings.aiSettings,
+        geminiApiKey: tempGeminiKey,
+        enableAI: !!tempGeminiKey
+      }
+    });
+    setShowGeminiKey(false);
+    
+    // Show custom notification instead of alert
+    if (tempGeminiKey.trim()) {
+      showApiKeySuccess('Gemini');
+    } else {
+      showSuccess('Chave API removida', 'A chave Gemini foi removida com sucesso.');
+    }
   };
 
   const handleTestGeminiAPI = async () => {

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { useAccounts } from '../context/AccountContext';
+import { useToast } from './ui/toast';
 import { useSettings } from '../context/SettingsContext';
 import { Account } from '../types';
 
@@ -11,6 +12,7 @@ interface AccountFormProps {
 
 const AccountForm: React.FC<AccountFormProps> = ({ account, onClose }) => {
   const { addAccount, updateAccount } = useAccounts();
+  const { showSuccess } = useToast();
   const { settings } = useSettings();
   const [formData, setFormData] = useState({
     name: '',
@@ -41,8 +43,10 @@ const AccountForm: React.FC<AccountFormProps> = ({ account, onClose }) => {
 
     if (account) {
       updateAccount(account.id, accountData);
+      showSuccess('Conta atualizada', `A conta "${accountData.name}" foi atualizada com sucesso.`);
     } else {
       addAccount(accountData);
+      showSuccess('Conta criada', `A conta "${accountData.name}" foi criada com sucesso.`);
     }
 
     onClose();
