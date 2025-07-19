@@ -321,7 +321,7 @@ const ExpenseList: React.FC = () => {
 
           {/* Expenses List */}
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
-            <div className="overflow-x-auto max-h-[70vh] relative">
+            <div className="overflow-x-auto max-h-[calc(100vh-240px)] relative">
               <table className="w-full">
                 <thead className="bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600 sticky top-0 z-20">
                   <tr>
@@ -338,7 +338,7 @@ const ExpenseList: React.FC = () => {
                 <tbody>
                   {sortedExpenses.map((expense) => (
                     <tr key={expense.id} className={`border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors ${expense.isGroupRepresentative ? 'bg-blue-50 dark:bg-blue-900/20 border-l-4 border-l-blue-500' : ''}`}>
-                      <td className="py-1.5 px-2">
+                      <td className="py-1 px-2">
                         <div className="flex items-center gap-2">
                           {expense.isGroupRepresentative && (
                             <Package className="w-4 h-4 text-blue-600" />
@@ -351,10 +351,10 @@ const ExpenseList: React.FC = () => {
                           </span>
                         </div>
                       </td>
-                      <td className="py-1.5 px-2 text-sm text-gray-600 dark:text-gray-400">
+                      <td className="py-1 px-2 text-sm text-gray-600 dark:text-gray-400">
                         {expense.location || '-'}
                       </td>
-                      <td className="py-1.5 px-2 text-sm text-gray-600 dark:text-gray-400">
+                      <td className="py-1 px-2 text-sm text-gray-600 dark:text-gray-400">
                         <div>
                           {expense.description || '-'}
                           {expense.isGroupRepresentative && (
@@ -364,7 +364,7 @@ const ExpenseList: React.FC = () => {
                           )}
                         </div>
                       </td>
-                      <td className="py-1.5 px-2 text-sm font-medium text-gray-900 dark:text-white">
+                      <td className="py-1 px-2 text-sm font-medium text-gray-900 dark:text-white">
                         {expense.isGroupRepresentative ? (
                           <div>
                             <div className="text-blue-600 dark:text-blue-400 font-bold">
