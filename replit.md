@@ -149,3 +149,5 @@ The application follows a monorepo structure with shared TypeScript types betwee
 - ✅ **Server Simplification**: Converted to static file server since all database operations use Supabase client
 - ✅ **Netlify Ready**: Created netlify.toml, _headers, _redirects and deployment guide for seamless Netlify deployment
 - ✅ **JAMstack Architecture**: Converted to pure frontend application with Supabase backend for optimal Netlify performance
+- ✅ **Sticky Table Headers**: Implemented fixed headers in Expenses, Income, and Transfers tables for better UX during scrolling
+- ✅ **AI Error Handling**: Fixed undefined .toFixed() errors and replaced browser alerts with elegant toast notifications
