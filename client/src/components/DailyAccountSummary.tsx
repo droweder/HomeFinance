@@ -311,7 +311,7 @@ const DailyAccountSummary: React.FC = () => {
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600 sticky top-0 z-10">
+                <thead className="bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600 sticky top-32 z-20">
                   <tr>
                     <th className="text-left py-2 px-3 font-medium text-gray-900 dark:text-white sticky left-0 bg-gray-50 dark:bg-gray-700">
                       Data

@@ -274,32 +274,44 @@ const Dashboard: React.FC = () => {
                   Total do ano: {formatCurrency(additionalMetrics.totalCreditCardYear)}
                 </div>
                 
-                {creditCardAnalysis.map((month) => (
-                  <div key={month.month} className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-purple-100 dark:bg-purple-900 rounded flex items-center justify-center">
-                          <span className="text-xs font-medium text-purple-600 dark:text-purple-400">
-                            {month.monthName}
-                          </span>
-                        </div>
-                        <span className="text-sm font-medium text-gray-900 dark:text-white">
-                          {formatCurrency(month.total)}
-                        </span>
-                      </div>
+                {creditCardAnalysis.filter(month => month.total > 0).map((month) => (
+                  <div key={month.month} className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-4 border border-purple-200 dark:border-purple-800">
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-sm font-semibold text-gray-900 dark:text-white capitalize">
+                        {month.monthName} 2025
+                      </h3>
+                      <span className="text-lg font-bold text-purple-600 dark:text-purple-400 bg-white dark:bg-gray-800 px-2 py-1 rounded text-sm">
+                        {formatCurrency(month.total)}
+                      </span>
                     </div>
+                    
                     {Object.keys(month.accounts).length > 0 && (
-                      <div className="ml-11 space-y-1">
-                        {Object.entries(month.accounts).map(([account, amount]) => (
-                          <div key={account} className="flex items-center justify-between text-xs">
-                            <span className="text-gray-600 dark:text-gray-400 truncate pr-2">
-                              {account}
-                            </span>
-                            <span className="text-purple-600 dark:text-purple-400 font-medium">
-                              {formatCurrency(amount as number)}
-                            </span>
-                          </div>
-                        ))}
+                      <div className="space-y-2">
+                        <h4 className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">
+                          Por cartão:
+                        </h4>
+                        <div className="space-y-2">
+                          {Object.entries(month.accounts)
+                            .sort(([,a], [,b]) => (b as number) - (a as number))
+                            .map(([account, amount]) => (
+                            <div key={account} className="bg-white dark:bg-gray-800 rounded p-2 flex items-center justify-between shadow-sm">
+                              <div className="flex items-center gap-2">
+                                <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
+                                <span className="text-xs font-medium text-gray-800 dark:text-gray-200">
+                                  {account}
+                                </span>
+                              </div>
+                              <div className="text-right">
+                                <span className="text-sm font-bold text-purple-600 dark:text-purple-400">
+                                  {formatCurrency(amount as number)}
+                                </span>
+                                <div className="text-xs text-gray-500 dark:text-gray-400">
+                                  {((amount as number / month.total) * 100).toFixed(0)}%
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     )}
                   </div>

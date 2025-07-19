@@ -158,5 +158,7 @@ The application follows a monorepo structure with shared TypeScript types betwee
 - ✅ **Credit Card Details**: Enhanced credit card analysis to show account names and amounts instead of transaction count
 - ✅ **Account Breakdown**: Credit card chart now displays spending by account with proper grouping and visual hierarchy
 - ✅ **Transfer Layout**: Updated Transfer tab to match Expenses and Income layout with fixed header and integrated total card
-- ✅ **Dashboard Enhancement**: Replaced "Unpaid Expenses" with "Future Income" indicator with proper green styling
+- ✅ **Dashboard Enhancement**: Replaced "Unpaid Expenses" with "Future Income" indicator with proper green styling  
 - ✅ **Daily Summary Integration**: Enhanced Daily Account Summary with integrated cards in the filter bar area
+- ✅ **Credit Card Monthly Details**: Enhanced Dashboard to show individual credit card values separated by month with percentage breakdown
+- ✅ **Sticky Headers**: Implemented proper sticky table headers in Daily Account Summary that remain visible when scrolling
