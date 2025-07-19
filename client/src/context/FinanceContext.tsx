@@ -238,7 +238,7 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
           console.log('✅ Income loaded:', mappedIncome.length);
         }
 
-        // Load ALL transfers (temporarily disabled until table is created)
+        // Load ALL transfers
         console.log('🔄 Loading ALL transfers...');
         try {
           const { data: transfersData, error: transfersError } = await withSupabaseRetry(() =>
@@ -260,8 +260,8 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
               throw transfersError;
             }
           } else {
-            const mappedTransfers: Transfer[] = transfersData.map(trans => ({
-              id: trans.id,
+            const mappedTransfers: Transfer[] = (transfersData || []).map(trans => ({
+              id: trans.id.toString(),
               date: trans.date,
               amount: parseFloat(trans.amount.toString()),
               fromAccount: trans.from_account,
@@ -726,7 +726,7 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
 
       // Replace temp transfer with real data from database
       const confirmedTransfer: Transfer = {
-        id: data.id,
+        id: data.id.toString(),
         date: data.date,
         amount: parseFloat(data.amount.toString()),
         fromAccount: data.from_account,
