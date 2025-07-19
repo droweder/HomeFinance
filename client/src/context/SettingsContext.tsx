@@ -39,26 +39,36 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
   useEffect(() => {
     const savedSettings = localStorage.getItem('finance-settings');
     if (savedSettings) {
-      const parsed = JSON.parse(savedSettings);
-      // Ensure language and currency are always set to Brazilian defaults
-      setSettings({
-        ...parsed,
-        language: 'pt-BR',
-        currency: 'BRL',
-        geminiApiKey: parsed.geminiApiKey || '',
-        aiSettings: {
-          grokApiKey: '',
-          geminiApiKey: '',
-          preferredProvider: 'gemini',
-          enableAI: false,
-          ...parsed.aiSettings,
-        },
-      });
+      try {
+        const parsed = JSON.parse(savedSettings);
+        console.log('📖 Configurações carregadas do localStorage');
+        // Ensure language and currency are always set to Brazilian defaults
+        setSettings({
+          ...parsed,
+          language: 'pt-BR',
+          currency: 'BRL',
+          geminiApiKey: parsed.geminiApiKey || '',
+          aiSettings: {
+            grokApiKey: '',
+            geminiApiKey: parsed.geminiApiKey || '', // Sync with main geminiApiKey
+            preferredProvider: 'gemini',
+            enableAI: !!parsed.geminiApiKey,
+            ...parsed.aiSettings,
+          },
+        });
+      } catch (error) {
+        console.error('❌ Erro ao carregar configurações:', error);
+      }
     }
   }, []);
 
   useEffect(() => {
-    localStorage.setItem('finance-settings', JSON.stringify(settings));
+    try {
+      localStorage.setItem('finance-settings', JSON.stringify(settings));
+      console.log('💾 Configurações salvas no localStorage');
+    } catch (error) {
+      console.error('❌ Erro ao salvar configurações:', error);
+    }
     
     // Aplicar tema
     if (settings.theme === 'dark') {

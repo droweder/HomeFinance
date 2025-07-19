@@ -3,6 +3,7 @@ import { Bot, Send, User, Loader2, AlertCircle, Settings, TrendingUp, TrendingDo
 import { useSettings } from '../context/SettingsContext';
 import { useFinance } from '../context/FinanceContext';
 import { useFinanceCalculations } from '../hooks/useFinanceCalculations';
+import { useAIChatHistory } from '../hooks/useAIChatHistory';
 
 interface ChatMessage {
   id: string;

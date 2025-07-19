@@ -3,6 +3,7 @@ import { Expense, Income, Category, FilterState, Transfer } from '../types';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthContext';
 import { withSupabaseRetry } from '../utils/supabaseRetry';
+import { storage } from '../utils/localStorage';
 
 // Import Account type from types file
 import { Account } from '../types';
@@ -51,7 +52,8 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
   const [transfers, setTransfers] = useState<Transfer[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [loadingError, setLoadingError] = useState<string | null>(null);
-  const [filters, setFilters] = useState<FilterState>({
+  // Persistent filters with localStorage
+  const getDefaultFilters = (): FilterState => ({
     expenses: {
       category: '',
       account: '',
@@ -74,7 +76,6 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
       sortBy: [],
     },
     dailySummary: {
-      // Default to current month's first day
       startDate: (() => {
         const today = new Date();
         return new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
@@ -83,7 +84,7 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
         const today = new Date();
         const start = new Date(today.getFullYear(), today.getMonth(), 1);
         const end = new Date(start);
-        end.setDate(start.getDate() + 89); // 90 days total
+        end.setDate(start.getDate() + 89);
         return end.toISOString().split('T')[0];
       })(),
       visibleAccounts: [],
@@ -98,8 +99,24 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
     },
   });
 
-  // Load data from Supabase when user is authenticated
+  const [filters, setFilters] = useState<FilterState>(() => {
+    try {
+      const stored = localStorage.getItem('finance-app-filters');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        console.log('📖 Filtros carregados do localStorage');
+        return { ...getDefaultFilters(), ...parsed };
+      }
+    } catch (error) {
+      console.error('❌ Erro ao carregar filtros:', error);
+    }
+    return getDefaultFilters();
+  });
+
+  // Load data from Supabase when user is authenticated (prevent rapid reloads)
   useEffect(() => {
+    let loadTimeout: NodeJS.Timeout;
+    
     const fetchData = async () => {
       if (!currentUser) {
         console.log('⚠️ User not authenticated - clearing data');
@@ -109,6 +126,12 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
         setTransfers([]);
         setIsLoading(false);
         setLoadingError(null);
+        return;
+      }
+
+      // Prevent rapid successive loads
+      if (isLoading) {
+        console.log('⏸️ Already loading, skipping duplicate request');
         return;
       }
 
@@ -839,10 +862,22 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
   };
 
   const updateFilters = (section: keyof FilterState, newFilters: Partial<FilterState[keyof FilterState]>) => {
-    setFilters(prev => ({
-      ...prev,
-      [section]: { ...prev[section], ...newFilters }
-    }));
+    setFilters(prev => {
+      const updated = {
+        ...prev,
+        [section]: { ...prev[section], ...newFilters }
+      };
+      
+      // Save to localStorage with debounce
+      try {
+        localStorage.setItem('finance-app-filters', JSON.stringify(updated));
+        console.log('💾 Filtros salvos no localStorage');
+      } catch (error) {
+        console.error('❌ Erro ao salvar filtros:', error);
+      }
+      
+      return updated;
+    });
   };
 
   return (
