@@ -1,100 +1,132 @@
-import { pgTable, text, serial, uuid, integer, boolean, decimal, date, timestamp } from "drizzle-orm/pg-core";
-import { createInsertSchema } from "drizzle-zod";
+// Simplified types for Supabase-only implementation
 import { z } from "zod";
 
-export const users = pgTable("users", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  email: text("email").notNull().unique(),
-  password: text("password").notNull(),
-  created_at: timestamp("created_at").defaultNow(),
+// TypeScript interfaces for Supabase data types
+export interface User {
+  id: string;
+  email: string;
+  password?: string;
+  created_at?: string;
+}
+
+export interface Expense {
+  id: string;
+  date: string;
+  category: string;
+  description: string;
+  amount: number;
+  payment_method: string;
+  location?: string;
+  paid: boolean;
+  is_installment: boolean;
+  installment_number?: number;
+  total_installments?: number;
+  installment_group?: string;
+  due_date?: string;
+  is_credit_card: boolean;
+  created_at?: string;
+  user_id: string;
+}
+
+export interface Income {
+  id: string;
+  date: string;
+  source: string;
+  amount: number;
+  notes?: string;
+  location?: string;
+  account?: string;
+  is_credit_card: boolean;
+  created_at?: string;
+  user_id: string;
+}
+
+export interface Category {
+  id: string;
+  name: string;
+  type: 'income' | 'expense';
+  created_at?: string;
+  user_id: string;
+}
+
+export interface Account {
+  id: string;
+  name: string;
+  initial_balance: number;
+  created_at?: string;
+  user_id: string;
+}
+
+export interface Transfer {
+  id: string;
+  date: string;
+  from_account: string;
+  to_account: string;
+  amount: number;
+  description?: string;
+  created_at?: string;
+  user_id: string;
+}
+
+// Insert types (without id and created_at)
+export type InsertUser = Omit<User, 'id' | 'created_at'>;
+export type InsertExpense = Omit<Expense, 'id' | 'created_at'>;
+export type InsertIncome = Omit<Income, 'id' | 'created_at'>;
+export type InsertCategory = Omit<Category, 'id' | 'created_at'>;
+export type InsertAccount = Omit<Account, 'id' | 'created_at'>;
+export type InsertTransfer = Omit<Transfer, 'id' | 'created_at'>;
+
+// Validation schemas
+export const insertUserSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(6),
 });
 
-export const expenses = pgTable("expenses", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  date: date("date").notNull(),
-  category: text("category").notNull(),
-  description: text("description").notNull(),
-  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
-  payment_method: text("payment_method").notNull(),
-  location: text("location"),
-  paid: boolean("paid").default(false),
-  is_installment: boolean("is_installment").default(false),
-  installment_number: integer("installment_number"),
-  total_installments: integer("total_installments"),
-  installment_group: text("installment_group"),
-  due_date: date("due_date"),
-  is_credit_card: boolean("is_credit_card").default(false),
-  created_at: timestamp("created_at").defaultNow(),
-  user_id: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+export const insertExpenseSchema = z.object({
+  date: z.string(),
+  category: z.string(),
+  description: z.string(),
+  amount: z.number(),
+  payment_method: z.string(),
+  location: z.string().optional(),
+  paid: z.boolean().default(false),
+  is_installment: z.boolean().default(false),
+  installment_number: z.number().optional(),
+  total_installments: z.number().optional(),
+  installment_group: z.string().optional(),
+  due_date: z.string().optional(),
+  is_credit_card: z.boolean().default(false),
+  user_id: z.string(),
 });
 
-export const income = pgTable("income", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  date: date("date").notNull(),
-  source: text("source").notNull(),
-  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
-  notes: text("notes").default(""),
-  location: text("location"),
-  account: text("account"),
-  is_credit_card: boolean("is_credit_card").default(false),
-  created_at: timestamp("created_at").defaultNow(),
-  user_id: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+export const insertIncomeSchema = z.object({
+  date: z.string(),
+  source: z.string(),
+  amount: z.number(),
+  notes: z.string().default(""),
+  location: z.string().optional(),
+  account: z.string().optional(),
+  is_credit_card: z.boolean().default(false),
+  user_id: z.string(),
 });
 
-export const categories = pgTable("categories", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  name: text("name").notNull(),
-  type: text("type").notNull(), // 'income' or 'expense'
-  created_at: timestamp("created_at").defaultNow(),
-  user_id: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+export const insertCategorySchema = z.object({
+  name: z.string(),
+  type: z.enum(['income', 'expense']),
+  user_id: z.string(),
 });
 
-export const accounts = pgTable("accounts", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  name: text("name").notNull(),
-  initial_balance: decimal("initial_balance", { precision: 10, scale: 2 }).default("0"),
-  created_at: timestamp("created_at").defaultNow(),
-  user_id: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+export const insertAccountSchema = z.object({
+  name: z.string(),
+  initial_balance: z.number().default(0),
+  user_id: z.string(),
 });
 
-// Insert schemas
-export const insertUserSchema = createInsertSchema(users).pick({
-  email: true,
-  password: true,
+export const insertTransferSchema = z.object({
+  date: z.string(),
+  from_account: z.string(),
+  to_account: z.string(),
+  amount: z.number(),
+  description: z.string().optional(),
+  user_id: z.string(),
 });
-
-export const insertExpenseSchema = createInsertSchema(expenses).omit({
-  id: true,
-  created_at: true,
-});
-
-export const insertIncomeSchema = createInsertSchema(income).omit({
-  id: true,
-  created_at: true,
-});
-
-export const insertCategorySchema = createInsertSchema(categories).omit({
-  id: true,
-  created_at: true,
-});
-
-export const insertAccountSchema = createInsertSchema(accounts).omit({
-  id: true,
-  created_at: true,
-});
-
-// Types
-export type InsertUser = z.infer<typeof insertUserSchema>;
-export type User = typeof users.$inferSelect;
-
-export type InsertExpense = z.infer<typeof insertExpenseSchema>;
-export type Expense = typeof expenses.$inferSelect;
-
-export type InsertIncome = z.infer<typeof insertIncomeSchema>;
-export type Income = typeof income.$inferSelect;
-
-export type InsertCategory = z.infer<typeof insertCategorySchema>;
-export type Category = typeof categories.$inferSelect;
-
-export type InsertAccount = z.infer<typeof insertAccountSchema>;
-export type Account = typeof accounts.$inferSelect;

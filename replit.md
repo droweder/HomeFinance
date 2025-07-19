@@ -145,3 +145,5 @@ The application follows a monorepo structure with shared TypeScript types betwee
 - ✅ **Expense Grouping**: Enhanced installment grouping with visual differentiation and consolidated display
 - ✅ **Custom Toast System**: Implemented beautiful notification system for API keys, actions and confirmations
 - ✅ **Enhanced UX**: Replaced browser alerts with styled toast notifications for better user experience
+- ✅ **Bolt.new Compatibility**: Removed all Neon/PostgreSQL dependencies for exclusive Supabase operation
+- ✅ **Server Simplification**: Converted to static file server since all database operations use Supabase client
