@@ -1,5 +1,5 @@
 import React from 'react';
-import { BarChart3, CreditCard, TrendingUp, Menu, X, Settings, Calendar, LogOut, Bot } from 'lucide-react';
+import { BarChart3, CreditCard, TrendingUp, Menu, X, Settings, Calendar, LogOut, Bot, ArrowRightLeft } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useSettings } from '../context/SettingsContext';
 
@@ -17,6 +17,7 @@ const Navigation: React.FC<NavigationProps> = ({ activeTab, onTabChange }) => {
     { id: 'dashboard', label: settings.language === 'pt-BR' ? 'Dashboard' : 'Dashboard', icon: BarChart3 },
     { id: 'expenses', label: settings.language === 'pt-BR' ? 'Despesas' : 'Expenses', icon: CreditCard },
     { id: 'income', label: settings.language === 'pt-BR' ? 'Receitas' : 'Income', icon: TrendingUp },
+    { id: 'transfers', label: settings.language === 'pt-BR' ? 'Transferências' : 'Transfers', icon: ArrowRightLeft },
     { id: 'daily-summary', label: settings.language === 'pt-BR' ? 'Resumo Diário' : 'Daily Summary', icon: Calendar },
     { id: 'ai-chat', label: settings.language === 'pt-BR' ? 'IA Financeira' : 'Financial AI', icon: Bot },
     { id: 'settings', label: settings.language === 'pt-BR' ? 'Configurações' : 'Settings', icon: Settings },

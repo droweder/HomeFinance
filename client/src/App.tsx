@@ -8,6 +8,7 @@ import Navigation from './components/Navigation';
 import Dashboard from './components/Dashboard';
 import ExpenseList from './components/ExpenseList';
 import IncomeList from './components/IncomeList';
+import TransferList from './components/TransferList';
 import Settings from './components/Settings';
 import DailyAccountSummary from './components/DailyAccountSummary';
 import FinancialAIChat from './components/FinancialAIChat';
@@ -111,6 +112,8 @@ const AppContent: React.FC = () => {
           return <ExpenseList />;
         case 'income':
           return <IncomeList />;
+        case 'transfers':
+          return <TransferList />;
         case 'daily-summary':
           return <DailyAccountSummary />;
         case 'ai-chat':

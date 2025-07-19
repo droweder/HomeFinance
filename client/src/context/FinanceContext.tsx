@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { Expense, Income, Category, FilterState } from '../types';
+import { Expense, Income, Category, FilterState, Transfer } from '../types';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthContext';
 import { withSupabaseRetry } from '../utils/supabaseRetry';
@@ -11,16 +11,20 @@ interface FinanceContextType {
   expenses: Expense[];
   income: Income[];
   categories: Category[];
+  transfers: Transfer[];
   filters: FilterState;
   addExpense: (expense: Omit<Expense, 'id' | 'createdAt'>) => void;
   addIncome: (income: Omit<Income, 'id' | 'createdAt'>) => void;
   addCategory: (category: Omit<Category, 'id' | 'createdAt'>) => void;
+  addTransfer: (transfer: Omit<Transfer, 'id' | 'createdAt' | 'userId'>) => void;
   updateExpense: (id: string, expense: Partial<Expense>) => void;
   updateIncome: (id: string, income: Partial<Income>) => void;
   updateCategory: (id: string, category: Partial<Category>) => void;
+  updateTransfer: (id: string, transfer: Partial<Transfer>) => void;
   deleteExpense: (id: string) => void;
   deleteIncome: (id: string) => void;
   deleteCategory: (id: string) => void;
+  deleteTransfer: (id: string) => void;
   updateFilters: (section: keyof FilterState, newFilters: Partial<FilterState[keyof FilterState]>) => void;
   isLoading: boolean;
 }
@@ -44,6 +48,7 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [income, setIncome] = useState<Income[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [transfers, setTransfers] = useState<Transfer[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [loadingError, setLoadingError] = useState<string | null>(null);
   const [filters, setFilters] = useState<FilterState>({
@@ -83,6 +88,14 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
       })(),
       visibleAccounts: [],
     },
+    transfers: {
+      fromAccount: '',
+      toAccount: '',
+      description: '',
+      startDate: '',
+      endDate: '',
+      sortBy: [],
+    },
   });
 
   // Load data from Supabase when user is authenticated
@@ -93,6 +106,7 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
         setExpenses([]);
         setIncome([]);
         setCategories([]);
+        setTransfers([]);
         setIsLoading(false);
         setLoadingError(null);
         return;
@@ -224,6 +238,46 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
           console.log('✅ Income loaded:', mappedIncome.length);
         }
 
+        // Load ALL transfers (temporarily disabled until table is created)
+        console.log('🔄 Loading ALL transfers...');
+        try {
+          const { data: transfersData, error: transfersError } = await withSupabaseRetry(() =>
+            supabase
+              .from('transfers')
+              .select('*')
+              .eq('user_id', currentUser.id)
+              .order('created_at', { ascending: false })
+              .limit(10000)
+          );
+
+          if (transfersError) {
+            if (transfersError.code === '42P01') {
+              console.log('⚠️ Transfers table does not exist yet - skipping transfer loading');
+              setTransfers([]);
+            } else {
+              console.error('❌ Error loading transfers:', transfersError);
+              setLoadingError(`Error loading transfers: ${transfersError.message}`);
+              throw transfersError;
+            }
+          } else {
+            const mappedTransfers: Transfer[] = transfersData.map(trans => ({
+              id: trans.id,
+              date: trans.date,
+              amount: parseFloat(trans.amount.toString()),
+              fromAccount: trans.from_account,
+              toAccount: trans.to_account,
+              description: trans.description,
+              createdAt: trans.created_at,
+              userId: trans.user_id,
+            }));
+            setTransfers(mappedTransfers);
+            console.log('✅ Transfers loaded:', mappedTransfers.length);
+          }
+        } catch (transferError) {
+          console.log('⚠️ Transfer loading failed - table may not exist yet');
+          setTransfers([]);
+        }
+
         console.log('🎉 All financial data loaded successfully!');
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -233,6 +287,7 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
         setExpenses([]);
         setIncome([]);
         setCategories([]);
+        setTransfers([]);
       } finally {
         setIsLoading(false);
       }
@@ -626,6 +681,163 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
     }
   };
 
+  const addTransfer = async (transfer: Omit<Transfer, 'id' | 'createdAt' | 'userId'>) => {
+    if (!currentUser) {
+      console.error('❌ User not authenticated');
+      throw new Error('User not authenticated');
+    }
+
+    // Optimistic update - add transfer immediately with temp ID
+    const tempId = `temp-${Date.now()}`;
+    const optimisticTransfer: Transfer = {
+      id: tempId,
+      ...transfer,
+      userId: currentUser.id,
+      createdAt: new Date().toISOString(),
+    };
+
+    setTransfers(prev => [optimisticTransfer, ...prev]);
+    console.log('⚡ Optimistic transfer added');
+
+    try {
+      console.log('💾 Syncing transfer to Supabase...');
+      
+      const { data, error } = await withSupabaseRetry(() =>
+        supabase
+          .from('transfers')
+          .insert({
+            date: transfer.date,
+            amount: transfer.amount,
+            from_account: transfer.fromAccount,
+            to_account: transfer.toAccount,
+            description: transfer.description,
+            user_id: currentUser.id,
+          })
+          .select()
+          .single()
+      );
+
+      if (error) {
+        console.error('❌ Error syncing transfer:', error);
+        // Revert optimistic update on error
+        setTransfers(prev => prev.filter(tr => tr.id !== tempId));
+        throw new Error(`Supabase error: ${error.message}`);
+      }
+
+      // Replace temp transfer with real data from database
+      const confirmedTransfer: Transfer = {
+        id: data.id,
+        date: data.date,
+        amount: parseFloat(data.amount.toString()),
+        fromAccount: data.from_account,
+        toAccount: data.to_account,
+        description: data.description,
+        userId: data.user_id,
+        createdAt: data.created_at,
+      };
+
+      setTransfers(prev => prev.map(tr => tr.id === tempId ? confirmedTransfer : tr));
+      console.log('✅ Transfer synced successfully:', confirmedTransfer.id);
+    } catch (error) {
+      console.error('❌ Error adding transfer:', error);
+      throw error;
+    }
+  };
+
+  const updateTransfer = async (id: string, updatedTransfer: Partial<Transfer>) => {
+    if (!currentUser) {
+      console.error('❌ User not authenticated');
+      return;
+    }
+
+    // Optimistic update - update transfer immediately
+    const previousTransfers = transfers;
+    setTransfers(prev => prev.map(transfer => 
+      transfer.id === id ? { ...transfer, ...updatedTransfer } : transfer
+    ));
+    console.log('⚡ Optimistic transfer update');
+
+    try {
+      const updateData: any = {};
+      if (updatedTransfer.date !== undefined) updateData.date = updatedTransfer.date;
+      if (updatedTransfer.amount !== undefined) updateData.amount = updatedTransfer.amount;
+      if (updatedTransfer.fromAccount !== undefined) updateData.from_account = updatedTransfer.fromAccount;
+      if (updatedTransfer.toAccount !== undefined) updateData.to_account = updatedTransfer.toAccount;
+      if (updatedTransfer.description !== undefined) updateData.description = updatedTransfer.description;
+
+      const { data, error } = await withSupabaseRetry(() =>
+        supabase
+          .from('transfers')
+          .update(updateData)
+          .eq('id', id)
+          .eq('user_id', currentUser.id)
+          .select()
+          .single()
+      );
+
+      if (error) {
+        console.error('❌ Error syncing transfer update:', error);
+        // Revert optimistic update on error
+        setTransfers(previousTransfers);
+        throw new Error(`Update failed: ${error.message}`);
+      }
+
+      // Update with confirmed data from database
+      const confirmedTransfer: Transfer = {
+        id: data.id,
+        date: data.date,
+        amount: parseFloat(data.amount.toString()),
+        fromAccount: data.from_account,
+        toAccount: data.to_account,
+        description: data.description,
+        userId: data.user_id,
+        createdAt: data.created_at,
+      };
+
+      setTransfers(prev => prev.map(transfer => 
+        transfer.id === id ? confirmedTransfer : transfer
+      ));
+      console.log('✅ Transfer update synced successfully');
+    } catch (error) {
+      console.error('❌ Error updating transfer:', error);
+      throw error;
+    }
+  };
+
+  const deleteTransfer = async (id: string) => {
+    if (!currentUser) {
+      console.error('❌ User not authenticated');
+      return;
+    }
+
+    // Optimistic update - remove transfer immediately
+    const previousTransfers = transfers;
+    setTransfers(prev => prev.filter(transfer => transfer.id !== id));
+    console.log('⚡ Optimistic transfer deletion');
+
+    try {
+      const { error } = await withSupabaseRetry(() =>
+        supabase
+          .from('transfers')
+          .delete()
+          .eq('id', id)
+          .eq('user_id', currentUser.id)
+      );
+
+      if (error) {
+        console.error('❌ Error syncing transfer deletion:', error);
+        // Revert optimistic update on error
+        setTransfers(previousTransfers);
+        throw new Error(`Delete failed: ${error.message}`);
+      }
+
+      console.log('✅ Transfer deletion synced');
+    } catch (error) {
+      console.error('❌ Error deleting transfer:', error);
+      throw error;
+    }
+  };
+
   const updateFilters = (section: keyof FilterState, newFilters: Partial<FilterState[keyof FilterState]>) => {
     setFilters(prev => ({
       ...prev,
@@ -639,16 +851,20 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
         expenses,
         income,
         categories,
+        transfers,
         filters,
         addExpense,
         addIncome,
         addCategory,
+        addTransfer,
         updateExpense,
         updateIncome,
         updateCategory,
+        updateTransfer,
         deleteExpense,
         deleteIncome,
         deleteCategory,
+        deleteTransfer,
         updateFilters,
         isLoading,
       }}

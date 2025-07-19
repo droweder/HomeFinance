@@ -111,4 +111,26 @@ export interface FilterState {
     endDate: string;
     visibleAccounts: string[];
   };
+  transfers: {
+    fromAccount: string;
+    toAccount: string;
+    description?: string;
+    startDate: string;
+    endDate: string;
+    sortBy?: Array<{
+      column: string;
+      direction: 'asc' | 'desc';
+    }>;
+  };
+}
+
+export interface Transfer {
+  id: string;
+  date: string;
+  amount: number;
+  fromAccount: string;
+  toAccount: string;
+  description: string;
+  createdAt: string;
+  userId: string;
 }
