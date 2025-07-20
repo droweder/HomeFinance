@@ -165,15 +165,40 @@ const DailyAccountSummary: React.FC = () => {
 
           const finalBalance = (account.initialBalance || 0) + previousIncome - previousExpenses + previousTransferIn - previousTransferOut;
 
-          // Debug transferências - mesma lógica que receitas e despesas
-          if (dayTransferIn > 0 || dayTransferOut > 0) {
-            console.log(`✅ TRANSFERÊNCIAS ENCONTRADAS ${dateStr} - ${account.name}:`, {
+          // Debug COMPLETO das transferências - sempre mostrar para investigar
+          const allTransfersForDate = transfers.filter(t => t.date === dateStr);
+          if (allTransfersForDate.length > 0) {
+            console.log(`🔍 DEBUG COMPLETO TRANSFERÊNCIAS ${dateStr} - ${account.name}:`, {
+              allTransfersForDate,
               dayTransferIn,
               dayTransferOut,
-              transfersIn: dayTransferInItems.length,
-              transfersOut: dayTransferOutItems.length,
-              netTransfer: dayTransferIn - dayTransferOut,
-              finalBalanceWithTransfers: (account.initialBalance || 0) + previousIncome - previousExpenses + previousTransferIn - previousTransferOut
+              dayTransferInItems,
+              dayTransferOutItems,
+              accountName: account.name,
+              matchingLogic: {
+                fromAccountMatches: transfers.filter(t => t.date === dateStr).map(t => ({
+                  transferFrom: t.fromAccount,
+                  accountName: account.name,
+                  match: t.fromAccount === account.name
+                })),
+                toAccountMatches: transfers.filter(t => t.date === dateStr).map(t => ({
+                  transferTo: t.toAccount,
+                  accountName: account.name,
+                  match: t.toAccount === account.name
+                }))
+              },
+              uniqueFromAccounts: Array.from(new Set(transfers.map(t => t.fromAccount))),
+              uniqueToAccounts: Array.from(new Set(transfers.map(t => t.toAccount))),
+              allAccountNames: accounts.map(a => a.name)
+            });
+          }
+          
+          // Se encontrou transferências, logar
+          if (dayTransferIn > 0 || dayTransferOut > 0) {
+            console.log(`✅ TRANSFERÊNCIAS PROCESSADAS ${dateStr} - ${account.name}:`, {
+              dayTransferIn,
+              dayTransferOut,
+              netTransfer: dayTransferIn - dayTransferOut
             });
           }
 
