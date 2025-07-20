@@ -220,11 +220,32 @@ const DailyAccountSummary: React.FC = () => {
             });
           }
 
+          // INCLUIR TRANSFERÊNCIAS NO RESUMO DIÁRIO - como receitas/despesas
+          const totalDailyIncome = dailyIncome + dayTransferIn;
+          const totalDailyExpenses = dailyExpenses + dayTransferOut;
+          
           dailySummary.accounts[account.id] = {
-            dailyIncome: dailyIncome + dayTransferIn,
-            dailyExpenses: dailyExpenses + dayTransferOut,
+            dailyIncome: totalDailyIncome,
+            dailyExpenses: totalDailyExpenses,
             finalBalance: finalBalance,
           };
+
+          // Log específico para 08/07/2025 - Viacredi
+          if (dateStr === '2025-07-08' && (account.name.includes('Viacredi') || account.name.includes('Dirceu') || account.name.includes('Tatiane'))) {
+            console.log(`🎯 TRANSFERÊNCIA 08/07 - ${account.name}:`, {
+              dateStr,
+              accountName: account.name,
+              dayTransferIn,
+              dayTransferOut,
+              dailyIncome,
+              dailyExpenses,
+              totalDailyIncome,
+              totalDailyExpenses,
+              finalBalance,
+              transfersForThisDate: transfers.filter(t => t.date === '2025-07-08'),
+              accountInSummary: dailySummary.accounts[account.id]
+            });
+          }
         });
 
         // Calcular saldo total do dia
