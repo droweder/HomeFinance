@@ -59,7 +59,8 @@ const DailyAccountSummary: React.FC = () => {
         income: income.length,
         transfers: transfers.length,
         expectedExpenses: 3530,
-        expensesLoadedCorrectly: expenses.length >= 3530
+        expensesLoadedCorrectly: expenses.length >= 3530,
+        transfersSample: transfers.slice(0, 2)
       });
 
       // Log detalhado dos dados para debug
@@ -164,6 +165,18 @@ const DailyAccountSummary: React.FC = () => {
           ).reduce((sum, transfer) => sum + (transfer.amount || 0), 0);
 
           const finalBalance = (account.initialBalance || 0) + previousIncome - previousExpenses + previousTransferIn - previousTransferOut;
+
+          // Log detalhado para debug das transferências
+          if (dayTransferIn > 0 || dayTransferOut > 0) {
+            console.log(`🔄 TRANSFERÊNCIA ${dateStr} - ${account.name}:`, {
+              dayTransferIn,
+              dayTransferOut,
+              transfersIn: transfers.filter(t => t.date === dateStr && t.toAccount === account.name),
+              transfersOut: transfers.filter(t => t.date === dateStr && t.fromAccount === account.name),
+              totalDailyIncome: dailyIncome + dayTransferIn,
+              totalDailyExpenses: dailyExpenses + dayTransferOut
+            });
+          }
 
           // Log detalhado para debug
           if (dailyIncome > 0 || dailyExpenses > 0 || dayTransferIn > 0 || dayTransferOut > 0) {
