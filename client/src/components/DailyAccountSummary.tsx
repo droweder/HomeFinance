@@ -3,7 +3,7 @@ import { Calendar, TrendingUp, TrendingDown, DollarSign, Filter, Eye, EyeOff, X 
 import { useFinance } from '../context/FinanceContext';
 import { useAccounts } from '../context/AccountContext';
 import { useSettings } from '../context/SettingsContext';
-import { DailyAccountSummary as DailyAccountSummaryType } from '../types';
+// Import direto do tipo inline para evitar problemas de import
 
 const calculateDateRangeForMonth = (month: number, year: number) => {
   const start = new Date(year, month, 1); // month is 0-indexed
@@ -49,7 +49,15 @@ const DailyAccountSummary: React.FC = () => {
       const startDate = new Date(filters.dailySummary.startDate);
       const endDate = new Date(filters.dailySummary.endDate);
 
-      const summaries: DailyAccountSummaryType[] = [];
+      const summaries: Array<{
+        date: string;
+        accounts: Record<string, {
+          dailyIncome: number;
+          dailyExpenses: number;
+          finalBalance: number;
+        }>;
+        totalDailyBalance: number;
+      }> = [];
 
       console.log('📅 Calculando para período:', {
         startDate: startDate.toISOString().split('T')[0],
@@ -103,7 +111,7 @@ const DailyAccountSummary: React.FC = () => {
       while (currentDate <= endDate && dayCount < maxDays) {
         const dateStr = currentDate.toISOString().split('T')[0];
         
-        const dailySummary: DailyAccountSummaryType = {
+        const dailySummary = {
           date: dateStr,
           accounts: {},
           totalDailyBalance: 0,
@@ -128,15 +136,29 @@ const DailyAccountSummary: React.FC = () => {
           const dailyExpenses = dayExpenseItems.reduce((sum, expense) => sum + (expense.amount || 0), 0);
 
           // Transferências do dia para esta conta
-          const dayTransferOut = transfers.filter(transfer => 
+          const dayTransferOutItems = transfers.filter(transfer => 
             transfer.date === dateStr && 
             transfer.fromAccount === account.name
-          ).reduce((sum, transfer) => sum + (transfer.amount || 0), 0);
+          );
+          const dayTransferOut = dayTransferOutItems.reduce((sum, transfer) => sum + (transfer.amount || 0), 0);
 
-          const dayTransferIn = transfers.filter(transfer => 
+          const dayTransferInItems = transfers.filter(transfer => 
             transfer.date === dateStr && 
             transfer.toAccount === account.name
-          ).reduce((sum, transfer) => sum + (transfer.amount || 0), 0);
+          );
+          const dayTransferIn = dayTransferInItems.reduce((sum, transfer) => sum + (transfer.amount || 0), 0);
+
+          // Log para debug de correspondência de nomes
+          if (dateStr === '2025-07-11' || dateStr === '2025-07-08') { // Datas das transferências nas imagens
+            console.log(`🔍 VERIFICANDO CORRESPONDÊNCIA ${dateStr} - ${account.name}:`, {
+              transfersForDate: transfers.filter(t => t.date === dateStr),
+              dayTransferOutItems,
+              dayTransferInItems,
+              accountName: account.name,
+              availableFromAccounts: transfers.map(t => t.fromAccount),
+              availableToAccounts: transfers.map(t => t.toAccount)
+            });
+          }
 
           // Calcular saldo acumulado até esta data de forma otimizada
           const previousExpenseItems = expenses.filter(expense => 
@@ -254,8 +276,8 @@ const DailyAccountSummary: React.FC = () => {
     );
 
     // Aplicar ordenação
-    const sortBy = filters.dailySummary.sortBy || 'name';
-    const sortDirection = filters.dailySummary.sortDirection || 'asc';
+    const sortBy = (filters.dailySummary as any).sortBy || 'name';
+    const sortDirection = (filters.dailySummary as any).sortDirection || 'asc';
 
     filteredAccounts.sort((a, b) => {
       let aValue: any;
@@ -276,12 +298,12 @@ const DailyAccountSummary: React.FC = () => {
         case 'activity':
           // Calcular atividade total (receitas + despesas) do período
           const totalActivityA = dailySummaries.reduce((sum, summary) => {
-            const accountData = summary.accounts[a.id];
-            return sum + (accountData?.dailyIncome || 0) + (accountData?.dailyExpenses || 0);
+            const accountData = summary.accounts[a.id] || { dailyIncome: 0, dailyExpenses: 0 };
+            return sum + accountData.dailyIncome + accountData.dailyExpenses;
           }, 0);
           const totalActivityB = dailySummaries.reduce((sum, summary) => {
-            const accountData = summary.accounts[b.id];
-            return sum + (accountData?.dailyIncome || 0) + (accountData?.dailyExpenses || 0);
+            const accountData = summary.accounts[b.id] || { dailyIncome: 0, dailyExpenses: 0 };
+            return sum + accountData.dailyIncome + accountData.dailyExpenses;
           }, 0);
           aValue = totalActivityA;
           bValue = totalActivityB;
@@ -306,7 +328,7 @@ const DailyAccountSummary: React.FC = () => {
     });
 
     return filteredAccounts;
-  }, [accounts, filters.dailySummary.visibleAccounts, filters.dailySummary.sortBy, filters.dailySummary.sortDirection, dailySummaries]);
+  }, [accounts, filters.dailySummary.visibleAccounts, (filters.dailySummary as any).sortBy, (filters.dailySummary as any).sortDirection, dailySummaries]);
 
   const toggleAccountVisibility = useCallback((accountId: string, isTemp = false) => {
     const currentVisible = isTemp ? tempFilters.visibleAccounts : filters.dailySummary.visibleAccounts;
@@ -602,7 +624,7 @@ const DailyAccountSummary: React.FC = () => {
                     <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Ordenar por</label>
                       <select
-                        value={tempFilters.sortBy || 'name'}
+                        value={(tempFilters as any).sortBy || 'name'}
                         onChange={(e) => setTempFilters(prev => ({ ...prev, sortBy: e.target.value }))}
                         className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
                       >
@@ -616,7 +638,7 @@ const DailyAccountSummary: React.FC = () => {
                     <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Direção</label>
                       <select
-                        value={tempFilters.sortDirection || 'asc'}
+                        value={(tempFilters as any).sortDirection || 'asc'}
                         onChange={(e) => setTempFilters(prev => ({ ...prev, sortDirection: e.target.value }))}
                         className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
                       >
