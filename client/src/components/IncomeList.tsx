@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Edit2, Trash2, Calendar, DollarSign, Filter, Search, X, Package, Download } from 'lucide-react';
+import { Plus, Edit2, Trash2, Calendar, DollarSign, Filter, Search, X, Package } from 'lucide-react';
 import { useFinance } from '../context/FinanceContext';
 import { useSettings } from '../context/SettingsContext';
 import { Income } from '../types';
@@ -141,40 +141,7 @@ const IncomeList: React.FC = () => {
 
   const incomeCategories = categories.filter(cat => cat.type === 'income');
 
-  // Export CSV functionality
-  const handleExportCSV = () => {
-    const dataToExport = selectedIncome.size > 0 
-      ? sortedIncome.filter(item => selectedIncome.has(item.id))
-      : sortedIncome;
 
-    if (dataToExport.length === 0) {
-      alert('Nenhuma receita para exportar!');
-      return;
-    }
-
-    const headers = ['Data', 'Fonte', 'Valor', 'Conta', 'Descrição', 'Localização'];
-    const csvContent = [
-      headers.join(','),
-      ...dataToExport.map(item => [
-        item.date,
-        `"${item.source || ''}"`,
-        item.amount.toString().replace('.', ','),
-        `"${item.account || ''}"`,
-        `"${item.notes || ''}"`,
-        `"${item.location || ''}"`
-      ].join(','))
-    ].join('\n');
-
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
-    link.setAttribute('download', `receitas_${new Date().toISOString().split('T')[0]}.csv`);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
 
   const labels = {
     title: 'Receitas',
@@ -272,13 +239,7 @@ const IncomeList: React.FC = () => {
                   <Filter className="w-4 h-4" />
                   Filtros
                 </button>
-                <button
-                  onClick={handleExportCSV}
-                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
-                >
-                  <Download className="w-4 h-4" />
-                  Exportar CSV
-                </button>
+
                 <button
                   onClick={() => setShowForm(true)}
                   className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
