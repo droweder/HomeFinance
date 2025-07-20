@@ -504,12 +504,14 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
       return;
     }
 
+    console.log('🔄 Iniciando atualização de despesa:', { id, updatedExpense });
+
     // Optimistic update - update UI immediately
     const previousExpenses = [...expenses];
     setExpenses(prev => prev.map(expense => 
       expense.id === id ? { ...expense, ...updatedExpense } : expense
     ));
-    console.log('⚡ Optimistic expense update');
+    console.log('⚡ Optimistic expense update applied');
 
     try {
       const updateData: any = {};
@@ -521,7 +523,13 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
       if (updatedExpense.location !== undefined) updateData.location = updatedExpense.location;
       if (updatedExpense.paid !== undefined) updateData.paid = updatedExpense.paid;
       if (updatedExpense.isCreditCard !== undefined) updateData.is_credit_card = updatedExpense.isCreditCard;
-      if (updatedExpense.dueDate !== undefined) updateData.due_date = updatedExpense.date || updatedExpense.dueDate;
+      if (updatedExpense.dueDate !== undefined) updateData.due_date = updatedExpense.dueDate || updatedExpense.date;
+      if (updatedExpense.isInstallment !== undefined) updateData.is_installment = updatedExpense.isInstallment;
+      if (updatedExpense.installmentNumber !== undefined) updateData.installment_number = updatedExpense.installmentNumber;
+      if (updatedExpense.totalInstallments !== undefined) updateData.total_installments = updatedExpense.totalInstallments;
+      if (updatedExpense.installmentGroup !== undefined) updateData.installment_group = updatedExpense.installmentGroup;
+
+      console.log('📤 Dados preparados para atualização no Supabase:', updateData);
 
       const { error } = await withSupabaseRetry(() =>
         supabase
@@ -535,12 +543,14 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
         console.error('❌ Error syncing expense update:', error);
         // Revert optimistic update on error
         setExpenses(previousExpenses);
-        throw new Error(`Update failed: ${error.message}`);
+        throw new Error(`Falha na atualização: ${error.message}`);
       }
 
-      console.log('✅ Expense update synced');
+      console.log('✅ Expense update synced successfully');
     } catch (error) {
       console.error('❌ Error updating expense:', error);
+      // Revert optimistic update on any error
+      setExpenses(previousExpenses);
       throw error;
     }
   };

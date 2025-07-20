@@ -668,6 +668,7 @@ const ExpenseList: React.FC = () => {
           <ExpenseForm
             expense={editingExpense}
             onClose={handleFormClose}
+            onSave={handleFormClose}
           />
         )}
       </div>

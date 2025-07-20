@@ -9,9 +9,10 @@ import { formatDateForInput, formatDateForStorage, getCurrentDateForInput } from
 interface ExpenseFormProps {
   expense?: Expense | null;
   onClose: () => void;
+  onSave?: () => void;
 }
 
-const ExpenseForm: React.FC<ExpenseFormProps> = ({ expense, onClose }) => {
+const ExpenseForm: React.FC<ExpenseFormProps> = ({ expense, onClose, onSave }) => {
   const { addExpense, updateExpense, categories } = useFinance();
   const { accounts } = useAccounts();
   const { settings } = useSettings();
@@ -80,7 +81,7 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ expense, onClose }) => {
     setFormData({ ...formData, amount: sanitized });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!formData.category || !formData.amount || !formData.account) {
@@ -115,7 +116,15 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ expense, onClose }) => {
       };
 
       console.log('✏️ Atualizando despesa:', expenseData);
-      updateExpense(expense.id, expenseData);
+      try {
+        await updateExpense(expense.id, expenseData);
+        console.log('✅ Despesa atualizada com sucesso');
+        onSave?.();
+        onClose();
+      } catch (error: any) {
+        console.error('❌ Erro ao atualizar despesa:', error);
+        alert(`Erro ao atualizar despesa: ${error.message || 'Erro desconhecido'}`);
+      }
     } else {
       // Criando nova despesa
       const installmentAmount = formData.isInstallment ? baseAmount / formData.totalInstallments : baseAmount;
