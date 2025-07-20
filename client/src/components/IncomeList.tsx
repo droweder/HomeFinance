@@ -12,6 +12,7 @@ const IncomeList: React.FC = () => {
   const [editingIncome, setEditingIncome] = useState<Income | null>(null);
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [tempFilters, setTempFilters] = useState(filters.income);
+  const [selectedIncome, setSelectedIncome] = useState<Set<string>>(new Set());
 
   const filteredIncome = income.filter(incomeItem => {
     const incomeFilters = filters.income;
@@ -102,6 +103,31 @@ const IncomeList: React.FC = () => {
   };
 
   const totalIncome = sortedIncome.reduce((sum, item) => sum + item.amount, 0);
+
+  // Calculate total of selected income
+  const selectedTotal = sortedIncome
+    .filter(incomeItem => selectedIncome.has(incomeItem.id))
+    .reduce((sum, incomeItem) => sum + incomeItem.amount, 0);
+
+  // Handle selection functions
+  const handleSelectAll = () => {
+    if (selectedIncome.size === sortedIncome.length) {
+      setSelectedIncome(new Set());
+    } else {
+      setSelectedIncome(new Set(sortedIncome.map(incomeItem => incomeItem.id)));
+    }
+  };
+
+  const handleSelectIncome = (incomeId: string) => {
+    const newSelected = new Set(selectedIncome);
+    if (newSelected.has(incomeId)) {
+      newSelected.delete(incomeId);
+    } else {
+      newSelected.add(incomeId);
+    }
+    setSelectedIncome(newSelected);
+  };
+
   const incomeCategories = categories.filter(cat => cat.type === 'income');
 
   const labels = {
@@ -180,8 +206,17 @@ const IncomeList: React.FC = () => {
                 <div className="flex items-center gap-2 px-3 py-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
                   <DollarSign className="w-4 h-4 text-green-600 dark:text-green-400" />
                   <div>
-                    <span className="text-xs text-green-600 dark:text-green-400 font-medium">{labels.totalIncome}: </span>
-                    <span className="text-sm font-bold text-green-700 dark:text-green-300">{formatCurrency(totalIncome)}</span>
+                    <span className="text-xs text-green-600 dark:text-green-400 font-medium">
+                      {selectedIncome.size > 0 ? 'Selecionado' : labels.totalIncome}: 
+                    </span>
+                    <span className="text-sm font-bold text-green-700 dark:text-green-300">
+                      {formatCurrency(selectedIncome.size > 0 ? selectedTotal : totalIncome)}
+                    </span>
+                    {selectedIncome.size > 0 && (
+                      <span className="text-xs text-green-500 dark:text-green-400 ml-1">
+                        ({selectedIncome.size} de {sortedIncome.length})
+                      </span>
+                    )}
                   </div>
                 </div>
                 <button
@@ -213,6 +248,14 @@ const IncomeList: React.FC = () => {
               <table className="w-full">
                 <thead className="bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600 sticky top-0 z-20">
                   <tr>
+                    <th className="text-left py-1.5 px-2 font-medium text-gray-900 dark:text-white text-sm">
+                      <input
+                        type="checkbox"
+                        checked={selectedIncome.size > 0 && selectedIncome.size === sortedIncome.length}
+                        onChange={handleSelectAll}
+                        className="rounded border-gray-300 text-green-600 focus:ring-green-500"
+                      />
+                    </th>
                     <th className="text-left py-1.5 px-2 font-medium text-gray-900 dark:text-white text-sm">{labels.category}</th>
                     <th className="text-left py-1.5 px-2 font-medium text-gray-900 dark:text-white text-sm">{labels.location}</th>
                     <th className="text-left py-1.5 px-2 font-medium text-gray-900 dark:text-white text-sm">{labels.description}</th>
@@ -226,6 +269,14 @@ const IncomeList: React.FC = () => {
                 <tbody>
                   {sortedIncome.map((incomeItem) => (
                     <tr key={incomeItem.id} className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                      <td className="py-1 px-2">
+                        <input
+                          type="checkbox"
+                          checked={selectedIncome.has(incomeItem.id)}
+                          onChange={() => handleSelectIncome(incomeItem.id)}
+                          className="rounded border-gray-300 text-green-600 focus:ring-green-500"
+                        />
+                      </td>
                       <td className="py-1 px-2">
                         <span className="px-2 py-1 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-300 rounded-full text-xs font-medium">
                           {incomeItem.source}

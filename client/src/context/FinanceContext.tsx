@@ -65,6 +65,7 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
       endDate: '',
       installmentGroup: '',
       groupInstallments: false,
+      isCreditCard: 'all',
       sortBy: [],
     },
     income: {

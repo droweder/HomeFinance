@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Plus, Edit2, Trash2, Calendar, DollarSign, Filter, Search, X, Package } from 'lucide-react';
+import { Plus, Edit2, Trash2, Calendar, DollarSign, Filter, Search, X, Package, CreditCard } from 'lucide-react';
 import { useFinance } from '../context/FinanceContext';
 import { useSettings } from '../context/SettingsContext';
 import { Expense } from '../types';
@@ -35,6 +35,7 @@ const ExpenseList: React.FC = () => {
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [tempFilters, setTempFilters] = useState(filters.expenses);
+  const [selectedExpenses, setSelectedExpenses] = useState<Set<string>>(new Set());
 
   // Função para agrupar despesas por installment_group
   const groupedExpenses = useMemo(() => {
@@ -44,6 +45,11 @@ const ExpenseList: React.FC = () => {
         
         if (expenseFilters.category && expense.category !== expenseFilters.category) return false;
         if (expenseFilters.account && expense.paymentMethod !== expenseFilters.account) return false;
+        if (expenseFilters.isCreditCard && expenseFilters.isCreditCard !== 'all') {
+          const isCreditCard = expense.isCreditCard || false;
+          if (expenseFilters.isCreditCard === 'yes' && !isCreditCard) return false;
+          if (expenseFilters.isCreditCard === 'no' && isCreditCard) return false;
+        }
         
         const dateToUse = expense.date;
         if (expenseFilters.startDate && dateToUse < expenseFilters.startDate) return false;
@@ -61,6 +67,11 @@ const ExpenseList: React.FC = () => {
       
       if (expenseFilters.category && expense.category !== expenseFilters.category) return false;
       if (expenseFilters.account && expense.paymentMethod !== expenseFilters.account) return false;
+      if (expenseFilters.isCreditCard && expenseFilters.isCreditCard !== 'all') {
+        const isCreditCard = expense.isCreditCard || false;
+        if (expenseFilters.isCreditCard === 'yes' && !isCreditCard) return false;
+        if (expenseFilters.isCreditCard === 'no' && isCreditCard) return false;
+      }
       
       const dateToUse = expense.date;
       if (expenseFilters.startDate && dateToUse < expenseFilters.startDate) return false;
@@ -211,6 +222,35 @@ const ExpenseList: React.FC = () => {
     return sum + expense.amount;
   }, 0);
 
+  // Calculate total of selected expenses
+  const selectedTotal = sortedExpenses
+    .filter(expense => selectedExpenses.has(expense.id))
+    .reduce((sum, expense) => {
+      if (filters.expenses.groupInstallments && expense.isInstallment && expense.totalInstallments) {
+        return sum + (expense.amount * expense.totalInstallments);
+      }
+      return sum + expense.amount;
+    }, 0);
+
+  // Handle selection functions
+  const handleSelectAll = () => {
+    if (selectedExpenses.size === sortedExpenses.length) {
+      setSelectedExpenses(new Set());
+    } else {
+      setSelectedExpenses(new Set(sortedExpenses.map(expense => expense.id)));
+    }
+  };
+
+  const handleSelectExpense = (expenseId: string) => {
+    const newSelected = new Set(selectedExpenses);
+    if (newSelected.has(expenseId)) {
+      newSelected.delete(expenseId);
+    } else {
+      newSelected.add(expenseId);
+    }
+    setSelectedExpenses(newSelected);
+  };
+
   const expenseCategories = categories.filter(cat => cat.type === 'expense');
 
   const labels = {
@@ -289,8 +329,17 @@ const ExpenseList: React.FC = () => {
                 <div className="flex items-center gap-2 px-3 py-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
                   <DollarSign className="w-4 h-4 text-red-600 dark:text-red-400" />
                   <div>
-                    <span className="text-xs text-red-600 dark:text-red-400 font-medium">{labels.totalExpenses}: </span>
-                    <span className="text-sm font-bold text-red-700 dark:text-red-300">{formatCurrency(totalExpenses)}</span>
+                    <span className="text-xs text-red-600 dark:text-red-400 font-medium">
+                      {selectedExpenses.size > 0 ? 'Selecionado' : labels.totalExpenses}: 
+                    </span>
+                    <span className="text-sm font-bold text-red-700 dark:text-red-300">
+                      {formatCurrency(selectedExpenses.size > 0 ? selectedTotal : totalExpenses)}
+                    </span>
+                    {selectedExpenses.size > 0 && (
+                      <span className="text-xs text-red-500 dark:text-red-400 ml-1">
+                        ({selectedExpenses.size} de {sortedExpenses.length})
+                      </span>
+                    )}
                     {filters.expenses.groupInstallments && (
                       <span className="text-xs text-red-500 dark:text-red-400 ml-1">*</span>
                     )}
@@ -325,11 +374,20 @@ const ExpenseList: React.FC = () => {
               <table className="w-full">
                 <thead className="bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600 sticky top-0 z-20">
                   <tr>
+                    <th className="text-left py-1.5 px-2 font-medium text-gray-900 dark:text-white text-sm">
+                      <input
+                        type="checkbox"
+                        checked={selectedExpenses.size > 0 && selectedExpenses.size === sortedExpenses.length}
+                        onChange={handleSelectAll}
+                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                    </th>
                     <th className="text-left py-1.5 px-2 font-medium text-gray-900 dark:text-white text-sm">{labels.category}</th>
                     <th className="text-left py-1.5 px-2 font-medium text-gray-900 dark:text-white text-sm">{labels.location}</th>
                     <th className="text-left py-1.5 px-2 font-medium text-gray-900 dark:text-white text-sm">{labels.description}</th>
                     <th className="text-left py-1.5 px-2 font-medium text-gray-900 dark:text-white text-sm">{labels.amount}</th>
                     <th className="text-left py-1.5 px-2 font-medium text-gray-900 dark:text-white text-sm">{labels.account}</th>
+                    <th className="text-left py-1.5 px-2 font-medium text-gray-900 dark:text-white text-sm">Cartão</th>
                     <th className="text-left py-1.5 px-2 font-medium text-gray-900 dark:text-white text-sm">{labels.installments}</th>
                     <th className="text-left py-1.5 px-2 font-medium text-gray-900 dark:text-white text-sm">{labels.date}</th>
                     <th className="text-left py-1.5 px-2 font-medium text-gray-900 dark:text-white text-sm">{labels.actions}</th>
@@ -338,6 +396,14 @@ const ExpenseList: React.FC = () => {
                 <tbody>
                   {sortedExpenses.map((expense) => (
                     <tr key={expense.id} className={`border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors ${expense.isGroupRepresentative ? 'bg-blue-50 dark:bg-blue-900/20 border-l-4 border-l-blue-500' : ''}`}>
+                      <td className="py-1 px-2">
+                        <input
+                          type="checkbox"
+                          checked={selectedExpenses.has(expense.id)}
+                          onChange={() => handleSelectExpense(expense.id)}
+                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        />
+                      </td>
                       <td className="py-1 px-2">
                         <div className="flex items-center gap-2">
                           {expense.isGroupRepresentative && (
@@ -387,6 +453,15 @@ const ExpenseList: React.FC = () => {
                       </td>
                       <td className="py-1.5 px-2 text-sm text-gray-600 dark:text-gray-400">
                         {expense.paymentMethod}
+                      </td>
+                      <td className="py-1.5 px-2 text-sm">
+                        <div className="flex items-center justify-center">
+                          {expense.isCreditCard ? (
+                            <CreditCard className="w-4 h-4 text-green-600 dark:text-green-400" />
+                          ) : (
+                            <span className="text-gray-400">-</span>
+                          )}
+                        </div>
                       </td>
                       <td className="py-1.5 px-2 text-sm">
                         {expense.isInstallment ? (
@@ -622,6 +697,21 @@ const ExpenseList: React.FC = () => {
                         Mostrando despesas até {new Date(tempFilters.endDate).toLocaleDateString('pt-BR')}
                       </p>
                     )}
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      <CreditCard className="w-4 h-4 inline mr-2" />
+                      Cartão de Crédito
+                    </label>
+                    <select
+                      value={tempFilters.isCreditCard || 'all'}
+                      onChange={(e) => setTempFilters(prev => ({ ...prev, isCreditCard: e.target.value }))}
+                      className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                    >
+                      <option value="all">Todos</option>
+                      <option value="yes">Apenas Cartão de Crédito</option>
+                      <option value="no">Excluir Cartão de Crédito</option>
+                    </select>
                   </div>
                 </div>
               </div>

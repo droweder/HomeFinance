@@ -95,6 +95,7 @@ export interface FilterState {
     endDate: string;
     installmentGroup?: string;
     groupInstallments?: boolean;
+    isCreditCard?: string; // 'all' | 'yes' | 'no'
     sortBy?: Array<{
       column: string;
       direction: 'asc' | 'desc';
