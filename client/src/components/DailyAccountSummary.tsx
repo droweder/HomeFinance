@@ -119,6 +119,16 @@ const DailyAccountSummary: React.FC = () => {
 
         // Para cada conta, calcular despesas do dia e saldo final
         accounts.forEach(account => {
+          // Log especial para 08/07/2025 - debug da transferência de R$ 4000
+          if (dateStr === '2025-07-08') {
+            console.log(`🎯 PROCESSANDO ${dateStr} - ${account.name}:`, {
+              accountId: account.id,
+              accountName: account.name,
+              allTransfersFor08July: transfers.filter(t => t.date === '2025-07-08'),
+              transfersWithThisAccountAsFrom: transfers.filter(t => t.date === '2025-07-08' && t.fromAccount === account.name),
+              transfersWithThisAccountAsTo: transfers.filter(t => t.date === '2025-07-08' && t.toAccount === account.name)
+            });
+          }
           // Despesas do dia para esta conta
           const dayExpenseItems = expenses.filter(expense => 
             expense.date === dateStr && expense.paymentMethod === account.name
@@ -224,7 +234,7 @@ const DailyAccountSummary: React.FC = () => {
           const totalDailyIncome = dailyIncome + dayTransferIn;
           const totalDailyExpenses = dailyExpenses + dayTransferOut;
           
-          dailySummary.accounts[account.id] = {
+          (dailySummary.accounts as any)[account.id] = {
             dailyIncome: totalDailyIncome,
             dailyExpenses: totalDailyExpenses,
             finalBalance: finalBalance,
@@ -243,7 +253,7 @@ const DailyAccountSummary: React.FC = () => {
               totalDailyExpenses,
               finalBalance,
               transfersForThisDate: transfers.filter(t => t.date === '2025-07-08'),
-              accountInSummary: dailySummary.accounts[account.id]
+              accountInSummary: (dailySummary.accounts as any)[account.id]
             });
           }
         });
