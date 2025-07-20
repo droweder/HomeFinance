@@ -4,6 +4,7 @@ import { useFinance } from '../context/FinanceContext';
 import { useSettings } from '../context/SettingsContext';
 import { Expense } from '../types';
 import ExpenseForm from './ExpenseForm';
+import ConfirmDialog from './ConfirmDialog';
 
 const ExpenseList: React.FC = () => {
   const { expenses, deleteExpense, categories, filters, updateFilters } = useFinance();
@@ -185,9 +186,18 @@ const ExpenseList: React.FC = () => {
     setShowForm(true);
   };
 
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [expenseToDelete, setExpenseToDelete] = useState<string | null>(null);
+
   const handleDelete = (id: string) => {
-    if (window.confirm('Tem certeza que deseja excluir esta despesa?')) {
-      deleteExpense(id);
+    setExpenseToDelete(id);
+    setShowConfirmDialog(true);
+  };
+
+  const confirmDelete = () => {
+    if (expenseToDelete) {
+      deleteExpense(expenseToDelete);
+      setExpenseToDelete(null);
     }
   };
 
@@ -761,6 +771,18 @@ const ExpenseList: React.FC = () => {
             onSave={handleFormClose}
           />
         )}
+
+        {/* Dialog de Confirmação */}
+        <ConfirmDialog
+          isOpen={showConfirmDialog}
+          onClose={() => setShowConfirmDialog(false)}
+          onConfirm={confirmDelete}
+          title="Excluir Despesa"
+          message="Tem certeza que deseja excluir esta despesa? Esta ação não pode ser desfeita."
+          type="danger"
+          confirmText="Excluir"
+          cancelText="Cancelar"
+        />
       </div>
     </div>
   );

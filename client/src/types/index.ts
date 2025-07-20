@@ -118,6 +118,8 @@ export interface FilterState {
     startDate: string;
     endDate: string;
     visibleAccounts: string[];
+    sortBy?: string;
+    sortDirection?: 'asc' | 'desc';
   };
   transfers: {
     fromAccount: string;

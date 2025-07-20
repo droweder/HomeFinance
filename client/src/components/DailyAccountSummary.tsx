@@ -57,6 +57,7 @@ const DailyAccountSummary: React.FC = () => {
         accounts: accounts.length,
         expenses: expenses.length,
         income: income.length,
+        transfers: transfers.length,
         expectedExpenses: 3530,
         expensesLoadedCorrectly: expenses.length >= 3530
       });
@@ -82,6 +83,14 @@ const DailyAccountSummary: React.FC = () => {
           id: acc.id,
           name: acc.name,
           initialBalance: acc.initialBalance
+        })),
+        transfers: transfers.map(transfer => ({
+          id: transfer.id,
+          date: transfer.date,
+          amount: transfer.amount,
+          fromAccount: transfer.fromAccount,
+          toAccount: transfer.toAccount,
+          description: transfer.description
         }))
       });
 
@@ -224,13 +233,67 @@ const DailyAccountSummary: React.FC = () => {
     filters.dailySummary.endDate,
   ]);
 
-  // Filtrar contas visíveis
+  // Filtrar e ordenar contas visíveis
   const visibleAccounts = useMemo(() => {
-    return accounts.filter(account => 
+    let filteredAccounts = accounts.filter(account => 
       filters.dailySummary.visibleAccounts.length === 0 || 
       filters.dailySummary.visibleAccounts.includes(account.id)
     );
-  }, [accounts, filters.dailySummary.visibleAccounts]);
+
+    // Aplicar ordenação
+    const sortBy = filters.dailySummary.sortBy || 'name';
+    const sortDirection = filters.dailySummary.sortDirection || 'asc';
+
+    filteredAccounts.sort((a, b) => {
+      let aValue: any;
+      let bValue: any;
+
+      switch (sortBy) {
+        case 'balance':
+          aValue = a.initialBalance || 0;
+          bValue = b.initialBalance || 0;
+          break;
+        case 'finalBalance':
+          // Calcular o saldo final mais recente
+          const latestSummaryA = dailySummaries[0]?.accounts[a.id];
+          const latestSummaryB = dailySummaries[0]?.accounts[b.id];
+          aValue = latestSummaryA?.finalBalance || 0;
+          bValue = latestSummaryB?.finalBalance || 0;
+          break;
+        case 'activity':
+          // Calcular atividade total (receitas + despesas) do período
+          const totalActivityA = dailySummaries.reduce((sum, summary) => {
+            const accountData = summary.accounts[a.id];
+            return sum + (accountData?.dailyIncome || 0) + (accountData?.dailyExpenses || 0);
+          }, 0);
+          const totalActivityB = dailySummaries.reduce((sum, summary) => {
+            const accountData = summary.accounts[b.id];
+            return sum + (accountData?.dailyIncome || 0) + (accountData?.dailyExpenses || 0);
+          }, 0);
+          aValue = totalActivityA;
+          bValue = totalActivityB;
+          break;
+        case 'custom':
+          // Usar a ordem da seleção visível
+          const orderA = filters.dailySummary.visibleAccounts.indexOf(a.id);
+          const orderB = filters.dailySummary.visibleAccounts.indexOf(b.id);
+          aValue = orderA === -1 ? 999 : orderA;
+          bValue = orderB === -1 ? 999 : orderB;
+          break;
+        default: // name
+          aValue = a.name.toLowerCase();
+          bValue = b.name.toLowerCase();
+      }
+
+      if (typeof aValue === 'string') {
+        return sortDirection === 'asc' ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
+      } else {
+        return sortDirection === 'asc' ? aValue - bValue : bValue - aValue;
+      }
+    });
+
+    return filteredAccounts;
+  }, [accounts, filters.dailySummary.visibleAccounts, filters.dailySummary.sortBy, filters.dailySummary.sortDirection, dailySummaries]);
 
   const toggleAccountVisibility = useCallback((accountId: string, isTemp = false) => {
     const currentVisible = isTemp ? tempFilters.visibleAccounts : filters.dailySummary.visibleAccounts;
@@ -513,6 +576,41 @@ const DailyAccountSummary: React.FC = () => {
                         </div>
                       </button>
                     ))}
+                  </div>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+                    Clique nas contas para mostrar/ocultar. Sem seleção = todas visíveis.
+                  </p>
+                </div>
+
+                {/* Ordenação das Contas */}
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Ordenação das Contas</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Ordenar por</label>
+                      <select
+                        value={tempFilters.sortBy || 'name'}
+                        onChange={(e) => setTempFilters(prev => ({ ...prev, sortBy: e.target.value }))}
+                        className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                      >
+                        <option value="name">Nome da Conta</option>
+                        <option value="balance">Saldo Inicial</option>
+                        <option value="finalBalance">Saldo Final</option>
+                        <option value="activity">Atividade (Receitas + Despesas)</option>
+                        <option value="custom">Ordem Personalizada</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Direção</label>
+                      <select
+                        value={tempFilters.sortDirection || 'asc'}
+                        onChange={(e) => setTempFilters(prev => ({ ...prev, sortDirection: e.target.value }))}
+                        className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                      >
+                        <option value="asc">Crescente</option>
+                        <option value="desc">Decrescente</option>
+                      </select>
+                    </div>
                   </div>
                   <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
                     {tempFilters.visibleAccounts.length === 0 
