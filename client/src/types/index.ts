@@ -10,7 +10,7 @@ export interface Expense {
   installmentNumber?: number;
   totalInstallments?: number;
   installmentGroup?: string;
-  dueDate?: string; // Stored in YYYY-MM-DD format
+  // Removido dueDate - usando apenas date
   isCreditCard?: boolean;
   paid?: boolean;
   createdAt: string;

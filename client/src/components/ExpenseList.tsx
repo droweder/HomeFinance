@@ -45,7 +45,7 @@ const ExpenseList: React.FC = () => {
         if (expenseFilters.category && expense.category !== expenseFilters.category) return false;
         if (expenseFilters.account && expense.paymentMethod !== expenseFilters.account) return false;
         
-        const dateToUse = expense.dueDate || expense.date;
+        const dateToUse = expense.date;
         if (expenseFilters.startDate && dateToUse < expenseFilters.startDate) return false;
         if (expenseFilters.endDate && dateToUse > expenseFilters.endDate) return false;
         if (expenseFilters.description && !expense.description?.toLowerCase().includes(expenseFilters.description.toLowerCase())) return false;
@@ -62,7 +62,7 @@ const ExpenseList: React.FC = () => {
       if (expenseFilters.category && expense.category !== expenseFilters.category) return false;
       if (expenseFilters.account && expense.paymentMethod !== expenseFilters.account) return false;
       
-      const dateToUse = expense.dueDate || expense.date;
+      const dateToUse = expense.date;
       if (expenseFilters.startDate && dateToUse < expenseFilters.startDate) return false;
       if (expenseFilters.endDate && dateToUse > expenseFilters.endDate) return false;
       if (expenseFilters.description && !expense.description?.toLowerCase().includes(expenseFilters.description.toLowerCase())) return false;
@@ -164,8 +164,8 @@ const ExpenseList: React.FC = () => {
     }
     
     // Default sort by date descending
-    const dateA = new Date(a.dueDate || a.date).getTime();
-    const dateB = new Date(b.dueDate || b.date).getTime();
+    const dateA = new Date(a.date).getTime();
+    const dateB = new Date(b.date).getTime();
     return dateB - dateA;
   });
 

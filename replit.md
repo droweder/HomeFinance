@@ -166,3 +166,5 @@ The application follows a monorepo structure with shared TypeScript types betwee
 - ✅ **Credit Card Analysis Fix**: Corrected Dashboard to use paymentMethod field instead of account for proper credit card categorization
 - ✅ **AI Error Handling**: Fixed undefined .toFixed() errors and replaced browser alerts with elegant toast notifications
 - ✅ **Daily Summary Header Fix**: Corrected sticky header positioning from top-32 to top-0 for proper table navigation
+- ✅ **Database Schema Fix**: Removed all dueDate references - using only date column to match Supabase schema
+- ✅ **Expense Update Fix**: Corrected updateExpense function to work with Supabase's actual column structure

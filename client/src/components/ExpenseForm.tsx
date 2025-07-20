@@ -34,7 +34,7 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ expense, onClose, onSave }) =
     if (expense) {
       console.log('🔧 Carregando despesa para edição:', expense);
       setFormData({
-        date: formatDateForInput(expense.dueDate || expense.date),
+        date: formatDateForInput(expense.date),
         category: expense.category,
         amount: expense.amount.toString().replace('.', ','),
         account: expense.paymentMethod,
@@ -45,8 +45,8 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ expense, onClose, onSave }) =
         totalInstallments: expense.totalInstallments || 1,
       });
 
-      if (expense.isInstallment && expense.dueDate) {
-        setInstallmentDates([formatDateForInput(expense.dueDate)]);
+      if (expense.isInstallment && expense.date) {
+        setInstallmentDates([formatDateForInput(expense.date)]);
       }
     }
   }, [expense]);
@@ -106,7 +106,6 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ expense, onClose, onSave }) =
         amount: baseAmount, // Usar o valor total para edição
         paymentMethod: formData.account,
         location: formData.location,
-        dueDate: formatDateForStorage(formData.date),
         isCreditCard: formData.isCreditCard,
         // Preservar informações de parcelas se existirem
         isInstallment: expense.isInstallment,
@@ -145,7 +144,7 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ expense, onClose, onSave }) =
             installmentNumber: i + 1,
             totalInstallments: formData.totalInstallments,
             installmentGroup: installmentGroup,
-            dueDate: formatDateForStorage(installmentDates[i] || formData.date),
+            // Usando apenas date, sem dueDate
             isCreditCard: formData.isCreditCard,
             paid: false,
           };
@@ -163,7 +162,6 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ expense, onClose, onSave }) =
           paymentMethod: formData.account,
           location: formData.location,
           isInstallment: false,
-          dueDate: formatDateForStorage(formData.date),
           isCreditCard: formData.isCreditCard,
           paid: false,
         };

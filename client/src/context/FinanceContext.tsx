@@ -220,7 +220,7 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
           installmentNumber: exp.installment_number,
           totalInstallments: exp.total_installments,
           installmentGroup: exp.installment_group,
-          dueDate: exp.date, // Using date column instead of due_date
+          // Removido dueDate - usando apenas date
           isCreditCard: exp.is_credit_card,
           createdAt: exp.created_at,
         }));
@@ -523,7 +523,7 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
       if (updatedExpense.location !== undefined) updateData.location = updatedExpense.location;
       if (updatedExpense.paid !== undefined) updateData.paid = updatedExpense.paid;
       if (updatedExpense.isCreditCard !== undefined) updateData.is_credit_card = updatedExpense.isCreditCard;
-      if (updatedExpense.dueDate !== undefined) updateData.due_date = updatedExpense.dueDate || updatedExpense.date;
+      // Remove due_date - usando apenas date
       if (updatedExpense.isInstallment !== undefined) updateData.is_installment = updatedExpense.isInstallment;
       if (updatedExpense.installmentNumber !== undefined) updateData.installment_number = updatedExpense.installmentNumber;
       if (updatedExpense.totalInstallments !== undefined) updateData.total_installments = updatedExpense.totalInstallments;
