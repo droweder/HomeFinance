@@ -64,7 +64,16 @@ class ErrorBoundary extends React.Component<
 const AppContent: React.FC = () => {
   const { isAuthenticated } = useAuth();
   const { connectionStatus } = useSupabaseSync();
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const [activeTab, setActiveTab] = useState(() => {
+    // Preserve tab from localStorage to prevent auto-navigation to dashboard
+    const savedTab = localStorage.getItem('finance-app-active-tab');
+    return savedTab || 'dashboard';
+  });
+
+  // Save active tab to localStorage to prevent tab resets
+  React.useEffect(() => {
+    localStorage.setItem('finance-app-active-tab', activeTab);
+  }, [activeTab]);
 
   // Verificar se está autenticado e conectado ao Supabase
   if (!isAuthenticated) {

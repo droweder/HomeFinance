@@ -52,6 +52,8 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
   const [transfers, setTransfers] = useState<Transfer[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [loadingError, setLoadingError] = useState<string | null>(null);
+  const [lastLoadTime, setLastLoadTime] = useState<number>(0);
+  const [isDataLoaded, setIsDataLoaded] = useState(false);
   // Persistent filters with localStorage
   const getDefaultFilters = (): FilterState => ({
     expenses: {
@@ -126,12 +128,20 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
         setTransfers([]);
         setIsLoading(false);
         setLoadingError(null);
+        setIsDataLoaded(false);
         return;
       }
 
-      // Prevent rapid successive loads
+      // Prevent rapid successive loads with debouncing
+      const now = Date.now();
       if (isLoading) {
         console.log('⏸️ Already loading, skipping duplicate request');
+        return;
+      }
+
+      // Debounce: prevent loading if less than 5 seconds since last load
+      if (isDataLoaded && now - lastLoadTime < 5000) {
+        console.log('⏸️ Debouncing: skipping load (too soon since last load)');
         return;
       }
 
@@ -302,6 +312,8 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
         }
 
         console.log('🎉 All financial data loaded successfully!');
+        setIsDataLoaded(true);
+        setLastLoadTime(Date.now());
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
         console.error('❌ Critical error loading data:', error);
@@ -316,7 +328,16 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
       }
     };
 
-    fetchData();
+    // Debounce loading to prevent rapid successive calls when tab switching
+    loadTimeout = setTimeout(() => {
+      fetchData();
+    }, 100);
+
+    return () => {
+      if (loadTimeout) {
+        clearTimeout(loadTimeout);
+      }
+    };
   }, [currentUser]);
 
   const addExpense = async (expense: Omit<Expense, 'id' | 'createdAt'>) => {
@@ -330,7 +351,6 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
     const optimisticExpense: Expense = {
       id: tempId,
       ...expense,
-      dueDate: expense.date, // Use date as dueDate
       createdAt: new Date().toISOString(),
     };
 
@@ -355,7 +375,7 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
             installment_number: expense.installmentNumber || null,
             total_installments: expense.totalInstallments || null,
             installment_group: expense.installmentGroup || null,
-            due_date: expense.date, // Use date field as due_date
+            // Removido due_date - usando apenas date
             is_credit_card: expense.isCreditCard || false,
             user_id: currentUser.id,
           })
