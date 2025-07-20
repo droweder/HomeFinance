@@ -123,6 +123,23 @@ const FinancialAIChat: React.FC = () => {
       .sort(([,a], [,b]) => b - a)
       .slice(0, 5);
 
+    // Análise de cartão de crédito
+    const creditCardAnalysis = {
+      totalCreditCard: expenses?.filter(e => e.isCreditCard).reduce((sum, e) => sum + (e.amount || 0), 0) || 0,
+      totalCash: expenses?.filter(e => !e.isCreditCard).reduce((sum, e) => sum + (e.amount || 0), 0) || 0,
+      creditCardPercentage: totalExpensesThisMonth > 0 ? ((stats.creditCardExpenses / totalExpensesThisMonth) * 100).toFixed(1) : '0.0'
+    };
+
+    // Análise de receitas por fonte
+    const incomeBySource = (income || []).reduce((acc, inc) => {
+      acc[inc.source || 'Sem categoria'] = (acc[inc.source || 'Sem categoria'] || 0) + (inc.amount || 0);
+      return acc;
+    }, {} as Record<string, number>);
+
+    const topIncomeSources = Object.entries(incomeBySource)
+      .sort(([,a], [,b]) => b - a)
+      .slice(0, 5);
+
     return {
       currentMonth,
       basicData,
@@ -130,7 +147,9 @@ const FinancialAIChat: React.FC = () => {
       recentTrend,
       stats,
       expensesByDayOfWeek,
-      topLocations
+      topLocations,
+      creditCardAnalysis,
+      topIncomeSources
     };
   };
 
@@ -173,6 +192,15 @@ ${(context.topLocations || []).map(([location, amount], i) =>
   `${i + 1}. ${location}: R$ ${Number(amount || 0).toFixed(2)}`
 ).join('\n')}
 
+💳 ANÁLISE CARTÃO DE CRÉDITO:
+- Gastos no Cartão: R$ ${Number(context.creditCardAnalysis.totalCreditCard || 0).toFixed(2)} (${context.creditCardAnalysis.creditCardPercentage}%)
+- Gastos em Dinheiro/Débito: R$ ${Number(context.creditCardAnalysis.totalCash || 0).toFixed(2)}
+
+💰 TOP 5 FONTES DE RECEITA:
+${(context.topIncomeSources || []).map(([source, amount], i) => 
+  `${i + 1}. ${source}: R$ ${Number(amount || 0).toFixed(2)}`
+).join('\n')}
+
 📊 TENDÊNCIA DOS ÚLTIMOS 6 MESES:
 ${context.recentTrend.map(month => 
   `${month.month}: Receitas R$ ${Number(month.income || 0).toFixed(2)} | Despesas R$ ${Number(month.expenses || 0).toFixed(2)} | Saldo R$ ${Number((month.income || 0) - (month.expenses || 0)).toFixed(2)}`
@@ -181,15 +209,17 @@ ${context.recentTrend.map(month =>
 PERGUNTA DO USUÁRIO: ${userQuestion}
 
 INSTRUÇÕES PARA RESPOSTA:
-1. Use os dados fornecidos para dar uma resposta precisa e personalizada
-2. Seja específico com números e percentuais quando relevante  
-3. Forneça insights acionáveis e sugestões práticas
+1. SEMPRE analyze os dados fornecidos e forneça uma resposta precisa e personalizada
+2. Seja específico com números reais e percentuais dos dados do usuário
+3. Forneça insights ACIONÁVEIS baseados nos dados reais, não sugestões genéricas
 4. Use emojis para tornar a resposta mais visual e amigável
-5. Mantenha um tom profissional mas acessível
-6. Se a pergunta não puder ser respondida com os dados disponíveis, explique isso claramente
-7. Limite a resposta a no máximo 400 palavras para ser informativa mas concisa
+5. Identifique padrões específicos nos gastos, receitas e tendências
+6. Se possível, compare dados entre períodos e categorias
+7. Sugira ações práticas baseadas nos números apresentados
+8. Limite a resposta a no máximo 500 palavras para ser informativa mas concisa
+9. FOQUE nos dados financeiros reais do usuário, não em conselhos genéricos
 
-Responda em português brasileiro:`;
+Responda EXCLUSIVAMENTE em português brasileiro e seja específico com os dados fornecidos:`;
   };
 
   const callGeminiAPI = async (prompt: string): Promise<string> => {
@@ -199,7 +229,7 @@ Responda em português brasileiro:`;
       throw new Error('Chave da API Gemini não configurada');
     }
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${apiKey}`;
     
     const requestBody = {
       contents: [
@@ -212,10 +242,11 @@ Responda em português brasileiro:`;
         }
       ],
       generationConfig: {
-        temperature: 0.7,
-        topK: 40,
-        topP: 0.95,
-        maxOutputTokens: 1024,
+        temperature: 0.3,
+        topK: 32,
+        topP: 0.8,
+        maxOutputTokens: 2048,
+        candidateCount: 1
       },
       safetySettings: [
         {
@@ -243,7 +274,6 @@ Responda em português brasileiro:`;
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-goog-api-key': apiKey,
       },
       body: JSON.stringify(requestBody)
     });
@@ -290,43 +320,39 @@ Responda em português brasileiro:`;
   const quickQuestions = [
     {
       icon: <BarChart3 className="w-4 h-4" />,
-      text: "Como estão meus gastos este mês?",
+      text: "Análise detalhada dos meus gastos este mês com números reais",
       category: "análise"
     },
     {
       icon: <Target className="w-4 h-4" />,
-      text: "Onde posso economizar?",
+      text: "Baseado nos meus dados reais, onde posso economizar?",
       category: "economia"
     },
     {
       icon: <PieChart className="w-4 h-4" />,
-      text: "Qual categoria gasto mais?",
+      text: "Qual categoria eu mais gasto e quanto representa em percentual?",
       category: "categorias"
     },
     {
+      icon: <CreditCard className="w-4 h-4" />,
+      text: "Como está o uso do meu cartão de crédito vs dinheiro?",
+      category: "cartao"
+    },
+    {
       icon: <TrendingUp className="w-4 h-4" />,
-      text: "Como está minha tendência financeira?",
+      text: "Minha situação financeira está melhorando ou piorando?",
       category: "tendência"
     },
     {
       icon: <Calculator className="w-4 h-4" />,
-      text: "Tenho um bom controle financeiro?",
-      category: "avaliação"
-    },
-    {
-      icon: <DollarSign className="w-4 h-4" />,
-      text: "Quais são meus maiores gastos?",
-      category: "gastos"
+      text: "Relatório completo da minha saúde financeira atual",
+      category: "relatório"
     }
   ];
 
   const handleQuickQuestion = (question: string) => {
-    setInputMessage(question);
-    // Auto-send after a brief delay to give visual feedback
-    setTimeout(() => {
-      setInputMessage('');
-      handleSendMessage(question);
-    }, 100);
+    // Auto-send the quick question
+    handleSendMessage(question);
   };
 
   const handleSendMessage = async (customMessage?: string) => {
@@ -625,7 +651,7 @@ Responda em português brasileiro:`;
               />
             </div>
             <button
-              onClick={handleSendMessage}
+              onClick={() => handleSendMessage()}
               disabled={!inputMessage.trim() || isLoading}
               className="p-3 bg-purple-600 text-white rounded-xl hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
             >
