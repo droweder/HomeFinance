@@ -119,30 +119,6 @@ const DailyAccountSummary: React.FC = () => {
 
         // Para cada conta, calcular despesas do dia e saldo final
         accounts.forEach(account => {
-          // Log especial para 08/07/2025 - debug da transferência de R$ 4000
-          if (dateStr === '2025-07-08') {
-            const transfersThisDate = transfers.filter(t => t.date === '2025-07-08');
-            console.log(`🎯 PROCESSANDO ${dateStr} - ${account.name}:`, {
-              accountId: account.id,
-              accountName: account.name,
-              allTransfersFor08July: transfersThisDate,
-              exactStringComparisons: transfersThisDate.map(t => ({
-                transferFromAccount: t.fromAccount,
-                transferToAccount: t.toAccount,
-                currentAccountName: account.name,
-                fromMatch: t.fromAccount === account.name,
-                toMatch: t.toAccount === account.name,
-                fromAccountType: typeof t.fromAccount,
-                toAccountType: typeof t.toAccount,
-                currentAccountType: typeof account.name,
-                fromAccountLength: t.fromAccount?.length,
-                toAccountLength: t.toAccount?.length,
-                currentAccountLength: account.name?.length
-              })),
-              transfersWithThisAccountAsFrom: transfers.filter(t => t.date === '2025-07-08' && t.fromAccount === account.name),
-              transfersWithThisAccountAsTo: transfers.filter(t => t.date === '2025-07-08' && t.toAccount === account.name)
-            });
-          }
           // Despesas do dia para esta conta
           const dayExpenseItems = expenses.filter(expense => 
             expense.date === dateStr && expense.paymentMethod === account.name
@@ -167,50 +143,35 @@ const DailyAccountSummary: React.FC = () => {
           );
           const previousExpenses = previousExpenseItems.reduce((sum, expense) => sum + (expense.amount || 0), 0);
 
-          // TRANSFERÊNCIAS DO DIA - tentativa com trim e verificação de tipos
-          const dayTransferOutItems = transfers.filter(transfer => {
-            if (transfer.date === dateStr) {
-              const match = String(transfer.fromAccount).trim() === String(account.name).trim();
-              if (dateStr === '2025-07-08' && (account.name.includes('Viacredi') || transfer.fromAccount?.includes('Viacredi'))) {
-                console.log('🔍 COMPARANDO SAÍDA:', {
-                  transferFrom: `"${transfer.fromAccount}"`,
-                  accountName: `"${account.name}"`,
-                  match: match,
-                  transferFromTrimmed: `"${String(transfer.fromAccount).trim()}"`,
-                  accountNameTrimmed: `"${String(account.name).trim()}"`
-                });
-              }
-              return match;
-            }
-            return false;
-          });
+          // TRANSFERÊNCIAS DO DIA - usar ID das contas para correspondência exata
+          const dayTransferOutItems = transfers.filter(transfer => 
+            transfer.date === dateStr && transfer.fromAccount === account.id
+          );
           const dayTransferOut = dayTransferOutItems.reduce((sum, transfer) => sum + (transfer.amount || 0), 0);
 
-          const dayTransferInItems = transfers.filter(transfer => {
-            if (transfer.date === dateStr) {
-              const match = String(transfer.toAccount).trim() === String(account.name).trim();
-              if (dateStr === '2025-07-08' && (account.name.includes('Viacredi') || transfer.toAccount?.includes('Viacredi'))) {
-                console.log('🔍 COMPARANDO ENTRADA:', {
-                  transferTo: `"${transfer.toAccount}"`,
-                  accountName: `"${account.name}"`,
-                  match: match,
-                  transferToTrimmed: `"${String(transfer.toAccount).trim()}"`,
-                  accountNameTrimmed: `"${String(account.name).trim()}"`
-                });
-              }
-              return match;
-            }
-            return false;
-          });
+          const dayTransferInItems = transfers.filter(transfer => 
+            transfer.date === dateStr && transfer.toAccount === account.id
+          );
           const dayTransferIn = dayTransferInItems.reduce((sum, transfer) => sum + (transfer.amount || 0), 0);
 
-          // Transferências acumuladas até esta data - mesma lógica que receitas e despesas
+          // Debug transferências quando encontradas  
+          if (dayTransferIn > 0 || dayTransferOut > 0) {
+            console.log(`✅ TRANSFERÊNCIA PROCESSADA ${dateStr} - ${account.name}:`, {
+              accountId: account.id,
+              dayTransferIn,
+              dayTransferOut,
+              transfersIn: dayTransferInItems.length,
+              transfersOut: dayTransferOutItems.length
+            });
+          }
+
+          // Transferências acumuladas até esta data - usar ID das contas
           const previousTransferOut = transfers.filter(transfer => 
-            transfer.date <= dateStr && transfer.fromAccount === account.name
+            transfer.date <= dateStr && transfer.fromAccount === account.id
           ).reduce((sum, transfer) => sum + (transfer.amount || 0), 0);
 
           const previousTransferIn = transfers.filter(transfer => 
-            transfer.date <= dateStr && transfer.toAccount === account.name
+            transfer.date <= dateStr && transfer.toAccount === account.id
           ).reduce((sum, transfer) => sum + (transfer.amount || 0), 0);
 
           const finalBalance = (account.initialBalance || 0) + previousIncome - previousExpenses + previousTransferIn - previousTransferOut;
@@ -280,20 +241,13 @@ const DailyAccountSummary: React.FC = () => {
             finalBalance: finalBalance,
           };
 
-          // Log específico para 08/07/2025 - Viacredi
-          if (dateStr === '2025-07-08' && (account.name.includes('Viacredi') || account.name.includes('Dirceu') || account.name.includes('Tatiane'))) {
-            console.log(`🎯 TRANSFERÊNCIA 08/07 - ${account.name}:`, {
-              dateStr,
-              accountName: account.name,
-              dayTransferIn,
-              dayTransferOut,
-              dailyIncome,
-              dailyExpenses,
+          // Log final para verificar inclusão no resumo
+          if (totalDailyIncome > 0 || totalDailyExpenses > 0) {
+            console.log(`💰 RESUMO ${dateStr} - ${account.name}:`, {
               totalDailyIncome,
               totalDailyExpenses,
               finalBalance,
-              transfersForThisDate: transfers.filter(t => t.date === '2025-07-08'),
-              accountInSummary: (dailySummary.accounts as any)[account.id]
+              includesTransfers: dayTransferIn > 0 || dayTransferOut > 0
             });
           }
         });
