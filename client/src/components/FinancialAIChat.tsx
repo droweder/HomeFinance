@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Bot, Send, User, Loader2, AlertCircle, Settings, TrendingUp, TrendingDown, DollarSign, Sparkles, Brain, BarChart3, PieChart, Target, Lightbulb, Calculator } from 'lucide-react';
+import { Bot, Send, User, Loader2, AlertCircle, Settings, TrendingUp, TrendingDown, DollarSign, Sparkles, Brain, BarChart3, PieChart, Target, Lightbulb, Calculator, CreditCard } from 'lucide-react';
 import { useSettings } from '../context/SettingsContext';
 import { useFinance } from '../context/FinanceContext';
 import { useFinanceCalculations } from '../hooks/useFinanceCalculations';
@@ -140,6 +140,57 @@ const FinancialAIChat: React.FC = () => {
       .sort(([,a], [,b]) => b - a)
       .slice(0, 5);
 
+    // Análise por conta específica (últimos 30 dias)
+    const last30Days = new Date();
+    last30Days.setDate(last30Days.getDate() - 30);
+    
+    const getAccountStatement = (accountName: string, days: number = 30) => {
+      const cutoffDate = new Date();
+      cutoffDate.setDate(cutoffDate.getDate() - days);
+      
+      const accountExpenses = expenses?.filter(exp => 
+        exp.account === accountName && new Date(exp.date) >= cutoffDate
+      ) || [];
+      
+      const accountIncome = income?.filter(inc => 
+        inc.account === accountName && new Date(inc.date) >= cutoffDate
+      ) || [];
+
+      const totalExpenses = accountExpenses.reduce((sum, exp) => sum + (exp.amount || 0), 0);
+      const totalIncome = accountIncome.reduce((sum, inc) => sum + (inc.amount || 0), 0);
+      
+      return {
+        accountName,
+        period: `${days} dias`,
+        totalExpenses,
+        totalIncome,
+        balance: totalIncome - totalExpenses,
+        transactionCount: accountExpenses.length + accountIncome.length,
+        expenseTransactions: accountExpenses.map(exp => ({
+          date: exp.date,
+          description: exp.description || exp.category,
+          amount: exp.amount,
+          category: exp.category,
+          type: 'Despesa'
+        })),
+        incomeTransactions: accountIncome.map(inc => ({
+          date: inc.date,
+          description: inc.notes || inc.source,
+          amount: inc.amount,
+          category: inc.source,
+          type: 'Receita'
+        }))
+      };
+    };
+
+    // Lista de todas as contas disponíveis
+    const allAccounts = [
+      ...new Set([
+        ...expenses?.map(e => e.account).filter(Boolean) || [],
+        ...income?.map(i => i.account).filter(Boolean) || []
+      ])
+    ];
+
     return {
       currentMonth,
       basicData,
@@ -149,14 +200,61 @@ const FinancialAIChat: React.FC = () => {
       expensesByDayOfWeek,
       topLocations,
       creditCardAnalysis,
-      topIncomeSources
+      topIncomeSources,
+      allAccounts,
+      getAccountStatement
     };
   };
 
   const buildPrompt = (userQuestion: string) => {
     const context = buildFinancialContext();
     
+    // Verificar se é uma pergunta sobre extrato de conta específica
+    const accountStatementRegex = /extrato.*conta\s+([\w\s\-]+).*(\d+)\s*dias?/i;
+    const accountMatch = userQuestion.match(accountStatementRegex);
+    
+    let accountStatement = '';
+    if (accountMatch) {
+      const accountName = accountMatch[1].trim();
+      const days = parseInt(accountMatch[2]) || 30;
+      
+      // Tentar encontrar conta similar
+      const similarAccount = context.allAccounts.find(acc => 
+        acc.toLowerCase().includes(accountName.toLowerCase()) ||
+        accountName.toLowerCase().includes(acc.toLowerCase())
+      );
+      
+      if (similarAccount) {
+        const statement = context.getAccountStatement(similarAccount, days);
+        const allTransactions = [
+          ...statement.expenseTransactions,
+          ...statement.incomeTransactions
+        ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+        accountStatement = `
+📋 EXTRATO DETALHADO - ${statement.accountName.toUpperCase()}
+📅 Período: Últimos ${statement.period}
+💰 Resumo: Receitas R$ ${statement.totalIncome.toFixed(2)} | Despesas R$ ${statement.totalExpenses.toFixed(2)} | Saldo R$ ${statement.balance.toFixed(2)}
+📊 Total de Transações: ${statement.transactionCount}
+
+📝 TODAS AS TRANSAÇÕES (${allTransactions.length}):
+${allTransactions.map((t, i) => 
+  `${i + 1}. ${t.date} | ${t.type} | ${t.description} | R$ ${t.amount.toFixed(2)} | ${t.category}`
+).join('\n')}
+
+`;
+      } else {
+        accountStatement = `
+❌ CONTA NÃO ENCONTRADA: "${accountName}"
+📋 Contas disponíveis: ${context.allAccounts.join(', ')}
+
+`;
+      }
+    }
+    
     return `Você é um assistente financeiro especializado em análise de dados pessoais. Analise os dados financeiros fornecidos e responda à pergunta do usuário de forma clara, objetiva e útil.
+
+${accountStatement}
 
 DADOS FINANCEIROS COMPLETOS DO USUÁRIO (${context.currentMonth}):
 
@@ -201,6 +299,9 @@ ${(context.topIncomeSources || []).map(([source, amount], i) =>
   `${i + 1}. ${source}: R$ ${Number(amount || 0).toFixed(2)}`
 ).join('\n')}
 
+🏦 CONTAS DISPONÍVEIS:
+${context.allAccounts.join(', ')}
+
 📊 TENDÊNCIA DOS ÚLTIMOS 6 MESES:
 ${context.recentTrend.map(month => 
   `${month.month}: Receitas R$ ${Number(month.income || 0).toFixed(2)} | Despesas R$ ${Number(month.expenses || 0).toFixed(2)} | Saldo R$ ${Number((month.income || 0) - (month.expenses || 0)).toFixed(2)}`
@@ -210,14 +311,15 @@ PERGUNTA DO USUÁRIO: ${userQuestion}
 
 INSTRUÇÕES PARA RESPOSTA:
 1. SEMPRE analyze os dados fornecidos e forneça uma resposta precisa e personalizada
-2. Seja específico com números reais e percentuais dos dados do usuário
-3. Forneça insights ACIONÁVEIS baseados nos dados reais, não sugestões genéricas
-4. Use emojis para tornar a resposta mais visual e amigável
-5. Identifique padrões específicos nos gastos, receitas e tendências
-6. Se possível, compare dados entre períodos e categorias
-7. Sugira ações práticas baseadas nos números apresentados
-8. Limite a resposta a no máximo 500 palavras para ser informativa mas concisa
-9. FOQUE nos dados financeiros reais do usuário, não em conselhos genéricos
+2. Para perguntas sobre EXTRATOS DE CONTAS, use o extrato detalhado fornecido acima
+3. Seja específico com números reais, datas e valores exatos dos dados do usuário
+4. Forneça insights ACIONÁVEIS baseados nos dados reais, não sugestões genéricas
+5. Use emojis para tornar a resposta mais visual e amigável
+6. Para extratos, organize as informações de forma cronológica e clara
+7. Identifique padrões específicos nos gastos, receitas e tendências
+8. Sugira ações práticas baseadas nos números apresentados
+9. Se perguntarem sobre conta inexistente, liste as contas disponíveis
+10. FOQUE nos dados financeiros reais do usuário, não em conselhos genéricos
 
 Responda EXCLUSIVAMENTE em português brasileiro e seja específico com os dados fornecidos:`;
   };
