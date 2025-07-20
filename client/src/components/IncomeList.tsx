@@ -4,6 +4,7 @@ import { useFinance } from '../context/FinanceContext';
 import { useSettings } from '../context/SettingsContext';
 import { Income } from '../types';
 import IncomeForm from './IncomeForm';
+import ConfirmDialog from './ConfirmDialog';
 
 const IncomeList: React.FC = () => {
   const { income, deleteIncome, categories, filters, updateFilters } = useFinance();

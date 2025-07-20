@@ -5,6 +5,7 @@ import { useAccounts } from '../context/AccountContext';
 import { useSettings } from '../context/SettingsContext';
 import { Transfer } from '../types';
 import TransferForm from './TransferForm';
+import ConfirmDialog from './ConfirmDialog';
 
 const TransferList: React.FC = () => {
   const { transfers, deleteTransfer, filters, updateFilters } = useFinance();
@@ -15,6 +16,8 @@ const TransferList: React.FC = () => {
   const [editingTransfer, setEditingTransfer] = useState<Transfer | null>(null);
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [tempFilters, setTempFilters] = useState(filters.transfers);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [transferToDelete, setTransferToDelete] = useState<string | null>(null);
 
   const filteredTransfers = transfers.filter(transfer => {
     const transferFilters = filters.transfers;
@@ -62,9 +65,15 @@ const TransferList: React.FC = () => {
     setShowForm(true);
   };
 
-  const handleDelete = async (id: string) => {
-    if (window.confirm('Tem certeza que deseja excluir esta transferência?')) {
-      await deleteTransfer(id);
+  const handleDelete = (id: string) => {
+    setTransferToDelete(id);
+    setShowConfirmDialog(true);
+  };
+
+  const confirmDelete = async () => {
+    if (transferToDelete) {
+      await deleteTransfer(transferToDelete);
+      setTransferToDelete(null);
     }
   };
 
@@ -357,6 +366,18 @@ const TransferList: React.FC = () => {
           onClose={handleCloseForm}
         />
       )}
+
+      {/* Dialog de Confirmação */}
+      <ConfirmDialog
+        isOpen={showConfirmDialog}
+        onClose={() => setShowConfirmDialog(false)}
+        onConfirm={confirmDelete}
+        title="Excluir Transferência"
+        message="Tem certeza que deseja excluir esta transferência? Esta ação não pode ser desfeita."
+        type="danger"
+        confirmText="Excluir"
+        cancelText="Cancelar"
+      />
     </div>
   );
 };
