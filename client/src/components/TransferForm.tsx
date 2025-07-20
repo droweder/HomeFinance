@@ -65,9 +65,7 @@ const TransferForm: React.FC<TransferFormProps> = ({ transfer, onClose }) => {
       newErrors.toAccount = 'Conta destino deve ser diferente da conta origem';
     }
 
-    if (!formData.description.trim()) {
-      newErrors.description = 'Descrição é obrigatória';
-    }
+    // Descrição é opcional, não validamos mais
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -227,7 +225,7 @@ const TransferForm: React.FC<TransferFormProps> = ({ transfer, onClose }) => {
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               <FileText className="w-4 h-4 inline mr-2" />
-              Descrição
+              Descrição (opcional)
             </label>
             <input
               type="text"

@@ -16,7 +16,7 @@ const calculateDateRangeForMonth = (month: number, year: number) => {
 };
 
 const DailyAccountSummary: React.FC = () => {
-  const { expenses, income, filters, updateFilters } = useFinance();
+  const { expenses, income, transfers, filters, updateFilters } = useFinance();
   const { accounts } = useAccounts();
   const { formatCurrency, formatDate } = useSettings();
   const [isCalculating, setIsCalculating] = useState(false);
@@ -39,6 +39,7 @@ const DailyAccountSummary: React.FC = () => {
       timestamp: new Date().toISOString(),
       expensesCount: expenses.length,
       incomeCount: income.length,
+      transfersCount: transfers.length,
       accountsCount: accounts.length
     });
     
@@ -116,6 +117,17 @@ const DailyAccountSummary: React.FC = () => {
           
           const dailyExpenses = dayExpenseItems.reduce((sum, expense) => sum + (expense.amount || 0), 0);
 
+          // Transferências do dia para esta conta
+          const dayTransferOut = transfers.filter(transfer => 
+            transfer.date === dateStr && 
+            transfer.fromAccount === account.name
+          ).reduce((sum, transfer) => sum + (transfer.amount || 0), 0);
+
+          const dayTransferIn = transfers.filter(transfer => 
+            transfer.date === dateStr && 
+            transfer.toAccount === account.name
+          ).reduce((sum, transfer) => sum + (transfer.amount || 0), 0);
+
           // Calcular saldo acumulado até esta data de forma otimizada
           const previousExpenseItems = expenses.filter(expense => 
             (expense.dueDate || expense.date) <= dateStr && 
@@ -131,15 +143,30 @@ const DailyAccountSummary: React.FC = () => {
           
           const previousIncome = previousIncomeItems.reduce((sum, incomeItem) => sum + (incomeItem.amount || 0), 0);
 
-          const finalBalance = (account.initialBalance || 0) + previousIncome - previousExpenses;
+          // Transferências acumuladas até esta data
+          const previousTransferOut = transfers.filter(transfer => 
+            transfer.date <= dateStr && 
+            transfer.fromAccount === account.name
+          ).reduce((sum, transfer) => sum + (transfer.amount || 0), 0);
+
+          const previousTransferIn = transfers.filter(transfer => 
+            transfer.date <= dateStr && 
+            transfer.toAccount === account.name
+          ).reduce((sum, transfer) => sum + (transfer.amount || 0), 0);
+
+          const finalBalance = (account.initialBalance || 0) + previousIncome - previousExpenses + previousTransferIn - previousTransferOut;
 
           // Log detalhado para debug
-          if (dailyIncome > 0 || dailyExpenses > 0) {
+          if (dailyIncome > 0 || dailyExpenses > 0 || dayTransferIn > 0 || dayTransferOut > 0) {
             console.log(`💰 ${dateStr} - ${account.name}:`, {
               dailyIncome,
               dailyExpenses,
+              dayTransferIn,
+              dayTransferOut,
               previousIncome,
               previousExpenses,
+              previousTransferIn,
+              previousTransferOut,
               initialBalance: account.initialBalance,
               finalBalance,
               dayIncomeItems: dayIncomeItems.length,
@@ -148,8 +175,8 @@ const DailyAccountSummary: React.FC = () => {
           }
 
           dailySummary.accounts[account.id] = {
-            dailyIncome,
-            dailyExpenses,
+            dailyIncome: dailyIncome + dayTransferIn,
+            dailyExpenses: dailyExpenses + dayTransferOut,
             finalBalance,
           };
         });
@@ -191,6 +218,7 @@ const DailyAccountSummary: React.FC = () => {
   }, [
     expenses, 
     income, 
+    transfers,
     accounts, 
     filters.dailySummary.startDate, // Depend on the actual filter values
     filters.dailySummary.endDate,
