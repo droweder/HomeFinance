@@ -135,40 +135,68 @@ const DailyAccountSummary: React.FC = () => {
           
           const dailyExpenses = dayExpenseItems.reduce((sum, expense) => sum + (expense.amount || 0), 0);
 
-          // Transferências do dia para esta conta - busca flexível por nome
+          // Função para verificar correspondência de conta
+          const accountMatches = (transferAccount: string, accountName: string) => {
+            if (!transferAccount || !accountName) return false;
+            
+            // 1. Correspondência exata
+            if (transferAccount === accountName) return true;
+            
+            // 2. Transferência contém nome da conta
+            if (transferAccount.includes(accountName)) return true;
+            
+            // 3. Nome da conta contém parte da transferência (antes do " - ")
+            const transferBaseName = transferAccount.split(' - ')[0];
+            if (accountName.includes(transferBaseName)) return true;
+            
+            // 4. Busca insensível a maiúsculas/minúsculas
+            if (accountName.toLowerCase().includes(transferBaseName.toLowerCase())) return true;
+            
+            // 5. Busca reversa - transferência contém conta (insensível)
+            if (transferAccount.toLowerCase().includes(accountName.toLowerCase())) return true;
+            
+            return false;
+          };
+
+          // Transferências do dia para esta conta - busca melhorada
           const dayTransferOutItems = transfers.filter(transfer => 
-            transfer.date === dateStr && 
-            (transfer.fromAccount === account.name || 
-             transfer.fromAccount.includes(account.name) || 
-             account.name.includes(transfer.fromAccount.split(' - ')[0]) ||
-             account.name.toLowerCase().includes(transfer.fromAccount.toLowerCase().split(' - ')[0]))
+            transfer.date === dateStr && accountMatches(transfer.fromAccount, account.name)
           );
           const dayTransferOut = dayTransferOutItems.reduce((sum, transfer) => sum + (transfer.amount || 0), 0);
 
           const dayTransferInItems = transfers.filter(transfer => 
-            transfer.date === dateStr && 
-            (transfer.toAccount === account.name || 
-             transfer.toAccount.includes(account.name) || 
-             account.name.includes(transfer.toAccount.split(' - ')[0]) ||
-             account.name.toLowerCase().includes(transfer.toAccount.toLowerCase().split(' - ')[0]))
+            transfer.date === dateStr && accountMatches(transfer.toAccount, account.name)
           );
           const dayTransferIn = dayTransferInItems.reduce((sum, transfer) => sum + (transfer.amount || 0), 0);
 
-          // Log para debug de correspondência de nomes
-          if (dateStr === '2025-07-11' || dateStr === '2025-07-08') { // Datas das transferências nas imagens
-            console.log(`🔍 CORRESPONDÊNCIA MELHORADA ${dateStr} - ${account.name}:`, {
+          // Log para debug sempre para identificar problema
+          if (transfers.length > 0 && (dayTransferIn > 0 || dayTransferOut > 0 || dateStr === '2025-07-11' || dateStr === '2025-07-08')) {
+            console.log(`🔍 DEBUG TRANSFERÊNCIAS ${dateStr} - ${account.name}:`, {
               transfersForDate: transfers.filter(t => t.date === dateStr),
               dayTransferOutItems,
               dayTransferInItems,
+              dayTransferOut,
+              dayTransferIn,
               accountName: account.name,
-              availableFromAccounts: [...new Set(transfers.map(t => t.fromAccount))],
-              availableToAccounts: [...new Set(transfers.map(t => t.toAccount))],
-              matchingLogic: {
-                exactMatch: `${account.name} === transferAccount`,
-                includes: `transferAccount.includes("${account.name}")`,
-                nameInTransfer: `"${account.name}".includes(transferAccount.split(" - ")[0])`,
-                lowerCaseIncludes: `"${account.name.toLowerCase()}".includes(transferAccount.toLowerCase().split(" - ")[0])`
-              }
+              accountId: account.id,
+              allTransfers: transfers.slice(0, 3), // Primeiras 3 para debug
+              uniqueFromAccounts: [...new Set(transfers.map(t => t.fromAccount))],
+              uniqueToAccounts: [...new Set(transfers.map(t => t.toAccount))],
+              testMatches: transfers.filter(t => t.date === dateStr).map(t => ({
+                transfer: t,
+                fromMatch: {
+                  exact: t.fromAccount === account.name,
+                  includes: t.fromAccount.includes(account.name),
+                  accountInTransfer: account.name.includes(t.fromAccount.split(' - ')[0]),
+                  lowerIncludes: account.name.toLowerCase().includes(t.fromAccount.toLowerCase().split(' - ')[0])
+                },
+                toMatch: {
+                  exact: t.toAccount === account.name,
+                  includes: t.toAccount.includes(account.name),
+                  accountInTransfer: account.name.includes(t.toAccount.split(' - ')[0]),
+                  lowerIncludes: account.name.toLowerCase().includes(t.toAccount.toLowerCase().split(' - ')[0])
+                }
+              }))
             });
           }
 
@@ -187,21 +215,13 @@ const DailyAccountSummary: React.FC = () => {
           
           const previousIncome = previousIncomeItems.reduce((sum, incomeItem) => sum + (incomeItem.amount || 0), 0);
 
-          // Transferências acumuladas até esta data - busca flexível por nome
+          // Transferências acumuladas até esta data - busca melhorada
           const previousTransferOut = transfers.filter(transfer => 
-            transfer.date <= dateStr && 
-            (transfer.fromAccount === account.name || 
-             transfer.fromAccount.includes(account.name) || 
-             account.name.includes(transfer.fromAccount.split(' - ')[0]) ||
-             account.name.toLowerCase().includes(transfer.fromAccount.toLowerCase().split(' - ')[0]))
+            transfer.date <= dateStr && accountMatches(transfer.fromAccount, account.name)
           ).reduce((sum, transfer) => sum + (transfer.amount || 0), 0);
 
           const previousTransferIn = transfers.filter(transfer => 
-            transfer.date <= dateStr && 
-            (transfer.toAccount === account.name || 
-             transfer.toAccount.includes(account.name) || 
-             account.name.includes(transfer.toAccount.split(' - ')[0]) ||
-             account.name.toLowerCase().includes(transfer.toAccount.toLowerCase().split(' - ')[0]))
+            transfer.date <= dateStr && accountMatches(transfer.toAccount, account.name)
           ).reduce((sum, transfer) => sum + (transfer.amount || 0), 0);
 
           const finalBalance = (account.initialBalance || 0) + previousIncome - previousExpenses + previousTransferIn - previousTransferOut;
