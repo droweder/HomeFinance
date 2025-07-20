@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Plus, Edit2, Trash2, Calendar, DollarSign, Filter, Search, X, Package, CreditCard } from 'lucide-react';
+import { Plus, Edit2, Trash2, Calendar, DollarSign, Filter, Search, X, Package, CreditCard, Download } from 'lucide-react';
 import { useFinance } from '../context/FinanceContext';
 import { useSettings } from '../context/SettingsContext';
 import { Expense } from '../types';
@@ -261,6 +261,43 @@ const ExpenseList: React.FC = () => {
     setSelectedExpenses(newSelected);
   };
 
+  // Export CSV functionality
+  const handleExportCSV = () => {
+    const dataToExport = selectedExpenses.size > 0 
+      ? sortedExpenses.filter(item => selectedExpenses.has(item.id))
+      : sortedExpenses;
+
+    if (dataToExport.length === 0) {
+      alert('Nenhuma despesa para exportar!');
+      return;
+    }
+
+    const headers = ['Data', 'Categoria', 'Valor', 'Método de Pagamento', 'Descrição', 'Localização', 'Parcelas', 'Cartão de Crédito'];
+    const csvContent = [
+      headers.join(','),
+      ...dataToExport.map(item => [
+        item.date,
+        `"${item.category || ''}"`,
+        item.amount.toString().replace('.', ','),
+        `"${item.paymentMethod || ''}"`,
+        `"${item.description || ''}"`,
+        `"${item.location || ''}"`,
+        `"${item.installments || '1'}"`,
+        item.isCreditCard ? 'Sim' : 'Não'
+      ].join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `despesas_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const expenseCategories = categories.filter(cat => cat.type === 'expense');
 
   const labels = {
@@ -361,6 +398,13 @@ const ExpenseList: React.FC = () => {
                 >
                   <Filter className="w-4 h-4" />
                   Filtros {filteredExpenses.length < expenses.length && `(${filteredExpenses.length}/${expenses.length})`}
+                </button>
+                <button
+                  onClick={handleExportCSV}
+                  className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-2"
+                >
+                  <Download className="w-4 h-4" />
+                  Exportar CSV
                 </button>
                 <button
                   onClick={() => setShowForm(true)}

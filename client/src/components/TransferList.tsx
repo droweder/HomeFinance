@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Plus, Edit2, Trash2, Calendar, DollarSign, Filter, Search, X, ArrowRightLeft } from 'lucide-react';
+import { Plus, Edit2, Trash2, Calendar, DollarSign, Filter, Search, X, ArrowRightLeft, Download } from 'lucide-react';
 import { useFinance } from '../context/FinanceContext';
 import { useAccounts } from '../context/AccountContext';
 import { useSettings } from '../context/SettingsContext';
@@ -18,6 +18,40 @@ const TransferList: React.FC = () => {
   const [tempFilters, setTempFilters] = useState(filters.transfers);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [transferToDelete, setTransferToDelete] = useState<string | null>(null);
+
+  // Export CSV functionality
+  const handleExportCSV = () => {
+    if (sortedTransfers.length === 0) {
+      alert('Nenhuma transferência para exportar!');
+      return;
+    }
+
+    const headers = ['Data', 'De', 'Para', 'Valor', 'Descrição'];
+    const csvContent = [
+      headers.join(','),
+      ...sortedTransfers.map(item => {
+        const fromAccountName = accounts.find(acc => acc.id === item.fromAccount)?.name || item.fromAccount;
+        const toAccountName = accounts.find(acc => acc.id === item.toAccount)?.name || item.toAccount;
+        return [
+          item.date,
+          `"${fromAccountName}"`,
+          `"${toAccountName}"`,
+          item.amount.toString().replace('.', ','),
+          `"${item.description || ''}"`
+        ].join(',');
+      })
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `transferencias_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   const filteredTransfers = transfers.filter(transfer => {
     const transferFilters = filters.transfers;

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Edit2, Trash2, Calendar, DollarSign, Filter, Search, X, Package } from 'lucide-react';
+import { Plus, Edit2, Trash2, Calendar, DollarSign, Filter, Search, X, Package, Download } from 'lucide-react';
 import { useFinance } from '../context/FinanceContext';
 import { useSettings } from '../context/SettingsContext';
 import { Income } from '../types';
@@ -14,6 +14,7 @@ const IncomeList: React.FC = () => {
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [tempFilters, setTempFilters] = useState(filters.income);
   const [selectedIncome, setSelectedIncome] = useState<Set<string>>(new Set());
+  const [confirmDeleteIncome, setConfirmDeleteIncome] = useState<Income | null>(null);
 
   const filteredIncome = income.filter(incomeItem => {
     const incomeFilters = filters.income;
@@ -77,10 +78,19 @@ const IncomeList: React.FC = () => {
     setShowForm(true);
   };
 
-  const handleDelete = (id: string) => {
-    if (window.confirm('Tem certeza que deseja excluir esta receita?')) {
-      deleteIncome(id);
+  const handleDelete = (income: Income) => {
+    setConfirmDeleteIncome(income);
+  };
+
+  const confirmDelete = () => {
+    if (confirmDeleteIncome) {
+      deleteIncome(confirmDeleteIncome.id);
+      setConfirmDeleteIncome(null);
     }
+  };
+
+  const cancelDelete = () => {
+    setConfirmDeleteIncome(null);
   };
 
   const handleFormClose = () => {
@@ -130,6 +140,41 @@ const IncomeList: React.FC = () => {
   };
 
   const incomeCategories = categories.filter(cat => cat.type === 'income');
+
+  // Export CSV functionality
+  const handleExportCSV = () => {
+    const dataToExport = selectedIncome.size > 0 
+      ? sortedIncome.filter(item => selectedIncome.has(item.id))
+      : sortedIncome;
+
+    if (dataToExport.length === 0) {
+      alert('Nenhuma receita para exportar!');
+      return;
+    }
+
+    const headers = ['Data', 'Fonte', 'Valor', 'Conta', 'Descrição', 'Localização'];
+    const csvContent = [
+      headers.join(','),
+      ...dataToExport.map(item => [
+        item.date,
+        `"${item.source || ''}"`,
+        item.amount.toString().replace('.', ','),
+        `"${item.account || ''}"`,
+        `"${item.notes || ''}"`,
+        `"${item.location || ''}"`
+      ].join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `receitas_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   const labels = {
     title: 'Receitas',
@@ -228,6 +273,13 @@ const IncomeList: React.FC = () => {
                   Filtros
                 </button>
                 <button
+                  onClick={handleExportCSV}
+                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+                >
+                  <Download className="w-4 h-4" />
+                  Exportar CSV
+                </button>
+                <button
                   onClick={() => setShowForm(true)}
                   className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
                 >
@@ -315,7 +367,7 @@ const IncomeList: React.FC = () => {
                             <Edit2 className="w-4 h-4" />
                           </button>
                           <button
-                            onClick={() => handleDelete(incomeItem.id)}
+                            onClick={() => handleDelete(incomeItem)}
                             className="p-1.5 text-red-600 hover:bg-red-100 dark:hover:bg-red-900 rounded-lg transition-colors"
                           >
                             <Trash2 className="w-4 h-4" />
@@ -537,6 +589,20 @@ const IncomeList: React.FC = () => {
           <IncomeForm
             income={editingIncome}
             onClose={handleFormClose}
+          />
+        )}
+
+        {/* Confirm Delete Dialog */}
+        {confirmDeleteIncome && (
+          <ConfirmDialog
+            isOpen={!!confirmDeleteIncome}
+            title="Excluir Receita"
+            message={`Tem certeza que deseja excluir esta receita de ${formatCurrency(confirmDeleteIncome.amount)}?`}
+            confirmText="Excluir"
+            cancelText="Cancelar"
+            onConfirm={confirmDelete}
+            onCancel={cancelDelete}
+            type="danger"
           />
         )}
       </div>
