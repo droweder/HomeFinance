@@ -13,7 +13,7 @@ import ImportCSV from './ImportCSV';
 
 const Settings: React.FC = () => {
   const { settings, updateSettings } = useSettings();
-  const { categories, deleteCategory } = useFinance();
+  const { categories, deleteCategory, expenses, income, transfers } = useFinance();
   const { accounts, deleteAccount } = useAccounts();
   const { currentUser } = useAuth();
   const { showApiKeySuccess, showSuccess, showError } = useToast();
@@ -64,6 +64,96 @@ const Settings: React.FC = () => {
   const handleAccountFormClose = () => {
     setShowAccountForm(false);
     setEditingAccount(null);
+  };
+
+  const handleExportData = () => {
+    try {
+      const timestamp = new Date().toISOString().split('T')[0];
+      
+      // Export Expenses
+      if (expenses && expenses.length > 0) {
+        const expenseHeaders = ['Data', 'Categoria', 'Valor', 'Método de Pagamento', 'Descrição', 'Localização', 'Parcelas', 'Cartão de Crédito'];
+        const expenseContent = [
+          expenseHeaders.join(','),
+          ...expenses.map(item => [
+            item.date,
+            `"${item.category || ''}"`,
+            item.amount.toString().replace('.', ','),
+            `"${item.paymentMethod || ''}"`,
+            `"${item.description || ''}"`,
+            `"${item.location || ''}"`,
+            `"${item.installments || '1'}"`,
+            item.isCreditCard ? 'Sim' : 'Não'
+          ].join(','))
+        ].join('\n');
+        
+        const expenseBlob = new Blob([expenseContent], { type: 'text/csv;charset=utf-8;' });
+        const expenseLink = document.createElement('a');
+        const expenseUrl = URL.createObjectURL(expenseBlob);
+        expenseLink.setAttribute('href', expenseUrl);
+        expenseLink.setAttribute('download', `despesas_${timestamp}.csv`);
+        expenseLink.style.visibility = 'hidden';
+        document.body.appendChild(expenseLink);
+        expenseLink.click();
+        document.body.removeChild(expenseLink);
+      }
+
+      // Export Income
+      if (income && income.length > 0) {
+        const incomeHeaders = ['Data', 'Fonte', 'Valor', 'Conta', 'Descrição', 'Localização'];
+        const incomeContent = [
+          incomeHeaders.join(','),
+          ...income.map(item => [
+            item.date,
+            `"${item.source || ''}"`,
+            item.amount.toString().replace('.', ','),
+            `"${item.account || ''}"`,
+            `"${item.notes || ''}"`,
+            `"${item.location || ''}"`
+          ].join(','))
+        ].join('\n');
+        
+        const incomeBlob = new Blob([incomeContent], { type: 'text/csv;charset=utf-8;' });
+        const incomeLink = document.createElement('a');
+        const incomeUrl = URL.createObjectURL(incomeBlob);
+        incomeLink.setAttribute('href', incomeUrl);
+        incomeLink.setAttribute('download', `receitas_${timestamp}.csv`);
+        incomeLink.style.visibility = 'hidden';
+        document.body.appendChild(incomeLink);
+        incomeLink.click();
+        document.body.removeChild(incomeLink);
+      }
+
+      // Export Transfers
+      if (transfers && transfers.length > 0) {
+        const transferHeaders = ['Data', 'Conta Origem', 'Conta Destino', 'Valor', 'Descrição'];
+        const transferContent = [
+          transferHeaders.join(','),
+          ...transfers.map(item => [
+            item.date,
+            `"${item.fromAccount || ''}"`,
+            `"${item.toAccount || ''}"`,
+            item.amount.toString().replace('.', ','),
+            `"${item.description || ''}"`
+          ].join(','))
+        ].join('\n');
+        
+        const transferBlob = new Blob([transferContent], { type: 'text/csv;charset=utf-8;' });
+        const transferLink = document.createElement('a');
+        const transferUrl = URL.createObjectURL(transferBlob);
+        transferLink.setAttribute('href', transferUrl);
+        transferLink.setAttribute('download', `transferencias_${timestamp}.csv`);
+        transferLink.style.visibility = 'hidden';
+        document.body.appendChild(transferLink);
+        transferLink.click();
+        document.body.removeChild(transferLink);
+      }
+
+      showSuccess('Dados exportados!', 'Todos os arquivos CSV foram baixados com sucesso.');
+    } catch (error) {
+      console.error('Erro ao exportar dados:', error);
+      showError('Erro ao exportar dados. Tente novamente.');
+    }
   };
 
   const handleSaveGeminiKey = () => {
@@ -414,10 +504,7 @@ const Settings: React.FC = () => {
               </button>
               <button
                 className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                onClick={() => {
-                  // Implementar exportação futuramente
-                  alert('Funcionalidade de exportação será implementada em breve');
-                }}
+                onClick={handleExportData}
               >
                 <Download className="w-4 h-4" />
                 Exportar Dados
