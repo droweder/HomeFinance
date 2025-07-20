@@ -127,13 +127,13 @@ const DailyAccountSummary: React.FC = () => {
 
           // Receitas do dia para esta conta
           const dayIncomeItems = income.filter(incomeItem => 
-            incomeItem.date === dateStr && incomeItem.account === account.id
+            incomeItem.date === dateStr && incomeItem.account === account.name
           );
           const dailyIncome = dayIncomeItems.reduce((sum, incomeItem) => sum + (incomeItem.amount || 0), 0);
 
           // Receitas acumuladas até esta data
           const previousIncomeItems = income.filter(incomeItem => 
-            incomeItem.date <= dateStr && incomeItem.account === account.id
+            incomeItem.date <= dateStr && incomeItem.account === account.name
           );
           const previousIncome = previousIncomeItems.reduce((sum, incomeItem) => sum + (incomeItem.amount || 0), 0);
 
@@ -143,43 +143,37 @@ const DailyAccountSummary: React.FC = () => {
           );
           const previousExpenses = previousExpenseItems.reduce((sum, expense) => sum + (expense.amount || 0), 0);
 
-          // CRUZAMENTO DE TRANSFERÊNCIAS - Lógica corrigida para corresponder contas por ID
+          // TRANSFERÊNCIAS DO DIA - mesma lógica que receitas e despesas (usando nome da conta)
           const dayTransferOutItems = transfers.filter(transfer => 
-            transfer.date === dateStr && transfer.fromAccount === account.id
+            transfer.date === dateStr && transfer.fromAccount === account.name
           );
           const dayTransferOut = dayTransferOutItems.reduce((sum, transfer) => sum + (transfer.amount || 0), 0);
 
           const dayTransferInItems = transfers.filter(transfer => 
-            transfer.date === dateStr && transfer.toAccount === account.id
+            transfer.date === dateStr && transfer.toAccount === account.name
           );
           const dayTransferIn = dayTransferInItems.reduce((sum, transfer) => sum + (transfer.amount || 0), 0);
 
-          // Transferências acumuladas até esta data - usando IDs das contas
+          // Transferências acumuladas até esta data - mesma lógica que receitas e despesas
           const previousTransferOut = transfers.filter(transfer => 
-            transfer.date <= dateStr && transfer.fromAccount === account.id
+            transfer.date <= dateStr && transfer.fromAccount === account.name
           ).reduce((sum, transfer) => sum + (transfer.amount || 0), 0);
 
           const previousTransferIn = transfers.filter(transfer => 
-            transfer.date <= dateStr && transfer.toAccount === account.id
+            transfer.date <= dateStr && transfer.toAccount === account.name
           ).reduce((sum, transfer) => sum + (transfer.amount || 0), 0);
 
           const finalBalance = (account.initialBalance || 0) + previousIncome - previousExpenses + previousTransferIn - previousTransferOut;
 
-          // Debug transferências sempre que houver transferências na data
-          const allTransfersForDate = transfers.filter(t => t.date === dateStr);
-          if (allTransfersForDate.length > 0) {
-            console.log(`🔄 DEBUG TRANSFERÊNCIA ${dateStr} - ${account.name} (ID: ${account.id}):`, {
-              allTransfersForDate,
+          // Debug transferências - mesma lógica que receitas e despesas
+          if (dayTransferIn > 0 || dayTransferOut > 0) {
+            console.log(`✅ TRANSFERÊNCIAS ENCONTRADAS ${dateStr} - ${account.name}:`, {
               dayTransferIn,
               dayTransferOut,
-              accountMatch: {
-                id: account.id,
-                name: account.name
-              },
-              transfersMatchingOut: transfers.filter(t => t.date === dateStr && t.fromAccount === account.id),
-              transfersMatchingIn: transfers.filter(t => t.date === dateStr && t.toAccount === account.id),
-              allUniqueFromAccounts: Array.from(new Set(transfers.map(t => t.fromAccount))),
-              allUniqueToAccounts: Array.from(new Set(transfers.map(t => t.toAccount)))
+              transfersIn: dayTransferInItems.length,
+              transfersOut: dayTransferOutItems.length,
+              netTransfer: dayTransferIn - dayTransferOut,
+              finalBalanceWithTransfers: (account.initialBalance || 0) + previousIncome - previousExpenses + previousTransferIn - previousTransferOut
             });
           }
 
