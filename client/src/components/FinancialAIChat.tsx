@@ -331,7 +331,7 @@ Responda EXCLUSIVAMENTE em português brasileiro e seja específico com os dados
       throw new Error('Chave da API Gemini não configurada');
     }
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${apiKey}`;
     
     const requestBody = {
       contents: [
