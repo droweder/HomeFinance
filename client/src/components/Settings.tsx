@@ -172,9 +172,11 @@ const Settings: React.FC = () => {
   const handleSaveGeminiKey = () => {
     updateSettings({ 
       geminiApiKey: tempGeminiKey,
+      geminiModel: tempGeminiModel,
       aiSettings: {
         ...settings.aiSettings,
         geminiApiKey: tempGeminiKey,
+        geminiModel: tempGeminiModel,
         enableAI: !!tempGeminiKey
       }
     });
