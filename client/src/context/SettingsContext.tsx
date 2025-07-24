@@ -28,9 +28,11 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
     language: 'pt-BR', // Fixed to Brazilian Portuguese
     currency: 'BRL', // Fixed to Brazilian Real
     geminiApiKey: '',
+    geminiModel: 'gemini-2.0-flash', // Default model
     aiSettings: {
       grokApiKey: '',
       geminiApiKey: '',
+      geminiModel: 'gemini-2.0-flash',
       preferredProvider: 'gemini',
       enableAI: false,
     },
