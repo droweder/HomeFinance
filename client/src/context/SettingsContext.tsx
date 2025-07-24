@@ -50,9 +50,11 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
           language: 'pt-BR',
           currency: 'BRL',
           geminiApiKey: parsed.geminiApiKey || '',
+          geminiModel: parsed.geminiModel || 'gemini-2.0-flash',
           aiSettings: {
             grokApiKey: '',
             geminiApiKey: parsed.geminiApiKey || '', // Sync with main geminiApiKey
+            geminiModel: parsed.geminiModel || 'gemini-2.0-flash',
             preferredProvider: 'gemini',
             enableAI: !!parsed.geminiApiKey,
             ...parsed.aiSettings,
