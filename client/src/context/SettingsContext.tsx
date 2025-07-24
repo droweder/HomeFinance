@@ -96,6 +96,7 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
       aiSettings: {
         ...prev.aiSettings,
         ...filteredSettings.aiSettings,
+        geminiModel: filteredSettings.geminiModel || prev.geminiModel,
       },
     }));
   };
