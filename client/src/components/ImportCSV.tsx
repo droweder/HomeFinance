@@ -574,6 +574,9 @@ const ImportCSV: React.FC<ImportCSVProps> = ({ onClose }) => {
                     <li>• Para parcelas, use a data de cada parcela no campo Date</li>
                     <li>• Categorias e contas inexistentes serão sinalizadas como avisos</li>
                     <li>• Use aspas duplas para campos que contenham vírgulas</li>
+                    {importType === 'transfers' && (
+                      <li>• <strong>Transferências:</strong> O campo Descrição é opcional e pode ficar vazio</li>
+                    )}
                   </ul>
                   <p className="text-red-600 dark:text-red-400 text-sm mt-2">
                     💡 Dica: Verifique os logs do console (F12) para mais detalhes sobre os erros.
