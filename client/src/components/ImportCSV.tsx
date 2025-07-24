@@ -202,7 +202,7 @@ const ImportCSV: React.FC<ImportCSVProps> = ({ onClose }) => {
       if (!row.Amount) errors.push('Valor é obrigatório');
       if (!row.FromAccount) errors.push('Conta origem é obrigatória');
       if (!row.ToAccount) errors.push('Conta destino é obrigatória');
-      if (!row.Description) errors.push('Descrição é obrigatória');
+      // Descrição é opcional para transferências
 
       // Date validation
       if (row.Date && !isValidDate(row.Date)) {
