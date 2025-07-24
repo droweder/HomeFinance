@@ -49,7 +49,7 @@ const ImportCSV: React.FC<ImportCSVProps> = ({ onClose }) => {
   const transferTemplate = `Date,Amount,FromAccount,ToAccount,Description
 2025-01-15,1000.00,Conta Corrente,Poupança,Transferência para poupança
 2025-01-20,500.00,Carteira,Conta Corrente,Depósito em dinheiro
-2025-01-25,300.00,Poupança,Conta Corrente,Retirada para gastos`;
+2025-01-25,300.00,Poupança,Conta Corrente,`;
 
   const downloadTemplate = () => {
     let template;
