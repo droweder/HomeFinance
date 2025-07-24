@@ -414,9 +414,16 @@ const Settings: React.FC = () => {
               <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
                 <div className="flex items-center gap-3">
                   <div className={`w-3 h-3 rounded-full ${tempGeminiKey ? 'bg-green-500' : 'bg-red-500'}`}></div>
-                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    {tempGeminiKey ? 'API Configurada' : 'API Não Configurada'}
-                  </span>
+                  <div>
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      {tempGeminiKey ? 'API Configurada' : 'API Não Configurada'}
+                    </span>
+                    {tempGeminiKey && (
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        Modelo: {geminiModels.find(m => m.value === tempGeminiModel)?.label || tempGeminiModel}
+                      </p>
+                    )}
+                  </div>
                 </div>
                 {tempGeminiKey && (
                   <span className="px-3 py-1 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-300 text-xs font-medium rounded-full">
