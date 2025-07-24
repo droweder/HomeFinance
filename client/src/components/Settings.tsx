@@ -461,6 +461,37 @@ const Settings: React.FC = () => {
                 </p>
               </div>
 
+              {/* Campo de Seleção de Modelo */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Modelo do Gemini
+                </label>
+                <div className="relative">
+                  <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
+                    <Bot className="w-4 h-4 text-gray-400" />
+                  </div>
+                  <select
+                    value={tempGeminiModel}
+                    onChange={(e) => setTempGeminiModel(e.target.value)}
+                    className="w-full border border-gray-300 dark:border-gray-600 rounded-lg pl-10 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-purple-500 dark:bg-gray-700 dark:text-white appearance-none bg-white dark:bg-gray-700"
+                  >
+                    {geminiModels.map((model) => (
+                      <option key={model.value} value={model.value}>
+                        {model.label}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </div>
+                </div>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  Escolha o modelo do Gemini que deseja usar. Modelos mais recentes podem ter melhor performance.
+                </p>
+              </div>
+
               {/* Botões de Ação */}
               <div className="flex gap-3">
                 <button
