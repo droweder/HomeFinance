@@ -60,9 +60,11 @@ export interface AppSettings {
   language: 'pt-BR';
   currency: 'BRL';
   geminiApiKey?: string;
+  geminiModel?: string;
   aiSettings?: {
     grokApiKey?: string;
     geminiApiKey?: string;
+    geminiModel?: string;
     preferredProvider?: 'grok' | 'gemini';
     enableAI?: boolean;
   };
