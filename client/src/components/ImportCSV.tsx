@@ -546,7 +546,7 @@ const ImportCSV: React.FC<ImportCSVProps> = ({ onClose }) => {
                       ? 'Date,Category,Description,Amount,PaymentMethod,Location,Installments,InstallmentNumber,IsCreditCard'
                       : importType === 'income'
                       ? 'Date,Source,Amount,Notes,Location,Account'
-                      : 'Date,Amount,FromAccount,ToAccount,Description'
+                      : 'Date,Amount,FromAccount,ToAccount,Description (Opcional)'
                     }
                   </p>
                 </div>
