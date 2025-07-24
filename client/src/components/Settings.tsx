@@ -198,7 +198,7 @@ const Settings: React.FC = () => {
 
     try {
       const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${tempGeminiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/${tempGeminiModel}:generateContent?key=${tempGeminiKey}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -209,9 +209,9 @@ const Settings: React.FC = () => {
       );
       
       if (response.ok) {
-        alert('✅ API Gemini funcionando corretamente!');
+        alert(`✅ API Gemini funcionando corretamente com o modelo ${tempGeminiModel}!`);
       } else {
-        alert('❌ Erro na API Gemini. Verifique sua chave.');
+        alert('❌ Erro na API Gemini. Verifique sua chave e modelo selecionado.');
       }
     } catch (error) {
       alert('❌ Erro ao testar a API Gemini.');
