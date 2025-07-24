@@ -27,6 +27,19 @@ const Settings: React.FC = () => {
   const [accountSearch, setAccountSearch] = useState('');
   const [showGeminiKey, setShowGeminiKey] = useState(false);
   const [tempGeminiKey, setTempGeminiKey] = useState(settings.geminiApiKey || '');
+  const [tempGeminiModel, setTempGeminiModel] = useState(settings.geminiModel || 'gemini-2.0-flash');
+
+  const geminiModels = [
+    { value: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash' },
+    { value: 'gemini-1.5-flash-8b', label: 'Gemini 1.5 Flash 8B' },
+    { value: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash' },
+    { value: 'gemini-2.0-flash-exp', label: 'Gemini 2.0 Flash Experimental' },
+    { value: 'gemini-2.0-flash-lite', label: 'Gemini 2.0 Flash Lite' },
+    { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' },
+    { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro' },
+    { value: 'gemma-3-12b', label: 'Gemma 3 12B' },
+    { value: 'gemma-3-1b', label: 'Gemma 3 1B' },
+  ];
 
   const handleThemeToggle = () => {
     updateSettings({ theme: settings.theme === 'light' ? 'dark' : 'light' });
