@@ -236,7 +236,6 @@ const TransferList: React.FC = () => {
                     </td>
                     <td className="py-1 px-4">
                       <div className="flex items-center gap-2">
-                        <DollarSign className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                         <span className="text-sm font-medium text-blue-600 dark:text-blue-400">
                           {formatCurrency(transfer.amount)}
                         </span>
