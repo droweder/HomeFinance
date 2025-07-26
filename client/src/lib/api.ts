@@ -168,4 +168,14 @@ export const accountsApi = {
   },
 };
 
+// **INÍCIO DA ALTERAÇÃO**
+// Adiciona a função para chamar o modelo de chat da IA e a exporta
+export async function callChatModel(message: string): Promise<{ reply: string }> {
+  return apiRequest('/chat', { // Endpoint para o chat da IA
+    method: 'POST',
+    body: JSON.stringify({ message }),
+  });
+}
+// **FIM DA ALTERAÇÃO**
+
 export { ApiError };
