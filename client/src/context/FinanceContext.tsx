@@ -151,12 +151,26 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
   
   // Load data from Supabase when user is authenticated (only when necessary)
   useEffect(() => {
+    console.log('🔄 useEffect triggered', { 
+      currentUserId, 
+      dataLoadingDisabled, 
+      isDataLoaded, 
+      loadedUserId,
+      expensesCount: expenses.length 
+    });
+    
+    // FIRST CHECK: If data loading is disabled, exit immediately
+    if (dataLoadingDisabled) {
+      console.log('🚫 DATA LOADING PERMANENTLY DISABLED - useEffect blocked');
+      return;
+    }
+
     let loadTimeout: NodeJS.Timeout;
     
     const fetchData = async () => {
-      // ABSOLUTE BLOCK: If data loading is disabled, don't load anything
+      // DOUBLE CHECK: If data loading is disabled, don't load anything
       if (dataLoadingDisabled) {
-        console.log('🚫 DATA LOADING PERMANENTLY DISABLED - No reload allowed');
+        console.log('🚫 DATA LOADING PERMANENTLY DISABLED - fetchData blocked');
         return;
       }
 
@@ -422,10 +436,25 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
 
     // Only execute if we have a user and haven't loaded data for this user yet
     if (currentUserId && (!loadedUserId || loadedUserId !== currentUserId || !isDataLoaded)) {
+      console.log('✅ Conditions met for data loading', {
+        hasUserId: !!currentUserId,
+        loadedUserId,
+        isDataLoaded,
+        dataLoadingDisabled
+      });
+      
       // Debounce loading to prevent rapid successive calls when tab switching
       loadTimeout = setTimeout(() => {
         fetchData();
       }, 100);
+    } else {
+      console.log('⏸️ Skipping data load - conditions not met', {
+        hasUserId: !!currentUserId,
+        loadedUserId,
+        currentUserId,
+        isDataLoaded,
+        dataLoadingDisabled
+      });
     }
 
     return () => {
@@ -433,7 +462,7 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
         clearTimeout(loadTimeout);
       }
     };
-  }, [currentUserId]); // Only depend on user ID to prevent object recreation triggers
+  }, [currentUserId, dataLoadingDisabled]); // Include dataLoadingDisabled in dependencies
 
   const addExpense = async (expense: Omit<Expense, 'id' | 'createdAt'>) => {
     if (!currentUser) {
