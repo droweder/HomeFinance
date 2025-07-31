@@ -73,25 +73,33 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     checkSession();
 
-    // Listen for auth state changes
+    // Listen for auth state changes (with redundancy prevention)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         console.log('🔄 Mudança de autenticação:', event);
         setAuthError(null);
         
         if (session && session.user) {
-          console.log('✅ Usuário logado:', session.user.email);
-          const user: User = {
-            id: session.user.id,
-            username: session.user.email || '',
-            password: '',
-            isAdmin: session.user.email === 'droweder@gmail.com',
-            createdAt: session.user.created_at || new Date().toISOString(),
-          };
+          // Only update if user actually changed
+          const newUserId = session.user.id;
+          const currentUserId = currentUser?.id;
           
-          setCurrentUser(user);
-          setAuthToken(session.access_token);
-        } else {
+          if (currentUserId !== newUserId) {
+            console.log('✅ Usuário logado:', session.user.email);
+            const user: User = {
+              id: session.user.id,
+              username: session.user.email || '',
+              password: '',
+              isAdmin: session.user.email === 'droweder@gmail.com',
+              createdAt: session.user.created_at || new Date().toISOString(),
+            };
+            
+            setCurrentUser(user);
+            setAuthToken(session.access_token);
+          } else {
+            console.log('👤 Mesmo usuário detectado - evitando recriação desnecessária');
+          }
+        } else if (currentUser) {
           console.log('❌ Usuário deslogado');
           setCurrentUser(null);
           setAuthToken(null);

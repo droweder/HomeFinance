@@ -56,6 +56,8 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
   const [lastLoadTime, setLastLoadTime] = useState<number>(0);
   const [isDataLoaded, setIsDataLoaded] = useState(false);
   const [loadedUserId, setLoadedUserId] = useState<string | null>(null);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const [lastUserInteraction, setLastUserInteraction] = useState<number>(Date.now());
   // Persistent filters with localStorage
   const getDefaultFilters = (): FilterState => ({
     expenses: {
@@ -118,6 +120,31 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
     return getDefaultFilters();
   });
 
+  // Track page visibility to prevent reload on tab changes
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        // User returned to tab - update interaction time but don't reload
+        setLastUserInteraction(Date.now());
+        console.log('👁️ User returned to tab - preventing unnecessary reload');
+      }
+    };
+
+    const handleUserInteraction = () => {
+      setLastUserInteraction(Date.now());
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    document.addEventListener('click', handleUserInteraction);
+    document.addEventListener('keydown', handleUserInteraction);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      document.removeEventListener('click', handleUserInteraction);
+      document.removeEventListener('keydown', handleUserInteraction);
+    };
+  }, []);
+
   // Load data from Supabase when user is authenticated (only when necessary)
   useEffect(() => {
     let loadTimeout: NodeJS.Timeout;
@@ -140,10 +167,32 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
         return;
       }
 
-      // Prevent loading if already loaded for this user
+      // ABSOLUTE BLOCK: Check data lock first
+      if (isDataLocked()) {
+        console.log('🔒 DATA LOCKED - Absolutely no reload allowed');
+        return;
+      }
+
+      // Check if data is already loaded for this user (STRICT CHECK)
       const storedUserId = localStorage.getItem('finance-data-user-id');
-      if (isDataLoaded && storedUserId === currentUser.id && loadedUserId === currentUser.id && expenses.length > 0) {
-        console.log('📋 Data already loaded for user:', currentUser.email || currentUser.username, '- Skipping reload');
+      if (storedUserId === currentUser.id && loadedUserId === currentUser.id && expenses.length > 0) {
+        console.log('🛡️ Data already loaded and cached for user:', currentUser.email || currentUser.username, '- BLOCKED reload');
+        createDataLock(); // Create lock to prevent future reloads
+        return;
+      }
+
+      // For subsequent loads after initial, be more restrictive  
+      if (!isInitialLoad && isDataLoaded && storedUserId === currentUser.id && expenses.length > 0) {
+        console.log('🛡️ Blocking subsequent reload - data already exists');
+        createDataLock(); // Create lock
+        return;
+      }
+
+      // Don't reload if user just switched tabs recently (within 10 seconds)
+      const timeSinceInteraction = Date.now() - lastUserInteraction;
+      if (timeSinceInteraction < 10000 && !isInitialLoad && expenses.length > 0) {
+        console.log('⏸️ Recent tab switch detected - blocking reload to preserve user experience');
+        createDataLock(); // Create lock
         return;
       }
 
@@ -154,8 +203,8 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
         return;
       }
 
-      // Debounce: prevent loading if less than 3 seconds since last load
-      if (now - lastLoadTime < 3000) {
+      // Debounce: prevent loading if less than 5 seconds since last load (increased)
+      if (now - lastLoadTime < 5000) {
         console.log('⏸️ Debouncing: skipping load (too soon since last load)');
         return;
       }
@@ -330,9 +379,13 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
         setIsDataLoaded(true);
         setLastLoadTime(Date.now());
         setLoadedUserId(currentUser.id);
+        setIsInitialLoad(false);
         
         // Save user ID to prevent unnecessary reloads
         localStorage.setItem('finance-data-user-id', currentUser.id);
+        
+        // Create data lock to absolutely prevent future reloads
+        createDataLock();
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
         console.error('❌ Critical error loading data:', error);
@@ -935,10 +988,13 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
       return;
     }
     
-    console.log('🔄 Manual data refresh requested');
+    console.log('🔄 Manual data refresh requested - clearing ALL locks');
     // Clear localStorage to force reload
     localStorage.removeItem('finance-data-user-id');
+    localStorage.removeItem(`finance-data-lock-${currentUser.id}`);
     setIsDataLoaded(false);
+    setLoadedUserId(null);
+    setIsInitialLoad(true);
     setLastLoadTime(0);
     
     // Trigger data reload
@@ -949,6 +1005,30 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
     } catch (error) {
       console.error('❌ Error during manual refresh:', error);
     }
+  };
+
+  // Create a data lock system to absolutely prevent reloads after successful load
+  const createDataLock = () => {
+    if (currentUser) {
+      const lockKey = `finance-data-lock-${currentUser.id}`;
+      localStorage.setItem(lockKey, Date.now().toString());
+      console.log('🔒 Data lock created for user:', currentUser.email || currentUser.username);
+    }
+  };
+
+  const isDataLocked = () => {
+    if (!currentUser) return false;
+    const lockKey = `finance-data-lock-${currentUser.id}`;
+    const lockTime = localStorage.getItem(lockKey);
+    
+    if (lockTime) {
+      const timeSinceLock = Date.now() - parseInt(lockTime);
+      // Lock expires after 30 minutes to allow eventual refresh
+      if (timeSinceLock < 30 * 60 * 1000) {
+        return true;
+      }
+    }
+    return false;
   };
 
   return (
