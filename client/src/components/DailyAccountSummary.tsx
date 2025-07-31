@@ -193,7 +193,7 @@ const DailyAccountSummary: React.FC = () => {
   }, []);
 
   const dailySummaries = useMemo(() => {
-    console.log('🔄 Recalculando resumo diário automaticamente...', {
+    console.log('🔄 Recalculando fluxo automaticamente...', {
       timestamp: new Date().toISOString(),
       expensesCount: expenses.length,
       incomeCount: income.length,
@@ -428,7 +428,7 @@ const DailyAccountSummary: React.FC = () => {
         return dateB - dateA; // Decrescente
       });
 
-      console.log('✅ Resumo diário calculado automaticamente:', {
+      console.log('✅ Fluxo calculado automaticamente:', {
         summariesCount: summaries.length,
         totalDays: summaries.length,
         firstDate: summaries[summaries.length - 1]?.date,
@@ -440,7 +440,7 @@ const DailyAccountSummary: React.FC = () => {
       return summaries;
 
     } catch (error) {
-      console.error('❌ Erro ao calcular resumo diário:', error);
+      console.error('❌ Erro ao calcular fluxo:', error);
       setIsCalculating(false);
       return [];
     }
@@ -563,7 +563,7 @@ const DailyAccountSummary: React.FC = () => {
           <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
             <div className="flex items-center justify-between flex-wrap gap-4">
               <div>
-                <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Resumo Diário das Contas</h1>
+                <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Fluxo</h1>
                 <p className="text-gray-600 dark:text-gray-400 mt-2">Visão geral diária do movimento financeiro por conta</p>
               </div>
               
@@ -657,7 +657,7 @@ const DailyAccountSummary: React.FC = () => {
               <div className="flex items-center justify-center gap-3">
                 <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
                 <span className="text-blue-800 dark:text-blue-300 font-medium">
-                  Calculando resumo diário...
+                  Calculando fluxo...
                 </span>
               </div>
             </div>
@@ -665,7 +665,7 @@ const DailyAccountSummary: React.FC = () => {
 
 
 
-          {/* Tabela de Resumo Diário */}
+          {/* Tabela de Fluxo */}
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
             <div className="overflow-x-auto max-h-[calc(100vh-280px)]">
               <table className="w-full">
@@ -751,7 +751,7 @@ const DailyAccountSummary: React.FC = () => {
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
             <div className="bg-white dark:bg-gray-800 rounded-xl p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Filtros do Resumo Diário</h2>
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Filtros do Fluxo</h2>
                 <button
                   onClick={handleCancelFilters}
                   className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex items-center gap-2"

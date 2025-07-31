@@ -18,7 +18,7 @@ const Navigation: React.FC<NavigationProps> = ({ activeTab, onTabChange }) => {
     { id: 'expenses', label: settings.language === 'pt-BR' ? 'Despesas' : 'Expenses', icon: CreditCard },
     { id: 'income', label: settings.language === 'pt-BR' ? 'Receitas' : 'Income', icon: TrendingUp },
     { id: 'transfers', label: settings.language === 'pt-BR' ? 'Transferências' : 'Transfers', icon: ArrowRightLeft },
-    { id: 'daily-summary', label: settings.language === 'pt-BR' ? 'Resumo Diário' : 'Daily Summary', icon: Calendar },
+    { id: 'daily-summary', label: settings.language === 'pt-BR' ? 'Fluxo' : 'Flow', icon: Calendar },
     { id: 'ai-chat', label: settings.language === 'pt-BR' ? 'IA Financeira' : 'Financial AI', icon: Bot },
     { id: 'settings', label: settings.language === 'pt-BR' ? 'Configurações' : 'Settings', icon: Settings },
   ];

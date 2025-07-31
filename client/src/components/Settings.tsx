@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Settings as SettingsIcon, Palette, Tag, CreditCard, Plus, Edit2, Trash2, Upload, Download, FileText, Wifi, WifiOff, CheckCircle, AlertCircle, Clock, Database, Bot, Eye, EyeOff, Key, Brain, Lightbulb } from 'lucide-react';
+import { Settings as SettingsIcon, Palette, Tag, CreditCard, Plus, Edit2, Trash2, Upload, Download, FileText, Wifi, WifiOff, CheckCircle, AlertCircle, Clock, Database, Bot, Eye, EyeOff, Key, Brain, Lightbulb, ChevronDown, ChevronUp } from 'lucide-react';
 import { useSettings } from '../context/SettingsContext';
 import { useToast } from './ui/toast';
 import { useFinance } from '../context/FinanceContext';
@@ -29,6 +29,9 @@ const Settings: React.FC = () => {
   const [tempGeminiKey, setTempGeminiKey] = useState(settings.geminiApiKey || '');
   const [tempGeminiModel, setTempGeminiModel] = useState(settings.geminiModel || 'gemini-2.0-flash');
 
+  // Estados para controlar seções expandidas
+  const [expandedSections, setExpandedSections] = useState<string[]>(['general', 'ai']);
+
   const geminiModels = [
     { value: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash' },
     { value: 'gemini-1.5-flash-8b', label: 'Gemini 1.5 Flash 8B' },
@@ -40,6 +43,14 @@ const Settings: React.FC = () => {
     { value: 'gemma-3-12b', label: 'Gemma 3 12B' },
     { value: 'gemma-3-1b', label: 'Gemma 3 1B' },
   ];
+
+  const toggleSection = (sectionId: string) => {
+    setExpandedSections(prev => 
+      prev.includes(sectionId) 
+        ? prev.filter(id => id !== sectionId)
+        : [...prev, sectionId]
+    );
+  };
 
   const handleThemeToggle = () => {
     updateSettings({ theme: settings.theme === 'light' ? 'dark' : 'light' });
@@ -79,98 +90,8 @@ const Settings: React.FC = () => {
     setEditingAccount(null);
   };
 
-  const handleExportData = () => {
-    try {
-      const timestamp = new Date().toISOString().split('T')[0];
-      
-      // Export Expenses
-      if (expenses && expenses.length > 0) {
-        const expenseHeaders = ['Data', 'Categoria', 'Valor', 'Método de Pagamento', 'Descrição', 'Localização', 'Parcelas', 'Cartão de Crédito'];
-        const expenseContent = [
-          expenseHeaders.join(','),
-          ...expenses.map(item => [
-            item.date,
-            `"${item.category || ''}"`,
-            item.amount.toString().replace('.', ','),
-            `"${item.paymentMethod || ''}"`,
-            `"${item.description || ''}"`,
-            `"${item.location || ''}"`,
-            `"${item.installments || '1'}"`,
-            item.isCreditCard ? 'Sim' : 'Não'
-          ].join(','))
-        ].join('\n');
-        
-        const expenseBlob = new Blob([expenseContent], { type: 'text/csv;charset=utf-8;' });
-        const expenseLink = document.createElement('a');
-        const expenseUrl = URL.createObjectURL(expenseBlob);
-        expenseLink.setAttribute('href', expenseUrl);
-        expenseLink.setAttribute('download', `despesas_${timestamp}.csv`);
-        expenseLink.style.visibility = 'hidden';
-        document.body.appendChild(expenseLink);
-        expenseLink.click();
-        document.body.removeChild(expenseLink);
-      }
-
-      // Export Income
-      if (income && income.length > 0) {
-        const incomeHeaders = ['Data', 'Fonte', 'Valor', 'Conta', 'Descrição', 'Localização'];
-        const incomeContent = [
-          incomeHeaders.join(','),
-          ...income.map(item => [
-            item.date,
-            `"${item.source || ''}"`,
-            item.amount.toString().replace('.', ','),
-            `"${item.account || ''}"`,
-            `"${item.notes || ''}"`,
-            `"${item.location || ''}"`
-          ].join(','))
-        ].join('\n');
-        
-        const incomeBlob = new Blob([incomeContent], { type: 'text/csv;charset=utf-8;' });
-        const incomeLink = document.createElement('a');
-        const incomeUrl = URL.createObjectURL(incomeBlob);
-        incomeLink.setAttribute('href', incomeUrl);
-        incomeLink.setAttribute('download', `receitas_${timestamp}.csv`);
-        incomeLink.style.visibility = 'hidden';
-        document.body.appendChild(incomeLink);
-        incomeLink.click();
-        document.body.removeChild(incomeLink);
-      }
-
-      // Export Transfers
-      if (transfers && transfers.length > 0) {
-        const transferHeaders = ['Data', 'Conta Origem', 'Conta Destino', 'Valor', 'Descrição'];
-        const transferContent = [
-          transferHeaders.join(','),
-          ...transfers.map(item => [
-            item.date,
-            `"${item.fromAccount || ''}"`,
-            `"${item.toAccount || ''}"`,
-            item.amount.toString().replace('.', ','),
-            `"${item.description || ''}"`
-          ].join(','))
-        ].join('\n');
-        
-        const transferBlob = new Blob([transferContent], { type: 'text/csv;charset=utf-8;' });
-        const transferLink = document.createElement('a');
-        const transferUrl = URL.createObjectURL(transferBlob);
-        transferLink.setAttribute('href', transferUrl);
-        transferLink.setAttribute('download', `transferencias_${timestamp}.csv`);
-        transferLink.style.visibility = 'hidden';
-        document.body.appendChild(transferLink);
-        transferLink.click();
-        document.body.removeChild(transferLink);
-      }
-
-      showSuccess('Dados exportados!', 'Todos os arquivos CSV foram baixados com sucesso.');
-    } catch (error) {
-      console.error('Erro ao exportar dados:', error);
-      showError('Erro ao exportar dados. Tente novamente.');
-    }
-  };
-
   const handleSaveGeminiKey = () => {
-    updateSettings({ 
+    updateSettings({
       geminiApiKey: tempGeminiKey,
       geminiModel: tempGeminiModel,
       aiSettings: {
@@ -192,7 +113,7 @@ const Settings: React.FC = () => {
 
   const handleTestGeminiAPI = async () => {
     if (!tempGeminiKey) {
-      alert('Por favor, insira a chave da API Gemini primeiro.');
+      showError('Erro', 'Por favor, insira a chave da API Gemini primeiro.');
       return;
     }
 
@@ -209,12 +130,94 @@ const Settings: React.FC = () => {
       );
       
       if (response.ok) {
-        alert(`✅ API Gemini funcionando corretamente com o modelo ${tempGeminiModel}!`);
+        showSuccess('API Testada', `API Gemini funcionando corretamente com o modelo ${tempGeminiModel}!`);
       } else {
-        alert('❌ Erro na API Gemini. Verifique sua chave e modelo selecionado.');
+        showError('Erro na API', 'Erro na API Gemini. Verifique sua chave e modelo selecionado.');
       }
     } catch (error) {
-      alert('❌ Erro ao testar a API Gemini.');
+      showError('Erro', 'Erro ao testar a API Gemini.');
+    }
+  };
+
+  const handleExportData = () => {
+    try {
+      const timestamp = new Date().toISOString().split('T')[0];
+      
+      // Export Expenses
+      if (expenses && expenses.length > 0) {
+        const expenseHeaders = ['Data', 'Categoria', 'Valor', 'Método de Pagamento', 'Descrição', 'Localização', 'Parcelas', 'Cartão de Crédito'];
+        const expenseContent = [
+          expenseHeaders.join(','),
+          ...expenses.map(item => [
+            item.date,
+            `"${item.category || ''}"`,
+            item.amount.toString().replace('.', ','),
+            `"${item.paymentMethod || ''}"`,
+            `"${item.description || ''}"`,
+            `"${item.location || ''}"`,
+            `"${item.installments || '1'}"`,
+            `"${item.creditCard || ''}"`
+          ].join(','))
+        ].join('\n');
+        
+        const expenseBlob = new Blob(['\uFEFF' + expenseContent], { type: 'text/csv;charset=utf-8;' });
+        const expenseUrl = URL.createObjectURL(expenseBlob);
+        const expenseLink = document.createElement('a');
+        expenseLink.href = expenseUrl;
+        expenseLink.download = `despesas_${timestamp}.csv`;
+        expenseLink.click();
+        URL.revokeObjectURL(expenseUrl);
+      }
+
+      // Export Income
+      if (income && income.length > 0) {
+        const incomeHeaders = ['Data', 'Categoria', 'Valor', 'Conta', 'Descrição'];
+        const incomeContent = [
+          incomeHeaders.join(','),
+          ...income.map(item => [
+            item.date,
+            `"${item.category || ''}"`,
+            item.amount.toString().replace('.', ','),
+            `"${item.account || ''}"`,
+            `"${item.description || ''}"`
+          ].join(','))
+        ].join('\n');
+        
+        const incomeBlob = new Blob(['\uFEFF' + incomeContent], { type: 'text/csv;charset=utf-8;' });
+        const incomeUrl = URL.createObjectURL(incomeBlob);
+        const incomeLink = document.createElement('a');
+        incomeLink.href = incomeUrl;
+        incomeLink.download = `receitas_${timestamp}.csv`;
+        incomeLink.click();
+        URL.revokeObjectURL(incomeUrl);
+      }
+
+      // Export Transfers
+      if (transfers && transfers.length > 0) {
+        const transferHeaders = ['Data', 'Conta Origem', 'Conta Destino', 'Valor', 'Descrição'];
+        const transferContent = [
+          transferHeaders.join(','),
+          ...transfers.map(item => [
+            item.date,
+            `"${item.fromAccount || ''}"`,
+            `"${item.toAccount || ''}"`,
+            item.amount.toString().replace('.', ','),
+            `"${item.description || ''}"`
+          ].join(','))
+        ].join('\n');
+        
+        const transferBlob = new Blob(['\uFEFF' + transferContent], { type: 'text/csv;charset=utf-8;' });
+        const transferUrl = URL.createObjectURL(transferBlob);
+        const transferLink = document.createElement('a');
+        transferLink.href = transferUrl;
+        transferLink.download = `transferencias_${timestamp}.csv`;
+        transferLink.click();
+        URL.revokeObjectURL(transferUrl);
+      }
+
+      showSuccess('Exportação realizada', 'Dados exportados com sucesso!');
+    } catch (error) {
+      showError('Erro na exportação', 'Erro ao exportar dados.');
     }
   };
 
@@ -296,439 +299,469 @@ const Settings: React.FC = () => {
     }
   };
 
-  return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="mb-8">
-        <div className="flex items-center gap-3">
-          <SettingsIcon className="w-8 h-8 text-blue-600" />
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Configurações</h1>
-            <p className="text-gray-600 dark:text-gray-400 mt-2">Personalize sua experiência e gerencie dados</p>
+  const sectionConfig = [
+    {
+      id: 'general',
+      title: 'Configurações Gerais',
+      icon: SettingsIcon,
+      iconColor: 'bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400',
+      description: 'Tema, sincronização e status de conexão'
+    },
+    {
+      id: 'ai',
+      title: 'Assistente IA',
+      icon: Brain,
+      iconColor: 'bg-purple-100 dark:bg-purple-900 text-purple-600 dark:text-purple-400',
+      description: 'Configure o Gemini para análises inteligentes'
+    },
+    {
+      id: 'data',
+      title: 'Gerenciar Dados',
+      icon: FileText,
+      iconColor: 'bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-400',
+      description: 'Importar, exportar e fazer backup dos dados'
+    },
+    {
+      id: 'categories',
+      title: 'Categorias',
+      icon: Tag,
+      iconColor: 'bg-orange-100 dark:bg-orange-900 text-orange-600 dark:text-orange-400',
+      description: 'Gerencie categorias de despesas e receitas'
+    },
+    {
+      id: 'accounts',
+      title: 'Contas',
+      icon: CreditCard,
+      iconColor: 'bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-400',
+      description: 'Gerencie suas contas bancárias e carteiras'
+    }
+  ];
+
+  const renderGeneralSection = () => (
+    <div className="space-y-4">
+      {/* Status de Conexão */}
+      <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-lg">
+              {getConnectionStatusIcon()}
+            </div>
+            <div>
+              <h4 className="text-sm font-semibold text-gray-900 dark:text-white">Status da Conexão</h4>
+              <p className={`text-xs ${getConnectionStatusColor()}`}>
+                {getConnectionStatusText()}
+              </p>
+            </div>
+          </div>
+          <div className={`px-2 py-1 rounded-full text-xs font-medium ${
+            connectionStatus === 'connected' 
+              ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-300'
+              : connectionStatus === 'disconnected'
+              ? 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-300'
+              : 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-300'
+          }`}>
+            {connectionStatus === 'connected' ? 'Conectado' : connectionStatus === 'disconnected' ? 'Desconectado' : 'Verificando'}
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Coluna Esquerda - Configurações Gerais */}
-        <div className="space-y-6">
-          {/* Status de Conexão com Supabase */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-lg">
-                  {getConnectionStatusIcon()}
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Status da Conexão</h3>
-                  <p className={`text-sm font-medium ${getConnectionStatusColor()}`}>
-                    {getConnectionStatusText()}
-                  </p>
-                </div>
-              </div>
-              <div className={`px-3 py-1 rounded-full text-xs font-medium ${
-                connectionStatus === 'connected' 
-                  ? 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-300'
-                  : connectionStatus === 'disconnected'
-                  ? 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-300'
-                  : 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-300'
-              }`}>
-                {connectionStatus === 'connected' ? 'Conectado' : connectionStatus === 'disconnected' ? 'Desconectado' : 'Verificando'}
-              </div>
+      {/* Sincronização */}
+      <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-lg">
+              {getSyncStatusIcon()}
             </div>
-          </div>
-
-          {/* Sincronização */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-lg">
-                  {getSyncStatusIcon()}
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Sincronização</h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    Status: {getSyncStatusText()}
-                  </p>
-                  {lastSyncTime && (
-                    <p className="text-xs text-gray-500 dark:text-gray-500">
-                      Última sincronização: {lastSyncTime.toLocaleString('pt-BR')}
-                    </p>
-                  )}
-                </div>
-              </div>
-              <button
-                onClick={syncData}
-                disabled={!isOnline || syncStatus === 'syncing' || connectionStatus !== 'connected'}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Sincronizar
-              </button>
-            </div>
-          </div>
-
-          {/* Tema */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-purple-100 dark:bg-purple-900 rounded-lg">
-                  <Palette className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Tema</h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    Escolha entre tema claro ou escuro
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={handleThemeToggle}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                  settings.theme === 'dark' ? 'bg-blue-600' : 'bg-gray-200'
-                }`}
-              >
-                <span
-                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                    settings.theme === 'dark' ? 'translate-x-6' : 'translate-x-1'
-                  }`}
-                />
-              </button>
-            </div>
-          </div>
-
-          {/* Assistente IA - Gemini */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="p-2 bg-gradient-to-r from-blue-100 to-purple-100 dark:from-blue-900 dark:to-purple-900 rounded-lg">
-                <Brain className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Assistente IA Financeiro</h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Configure a API do Gemini para análises inteligentes dos seus dados
+            <div>
+              <h4 className="text-sm font-semibold text-gray-900 dark:text-white">Sincronização</h4>
+              <p className="text-xs text-gray-600 dark:text-gray-400">
+                Status: {getSyncStatusText()}
+              </p>
+              {lastSyncTime && (
+                <p className="text-xs text-gray-500 dark:text-gray-500">
+                  Última: {lastSyncTime.toLocaleString('pt-BR')}
                 </p>
-              </div>
+              )}
             </div>
+          </div>
+          <button
+            onClick={syncData}
+            disabled={!isOnline || syncStatus === 'syncing' || connectionStatus !== 'connected'}
+            className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+          >
+            Sincronizar
+          </button>
+        </div>
+      </div>
 
-            <div className="space-y-4">
-              {/* Status da IA */}
-              <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                <div className="flex items-center gap-3">
-                  <div className={`w-3 h-3 rounded-full ${tempGeminiKey ? 'bg-green-500' : 'bg-red-500'}`}></div>
-                  <div>
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                      {tempGeminiKey ? 'API Configurada' : 'API Não Configurada'}
-                    </span>
-                    {tempGeminiKey && (
-                      <p className="text-xs text-gray-500 dark:text-gray-400">
-                        Modelo: {geminiModels.find(m => m.value === tempGeminiModel)?.label || tempGeminiModel}
-                      </p>
-                    )}
-                  </div>
-                </div>
-                {tempGeminiKey && (
-                  <span className="px-3 py-1 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-300 text-xs font-medium rounded-full">
-                    Ativo
-                  </span>
-                )}
-              </div>
+      {/* Tema */}
+      <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-purple-100 dark:bg-purple-900 rounded-lg">
+              <Palette className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+            </div>
+            <div>
+              <h4 className="text-sm font-semibold text-gray-900 dark:text-white">Tema</h4>
+              <p className="text-xs text-gray-600 dark:text-gray-400">
+                Escolha entre tema claro ou escuro
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={handleThemeToggle}
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+              settings.theme === 'dark' ? 'bg-blue-600' : 'bg-gray-200'
+            }`}
+          >
+            <span
+              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                settings.theme === 'dark' ? 'translate-x-6' : 'translate-x-1'
+              }`}
+            />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 
-              {/* Campo da API Key */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Chave da API Gemini
-                </label>
-                <div className="relative">
-                  <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
-                    <Key className="w-4 h-4 text-gray-400" />
-                  </div>
-                  <input
-                    type={showGeminiKey ? 'text' : 'password'}
-                    value={tempGeminiKey}
-                    onChange={(e) => setTempGeminiKey(e.target.value)}
-                    className="w-full border border-gray-300 dark:border-gray-600 rounded-lg pl-10 pr-12 py-3 focus:outline-none focus:ring-2 focus:ring-purple-500 dark:bg-gray-700 dark:text-white"
-                    placeholder="AIzaSy..."
-                  />
+  const renderAISection = () => (
+    <div className="space-y-4">
+      {/* Status da IA */}
+      <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+        <div className="flex items-center gap-3">
+          <div className={`w-3 h-3 rounded-full ${tempGeminiKey ? 'bg-green-500' : 'bg-red-500'}`}></div>
+          <div>
+            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+              {tempGeminiKey ? 'API Configurada' : 'API Não Configurada'}
+            </span>
+            {tempGeminiKey && (
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                Modelo: {geminiModels.find(m => m.value === tempGeminiModel)?.label || tempGeminiModel}
+              </p>
+            )}
+          </div>
+        </div>
+        {tempGeminiKey && (
+          <span className="px-2 py-1 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-300 text-xs font-medium rounded-full">
+            Ativo
+          </span>
+        )}
+      </div>
+
+      {/* Campo da API Key */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          Chave da API Gemini
+        </label>
+        <div className="relative">
+          <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
+            <Key className="w-4 h-4 text-gray-400" />
+          </div>
+          <input
+            type={showGeminiKey ? 'text' : 'password'}
+            value={tempGeminiKey}
+            onChange={(e) => setTempGeminiKey(e.target.value)}
+            className="w-full border border-gray-300 dark:border-gray-600 rounded-lg pl-10 pr-12 py-3 focus:outline-none focus:ring-2 focus:ring-purple-500 dark:bg-gray-700 dark:text-white"
+            placeholder="AIzaSy..."
+          />
+          <button
+            type="button"
+            onClick={() => setShowGeminiKey(!showGeminiKey)}
+            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+          >
+            {showGeminiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+          </button>
+        </div>
+        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+          Obtenha sua chave gratuita em <a href="https://makersuite.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">Google AI Studio</a>
+        </p>
+      </div>
+
+      {/* Campo de Seleção de Modelo */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          Modelo do Gemini
+        </label>
+        <div className="relative">
+          <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
+            <Bot className="w-4 h-4 text-gray-400" />
+          </div>
+          <select
+            value={tempGeminiModel}
+            onChange={(e) => setTempGeminiModel(e.target.value)}
+            className="w-full border border-gray-300 dark:border-gray-600 rounded-lg pl-10 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-purple-500 dark:bg-gray-700 dark:text-white appearance-none bg-white dark:bg-gray-700"
+          >
+            {geminiModels.map((model) => (
+              <option key={model.value} value={model.value}>
+                {model.label}
+              </option>
+            ))}
+          </select>
+          <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
+            <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </div>
+        </div>
+        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+          Escolha o modelo do Gemini que deseja usar. Modelos mais recentes podem ter melhor performance.
+        </p>
+      </div>
+
+      {/* Botões de Ação */}
+      <div className="flex gap-3">
+        <button
+          onClick={handleTestGeminiAPI}
+          disabled={!tempGeminiKey}
+          className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+        >
+          Testar API
+        </button>
+        <button
+          onClick={handleSaveGeminiKey}
+          className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium"
+        >
+          Salvar Chave
+        </button>
+      </div>
+
+      {/* Info sobre recursos */}
+      <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+        <div className="flex items-start gap-3">
+          <Lightbulb className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5" />
+          <div>
+            <h4 className="text-sm font-medium text-blue-900 dark:text-blue-200 mb-1">
+              Recursos do Assistente IA
+            </h4>
+            <ul className="text-xs text-blue-700 dark:text-blue-300 space-y-1">
+              <li>• Análise detalhada de gastos e receitas</li>
+              <li>• Identificação de padrões de consumo</li>
+              <li>• Sugestões personalizadas de economia</li>
+              <li>• Planejamento orçamentário inteligente</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderDataSection = () => (
+    <div className="space-y-4">
+      <button
+        onClick={() => setShowImport(true)}
+        className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+      >
+        <Upload className="w-4 h-4" />
+        Importar Dados CSV
+      </button>
+      <button
+        className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+        onClick={handleExportData}
+      >
+        <Download className="w-4 h-4" />
+        Exportar Dados
+      </button>
+    </div>
+  );
+
+  const renderCategoriesSection = () => (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="flex-1">
+          <input
+            type="text"
+            placeholder="Buscar categorias..."
+            value={categorySearch}
+            onChange={(e) => setCategorySearch(e.target.value)}
+            className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500 dark:bg-gray-700 dark:text-white"
+          />
+        </div>
+        <button
+          onClick={() => setShowCategoryForm(true)}
+          className="ml-3 bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 transition-colors flex items-center gap-2"
+        >
+          <Plus className="w-4 h-4" />
+          Adicionar
+        </button>
+      </div>
+
+      <div className="space-y-4 max-h-80 overflow-y-auto">
+        {/* Categorias de Despesas */}
+        <div>
+          <h4 className="font-medium text-gray-900 dark:text-white mb-2 flex items-center gap-2">
+            <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+            Despesas ({expenseCategories.length})
+          </h4>
+          <div className="space-y-2">
+            {expenseCategories.map((category) => (
+              <div key={category.id} className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                <span className="text-sm text-gray-900 dark:text-white">{category.name}</span>
+                <div className="flex items-center gap-1">
                   <button
-                    type="button"
-                    onClick={() => setShowGeminiKey(!showGeminiKey)}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                    onClick={() => handleEditCategory(category)}
+                    className="p-1 text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900 rounded transition-colors"
                   >
-                    {showGeminiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    <Edit2 className="w-3 h-3" />
+                  </button>
+                  <button
+                    onClick={() => handleDeleteCategory(category.id)}
+                    className="p-1 text-red-600 hover:bg-red-100 dark:hover:bg-red-900 rounded transition-colors"
+                  >
+                    <Trash2 className="w-3 h-3" />
                   </button>
                 </div>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  Obtenha sua chave gratuita em <a href="https://makersuite.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">Google AI Studio</a>
-                </p>
               </div>
+            ))}
+          </div>
+        </div>
 
-              {/* Campo de Seleção de Modelo */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Modelo do Gemini
-                </label>
-                <div className="relative">
-                  <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
-                    <Bot className="w-4 h-4 text-gray-400" />
-                  </div>
-                  <select
-                    value={tempGeminiModel}
-                    onChange={(e) => setTempGeminiModel(e.target.value)}
-                    className="w-full border border-gray-300 dark:border-gray-600 rounded-lg pl-10 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-purple-500 dark:bg-gray-700 dark:text-white appearance-none bg-white dark:bg-gray-700"
+        {/* Categorias de Receitas */}
+        <div>
+          <h4 className="font-medium text-gray-900 dark:text-white mb-2 flex items-center gap-2">
+            <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+            Receitas ({incomeCategories.length})
+          </h4>
+          <div className="space-y-2">
+            {incomeCategories.map((category) => (
+              <div key={category.id} className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                <span className="text-sm text-gray-900 dark:text-white">{category.name}</span>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => handleEditCategory(category)}
+                    className="p-1 text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900 rounded transition-colors"
                   >
-                    {geminiModels.map((model) => (
-                      <option key={model.value} value={model.value}>
-                        {model.label}
-                      </option>
-                    ))}
-                  </select>
-                  <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
-                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </div>
-                </div>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  Escolha o modelo do Gemini que deseja usar. Modelos mais recentes podem ter melhor performance.
-                </p>
-              </div>
-
-              {/* Botões de Ação */}
-              <div className="flex gap-3">
-                <button
-                  onClick={handleTestGeminiAPI}
-                  disabled={!tempGeminiKey}
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
-                >
-                  Testar API
-                </button>
-                <button
-                  onClick={handleSaveGeminiKey}
-                  disabled={!tempGeminiKey}
-                  className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
-                >
-                  Salvar Chave
-                </button>
-              </div>
-
-              {/* Info sobre recursos */}
-              <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                <div className="flex items-start gap-3">
-                  <Lightbulb className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5" />
-                  <div>
-                    <h4 className="text-sm font-medium text-blue-900 dark:text-blue-200 mb-1">
-                      Recursos do Assistente IA
-                    </h4>
-                    <ul className="text-xs text-blue-700 dark:text-blue-300 space-y-1">
-                      <li>• Análise detalhada de gastos e receitas</li>
-                      <li>• Identificação de padrões de consumo</li>
-                      <li>• Sugestões personalizadas de economia</li>
-                      <li>• Planejamento orçamentário inteligente</li>
-                    </ul>
-                  </div>
+                    <Edit2 className="w-3 h-3" />
+                  </button>
+                  <button
+                    onClick={() => handleDeleteCategory(category.id)}
+                    className="p-1 text-red-600 hover:bg-red-100 dark:hover:bg-red-900 rounded transition-colors"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </button>
                 </div>
               </div>
-            </div>
-          </div>
-
-        </div>
-
-        {/* Coluna Direita - Gerenciamento de Dados */}
-        <div className="space-y-6">
-          {/* Importar/Exportar Dados */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="p-2 bg-indigo-100 dark:bg-indigo-900 rounded-lg">
-                <FileText className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Dados</h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Importe ou exporte seus dados financeiros
-                </p>
-              </div>
-            </div>
-            <div className="space-y-3">
-              <button
-                onClick={() => setShowImport(true)}
-                className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-              >
-                <Upload className="w-4 h-4" />
-                Importar Dados CSV
-              </button>
-              <button
-                className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                onClick={handleExportData}
-              >
-                <Download className="w-4 h-4" />
-                Exportar Dados
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Coluna Direita - Gerenciamento */}
-        <div className="space-y-6">
-          {/* Categorias */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-orange-100 dark:bg-orange-900 rounded-lg">
-                  <Tag className="w-5 h-5 text-orange-600 dark:text-orange-400" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Categorias</h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    Gerencie suas categorias de despesas e receitas
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => setShowCategoryForm(true)}
-                className="bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 transition-colors flex items-center gap-2"
-              >
-                <Plus className="w-4 h-4" />
-                Adicionar
-              </button>
-            </div>
-
-            {/* Search */}
-            <div className="mb-4">
-              <input
-                type="text"
-                placeholder="Buscar categorias..."
-                value={categorySearch}
-                onChange={(e) => setCategorySearch(e.target.value)}
-                className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500 dark:bg-gray-700 dark:text-white"
-              />
-            </div>
-
-            <div className="space-y-4 max-h-96 overflow-y-auto">
-              {/* Categorias de Despesas */}
-              <div>
-                <h4 className="sticky top-0 bg-white dark:bg-gray-800 py-2 z-10 font-medium text-gray-900 dark:text-white mb-2 flex items-center gap-2">
-                  <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-                  Despesas ({expenseCategories.length})
-                </h4>
-                <div className="space-y-2">
-                  {expenseCategories.map((category) => (
-                    <div key={category.id} className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                      <span className="text-sm text-gray-900 dark:text-white">{category.name}</span>
-                      <div className="flex items-center gap-1">
-                        <button
-                          onClick={() => handleEditCategory(category)}
-                          className="p-1 text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900 rounded transition-colors"
-                        >
-                          <Edit2 className="w-3 h-3" />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteCategory(category.id)}
-                          className="p-1 text-red-600 hover:bg-red-100 dark:hover:bg-red-900 rounded transition-colors"
-                        >
-                          <Trash2 className="w-3 h-3" />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Categorias de Receitas */}
-              <div>
-                <h4 className="sticky top-0 bg-white dark:bg-gray-800 py-2 z-10 font-medium text-gray-900 dark:text-white mb-2 flex items-center gap-2">
-                  <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                  Receitas ({incomeCategories.length})
-                </h4>
-                <div className="space-y-2">
-                  {incomeCategories.map((category) => (
-                    <div key={category.id} className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                      <span className="text-sm text-gray-900 dark:text-white">{category.name}</span>
-                      <div className="flex items-center gap-1">
-                        <button
-                          onClick={() => handleEditCategory(category)}
-                          className="p-1 text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900 rounded transition-colors"
-                        >
-                          <Edit2 className="w-3 h-3" />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteCategory(category.id)}
-                          className="p-1 text-red-600 hover:bg-red-100 dark:hover:bg-red-900 rounded transition-colors"
-                        >
-                          <Trash2 className="w-3 h-3" />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Contas */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-indigo-100 dark:bg-indigo-900 rounded-lg">
-                  <CreditCard className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Contas</h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    Gerencie suas contas bancárias e carteiras
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => setShowAccountForm(true)}
-                className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-2"
-              >
-                <Plus className="w-4 h-4" />
-                Adicionar
-              </button>
-            </div>
-
-            {/* Search */}
-            <div className="mb-4">
-              <input
-                type="text"
-                placeholder="Buscar contas..."
-                value={accountSearch}
-                onChange={(e) => setAccountSearch(e.target.value)}
-                className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-gray-700 dark:text-white"
-              />
-            </div>
-
-            <div className="space-y-3 max-h-96 overflow-y-auto">
-              {filteredAccounts.map((account) => (
-                <div key={account.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <div className="w-3 h-3 bg-indigo-500 rounded-full"></div>
-                    <div>
-                      <span className="font-medium text-gray-900 dark:text-white">{account.name}</span>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">
-                        Saldo inicial: R$ {account.initialBalance.toFixed(2).replace('.', ',')}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => handleEditAccount(account)}
-                      className="p-2 text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900 rounded-lg transition-colors"
-                    >
-                      <Edit2 className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => handleDeleteAccount(account.id)}
-                      className="p-2 text-red-600 hover:bg-red-100 dark:hover:bg-red-900 rounded-lg transition-colors"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
+            ))}
           </div>
         </div>
       </div>
+    </div>
+  );
+
+  const renderAccountsSection = () => (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="flex-1">
+          <input
+            type="text"
+            placeholder="Buscar contas..."
+            value={accountSearch}
+            onChange={(e) => setAccountSearch(e.target.value)}
+            className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-gray-700 dark:text-white"
+          />
+        </div>
+        <button
+          onClick={() => setShowAccountForm(true)}
+          className="ml-3 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-2"
+        >
+          <Plus className="w-4 h-4" />
+          Adicionar
+        </button>
+      </div>
+
+      <div className="space-y-3 max-h-80 overflow-y-auto">
+        {filteredAccounts.map((account) => (
+          <div key={account.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+            <div className="flex items-center gap-3">
+              <div className="w-3 h-3 bg-indigo-500 rounded-full"></div>
+              <div>
+                <span className="font-medium text-gray-900 dark:text-white">{account.name}</span>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  Saldo inicial: R$ {account.initialBalance.toFixed(2).replace('.', ',')}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => handleEditAccount(account)}
+                className="p-2 text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900 rounded-lg transition-colors"
+              >
+                <Edit2 className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => handleDeleteAccount(account.id)}
+                className="p-2 text-red-600 hover:bg-red-100 dark:hover:bg-red-900 rounded-lg transition-colors"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      {/* Header */}
+      <div className="mb-8">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="p-3 bg-blue-100 dark:bg-blue-900 rounded-xl">
+            <SettingsIcon className="w-8 h-8 text-blue-600 dark:text-blue-400" />
+          </div>
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">Configurações</h1>
+            <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400">Personalize sua experiência e gerencie dados</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Seções Expansíveis */}
+      <div className="space-y-4">
+        {sectionConfig.map((section) => {
+          const isExpanded = expandedSections.includes(section.id);
+          const Icon = section.icon;
+          
+          return (
+            <div key={section.id} className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
+              {/* Header da Seção */}
+              <button
+                onClick={() => toggleSection(section.id)}
+                className="w-full flex items-center justify-between p-4 sm:p-6 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+              >
+                <div className="flex items-center gap-4">
+                  <div className={`p-2 sm:p-3 rounded-lg ${section.iconColor}`}>
+                    <Icon className="w-5 h-5 sm:w-6 sm:h-6" />
+                  </div>
+                  <div className="text-left">
+                    <h3 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">{section.title}</h3>
+                    <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mt-1">{section.description}</p>
+                  </div>
+                </div>
+                <div className="flex-shrink-0">
+                  {isExpanded ? (
+                    <ChevronUp className="w-5 h-5 text-gray-400" />
+                  ) : (
+                    <ChevronDown className="w-5 h-5 text-gray-400" />
+                  )}
+                </div>
+              </button>
+
+              {/* Conteúdo da Seção */}
+              {isExpanded && (
+                <div className="border-t border-gray-100 dark:border-gray-700 p-4 sm:p-6">
+                  {section.id === 'general' && renderGeneralSection()}
+                  {section.id === 'ai' && renderAISection()}
+                  {section.id === 'data' && renderDataSection()}
+                  {section.id === 'categories' && renderCategoriesSection()}
+                  {section.id === 'accounts' && renderAccountsSection()}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
       {/* Modals */}
       {showCategoryForm && (
         <CategoryForm
