@@ -161,14 +161,19 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
           setIsDataLoaded(false);
           setLoadedUserId(null);
           localStorage.removeItem('finance-data-user-id');
+          // Clear data lock on logout
+          if (currentUser) {
+            localStorage.removeItem(`finance-data-lock-${currentUser.id}`);
+            console.log('🔓 Data lock cleared on logout');
+          }
         }
         setIsLoading(false);
         setLoadingError(null);
         return;
       }
 
-      // ABSOLUTE BLOCK: Check data lock first
-      if (isDataLocked()) {
+      // ABSOLUTE BLOCK: Check data lock first (but only if data was actually loaded)
+      if (isDataLoaded && expenses.length > 0 && isDataLocked()) {
         console.log('🔒 DATA LOCKED - Absolutely no reload allowed');
         return;
       }
@@ -1017,7 +1022,7 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
   };
 
   const isDataLocked = () => {
-    if (!currentUser) return false;
+    if (!currentUser || !isDataLoaded) return false;
     const lockKey = `finance-data-lock-${currentUser.id}`;
     const lockTime = localStorage.getItem(lockKey);
     
@@ -1026,6 +1031,10 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
       // Lock expires after 30 minutes to allow eventual refresh
       if (timeSinceLock < 30 * 60 * 1000) {
         return true;
+      } else {
+        // Remove expired lock
+        localStorage.removeItem(lockKey);
+        console.log('🔓 Expired data lock removed');
       }
     }
     return false;
