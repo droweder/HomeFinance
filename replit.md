@@ -186,3 +186,7 @@ The application follows a monorepo structure with shared TypeScript types betwee
 - ✅ **Feedback Visual**: Toast notifications aparecem ao editar despesas, receitas e transferências
 - ✅ **Consistência de UX**: Mesmo sistema de notificações usado nas configurações estendido para todos os formulários
 - ✅ **Mensagens Personalizadas**: Notificações específicas para cada tipo de operação (despesa/receita/transferência)
+- ✅ **CARTÕES SALDO CORRIGIDOS (July 31, 2025)**: Correção na visualização de saldos no Daily Account Summary
+- ✅ **Saldo Inicial**: Criado cartão dedicado para mostrar saldo inicial do período (primeiro dia)
+- ✅ **Saldo Final**: Cartão existente corrigido para exibir corretamente o saldo do último dia do mês
+- ✅ **Visual Diferenciado**: Saldo inicial em azul e saldo final em verde para melhor distinção

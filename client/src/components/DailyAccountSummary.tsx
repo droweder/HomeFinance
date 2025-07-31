@@ -621,6 +621,14 @@ const DailyAccountSummary: React.FC = () => {
                 </div>
 
                 {/* Summary Cards */}
+                <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                  <DollarSign className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                  <div>
+                    <span className="text-xs text-blue-600 dark:text-blue-400 font-medium">Saldo Inicial: </span>
+                    <span className="text-sm font-bold text-blue-700 dark:text-blue-300">{formatCurrency(dailySummaries[0]?.totalDailyBalance || 0)}</span>
+                  </div>
+                </div>
+                
                 <div className="flex items-center gap-2 px-3 py-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
                   <TrendingUp className="w-4 h-4 text-green-600 dark:text-green-400" />
                   <div>
