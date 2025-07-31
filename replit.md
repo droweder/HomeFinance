@@ -182,3 +182,7 @@ The application follows a monorepo structure with shared TypeScript types betwee
 - ✅ **API Gemini Nativa**: Implementação direta com Google Gemini API sem intermediários
 - ✅ **Histórico Persistente**: Armazenamento local das conversas com sincronização entre abas
 - ✅ **UX Melhorada**: Interface moderna com status da API, loading states e tratamento de erros elegante
+- ✅ **NOTIFICAÇÕES DE EDIÇÃO (July 31, 2025)**: Implementadas notificações de sucesso para todas as edições financeiras
+- ✅ **Feedback Visual**: Toast notifications aparecem ao editar despesas, receitas e transferências
+- ✅ **Consistência de UX**: Mesmo sistema de notificações usado nas configurações estendido para todos os formulários
+- ✅ **Mensagens Personalizadas**: Notificações específicas para cada tipo de operação (despesa/receita/transferência)

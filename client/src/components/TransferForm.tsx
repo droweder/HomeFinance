@@ -3,6 +3,7 @@ import { X, ArrowRightLeft, DollarSign, Calendar, FileText } from 'lucide-react'
 import { useFinance } from '../context/FinanceContext';
 import { useAccounts } from '../context/AccountContext';
 import { useSettings } from '../context/SettingsContext';
+import { useToast } from './ui/toast';
 import { Transfer } from '../types';
 
 interface TransferFormProps {
@@ -14,6 +15,7 @@ const TransferForm: React.FC<TransferFormProps> = ({ transfer, onClose }) => {
   const { addTransfer, updateTransfer } = useFinance();
   const { accounts } = useAccounts();
   const { settings } = useSettings();
+  const { showSuccess } = useToast();
 
   const [formData, setFormData] = useState({
     date: '',
@@ -91,6 +93,7 @@ const TransferForm: React.FC<TransferFormProps> = ({ transfer, onClose }) => {
 
       if (transfer) {
         await updateTransfer(transfer.id, transferData);
+        showSuccess('Transferência atualizada com sucesso!');
       } else {
         await addTransfer(transferData);
       }

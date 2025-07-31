@@ -3,6 +3,7 @@ import { X, Calendar, Plus, Minus } from 'lucide-react';
 import { useFinance } from '../context/FinanceContext';
 import { useAccounts } from '../context/AccountContext';
 import { useSettings } from '../context/SettingsContext';
+import { useToast } from './ui/toast';
 import { Expense } from '../types';
 import { formatDateForInput, formatDateForStorage, getCurrentDateForInput } from '../utils/dateUtils';
 
@@ -16,6 +17,7 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ expense, onClose, onSave }) =
   const { addExpense, updateExpense, categories } = useFinance();
   const { accounts } = useAccounts();
   const { settings } = useSettings();
+  const { showSuccess } = useToast();
   const [formData, setFormData] = useState({
     date: getCurrentDateForInput(),
     category: '',
@@ -118,6 +120,7 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ expense, onClose, onSave }) =
       try {
         await updateExpense(expense.id, expenseData);
         console.log('✅ Despesa atualizada com sucesso');
+        showSuccess('Despesa atualizada com sucesso!');
         onSave?.();
         onClose();
       } catch (error: any) {

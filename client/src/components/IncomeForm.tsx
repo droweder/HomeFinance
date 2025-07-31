@@ -3,6 +3,7 @@ import { X, Calendar, Plus, Minus } from 'lucide-react';
 import { useFinance } from '../context/FinanceContext';
 import { useAccounts } from '../context/AccountContext';
 import { useSettings } from '../context/SettingsContext';
+import { useToast } from './ui/toast';
 import { Income } from '../types';
 
 interface IncomeFormProps {
@@ -14,6 +15,7 @@ const IncomeForm: React.FC<IncomeFormProps> = ({ income, onClose }) => {
   const { addIncome, updateIncome, categories } = useFinance();
   const { accounts } = useAccounts();
   const { settings } = useSettings();
+  const { showSuccess } = useToast();
   const [formData, setFormData] = useState({
     date: new Date().toISOString().split('T')[0],
     category: '',
@@ -115,6 +117,7 @@ const IncomeForm: React.FC<IncomeFormProps> = ({ income, onClose }) => {
 
       if (income) {
         updateIncome(income.id, incomeData);
+        showSuccess('Receita atualizada com sucesso!');
       } else {
         addIncome(incomeData);
       }
