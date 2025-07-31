@@ -1,283 +1,93 @@
-import React, { useState, useMemo, useCallback } from 'react';
-import { Plus, Edit2, Trash2, Calendar, DollarSign, Filter, Search, X, Package, CreditCard, ChevronLeft, ChevronRight } from 'lucide-react';
-import { FixedSizeList as List } from 'react-window';
+import React, { useState, useMemo } from 'react';
+import { Plus, Filter, DollarSign, Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useFinance } from '../context/FinanceContext';
 import { useSettings } from '../context/SettingsContext';
-import { Expense } from '../types';
 import ExpenseForm from './ExpenseForm';
-import ConfirmDialog from './ConfirmDialog';
 
 const ExpenseList: React.FC = () => {
-  const { expenses, deleteExpense, categories, filters, updateFilters } = useFinance();
-  const { formatCurrency, formatDate, settings } = useSettings();
-  
-  // Debug para verificar quantas despesas chegaram no componente
-  console.log('📊 ExpenseList - Despesas recebidas:', {
-    total: expenses.length,
-    esperado: 3530,
-    status: expenses.length >= 3530 ? '✅ COMPLETO' : 
-            expenses.length > 0 ? `⚠️ PARCIAL (${((expenses.length / 3530) * 100).toFixed(1)}%)` : 
-            '❌ VAZIO',
-    percentual: `${((expenses.length / 3530) * 100).toFixed(1)}%`,
-    primeiras3: expenses.slice(0, 3).map(exp => ({
-      id: exp.id,
-      category: exp.category,
-      amount: exp.amount,
-      date: exp.date
-    })),
-    ultimas3: expenses.slice(-3).map(exp => ({
-      id: exp.id,
-      category: exp.category,
-      amount: exp.amount,
-      date: exp.date
-    }))
-  });
-  
+  const { expenses, categories, filters, updateFilters } = useFinance();
+  const { formatCurrency } = useSettings();
   const [showForm, setShowForm] = useState(false);
-  const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
-  const [showFilterModal, setShowFilterModal] = useState(false);
-  const [tempFilters, setTempFilters] = useState(filters.expenses);
   const [selectedExpenses, setSelectedExpenses] = useState<Set<string>>(new Set());
-  const [currentPage, setCurrentPage] = useState(0);
-  const [selectedMonth, setSelectedMonth] = useState<string>(() => {
-    const now = new Date();
-    return `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}`;
-  });
-  
-  // PERFORMANCE: Pagination - show 25 items per page
-  const ITEMS_PER_PAGE = 25;
 
-  // PERFORMANCE: First filter by selected month to reduce dataset
-  const monthFilteredExpenses = useMemo(() => {
-    return expenses.filter(expense => {
-      const expenseMonth = expense.date.substring(0, 7); // YYYY-MM format
-      return expenseMonth === selectedMonth;
-    });
-  }, [expenses, selectedMonth]);
+  // Current month selection (performance optimization)
+  const currentDate = new Date();
+  const currentMonth = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
+  const [selectedMonth, setSelectedMonth] = useState(currentMonth);
 
-  // Get available months for dropdown
+  // Get available months from expenses
   const availableMonths = useMemo(() => {
     const months = new Set<string>();
     expenses.forEach(expense => {
-      const month = expense.date.substring(0, 7);
-      months.add(month);
+      const monthKey = expense.date.substring(0, 7); // YYYY-MM
+      months.add(monthKey);
     });
     return Array.from(months).sort().reverse(); // Most recent first
   }, [expenses]);
 
-  // PERFORMANCE: Paginated expenses for current month
-  const paginatedExpenses = useMemo(() => {
-    const startIndex = currentPage * ITEMS_PER_PAGE;
-    const endIndex = startIndex + ITEMS_PER_PAGE;
-    return monthFilteredExpenses.slice(startIndex, endIndex);
-  }, [monthFilteredExpenses, currentPage, ITEMS_PER_PAGE]);
+  // Filter expenses by selected month
+  const monthFilteredExpenses = useMemo(() => {
+    return expenses.filter(expense => 
+      expense.date.substring(0, 7) === selectedMonth
+    );
+  }, [expenses, selectedMonth]);
 
-  // Total pages for current month  
-  const totalPages = Math.ceil(monthFilteredExpenses.length / ITEMS_PER_PAGE);
-
-  // PERFORMANCE: Work with smaller monthly dataset
-  const groupedExpenses = useMemo(() => {
-    if (!filters.expenses.groupInstallments) {
-      return paginatedExpenses.filter(expense => {
-        const expenseFilters = filters.expenses;
-        
-        if (expenseFilters.category && expense.category !== expenseFilters.category) return false;
-        if (expenseFilters.account && expense.paymentMethod !== expenseFilters.account) return false;
-        if (expenseFilters.isCreditCard && expenseFilters.isCreditCard !== 'all') {
-          const isCreditCard = expense.isCreditCard || false;
-          if (expenseFilters.isCreditCard === 'yes' && !isCreditCard) return false;
-          if (expenseFilters.isCreditCard === 'no' && isCreditCard) return false;
-        }
-        
-        const dateToUse = expense.date;
-        if (expenseFilters.startDate && dateToUse < expenseFilters.startDate) return false;
-        if (expenseFilters.endDate && dateToUse > expenseFilters.endDate) return false;
-        if (expenseFilters.description && !expense.description?.toLowerCase().includes(expenseFilters.description.toLowerCase())) return false;
-        if (expenseFilters.location && !expense.location?.toLowerCase().includes(expenseFilters.location.toLowerCase())) return false;
-        
-        return true;
-      });
-    }
-
-    // Aplicar filtros básicos primeiro - já com filtro de mês e paginação
-    const basicFilteredExpenses = paginatedExpenses.filter(expense => {
+  // Apply additional filters to monthly expenses
+  const filteredExpenses = useMemo(() => {
+    return monthFilteredExpenses.filter(expense => {
       const expenseFilters = filters.expenses;
       
       if (expenseFilters.category && expense.category !== expenseFilters.category) return false;
       if (expenseFilters.account && expense.paymentMethod !== expenseFilters.account) return false;
+      if (expenseFilters.description && !expense.description.toLowerCase().includes(expenseFilters.description.toLowerCase())) return false;
+      if (expenseFilters.location && !expense.location.toLowerCase().includes(expenseFilters.location.toLowerCase())) return false;
+      if (expenseFilters.startDate && expense.date < expenseFilters.startDate) return false;
+      if (expenseFilters.endDate && expense.date > expenseFilters.endDate) return false;
+      
       if (expenseFilters.isCreditCard && expenseFilters.isCreditCard !== 'all') {
-        const isCreditCard = expense.isCreditCard || false;
+        const isCreditCard = expense.paymentMethod && expense.paymentMethod.toLowerCase().includes('cartão');
         if (expenseFilters.isCreditCard === 'yes' && !isCreditCard) return false;
         if (expenseFilters.isCreditCard === 'no' && isCreditCard) return false;
       }
       
-      const dateToUse = expense.date;
-      if (expenseFilters.startDate && dateToUse < expenseFilters.startDate) return false;
-      if (expenseFilters.endDate && dateToUse > expenseFilters.endDate) return false;
-      if (expenseFilters.description && !expense.description?.toLowerCase().includes(expenseFilters.description.toLowerCase())) return false;
-      if (expenseFilters.location && !expense.location?.toLowerCase().includes(expenseFilters.location.toLowerCase())) return false;
-      
       return true;
     });
+  }, [monthFilteredExpenses, filters.expenses]);
 
-    // Agrupar despesas por installment_group
-    const groups = new Map<string, Expense[]>();
-    const standaloneExpenses: Expense[] = [];
-
-    basicFilteredExpenses.forEach(expense => {
-      if (expense.isInstallment && expense.installmentGroup) {
-        if (!groups.has(expense.installmentGroup)) {
-          groups.set(expense.installmentGroup, []);
+  // Sort expenses
+  const sortedExpenses = useMemo(() => {
+    const sorted = [...filteredExpenses];
+    
+    if (filters.expenses.sortBy && filters.expenses.sortBy.length > 0) {
+      sorted.sort((a, b) => {
+        for (const sort of filters.expenses.sortBy!) {
+          let aValue: any = a[sort.column as keyof typeof a];
+          let bValue: any = b[sort.column as keyof typeof b];
+          
+          if (sort.column === 'amount') {
+            aValue = Number(aValue);
+            bValue = Number(bValue);
+          }
+          
+          if (aValue < bValue) return sort.direction === 'asc' ? -1 : 1;
+          if (aValue > bValue) return sort.direction === 'asc' ? 1 : -1;
         }
-        groups.get(expense.installmentGroup)!.push(expense);
-      } else {
-        standaloneExpenses.push(expense);
-      }
-    });
-
-    // Criar despesas representativas para cada grupo
-    const groupRepresentatives: Expense[] = [];
-    
-    groups.forEach((groupExpenses, groupId) => {
-      if (groupExpenses.length > 0) {
-        // Ordenar parcelas por número
-        groupExpenses.sort((a, b) => (a.installmentNumber || 0) - (b.installmentNumber || 0));
-        
-        // Usar a primeira parcela como representante, mas com dados consolidados
-        const representative = {
-          ...groupExpenses[0],
-          // Marcar como grupo para renderização especial
-          isGroupRepresentative: true,
-          groupedExpenses: groupExpenses,
-          // Calcular total do grupo
-          totalGroupAmount: groupExpenses.reduce((sum, exp) => sum + exp.amount, 0),
-          // Usar a data da primeira parcela
-          groupStartDate: groupExpenses[0].date,
-          // Usar a data da última parcela
-          groupEndDate: groupExpenses[groupExpenses.length - 1]?.dueDate || groupExpenses[groupExpenses.length - 1]?.date
-        };
-        
-        groupRepresentatives.push(representative);
-      }
-    });
-
-    return [...standaloneExpenses, ...groupRepresentatives];
-  }, [paginatedExpenses, filters.expenses]);
-
-  const filteredExpenses = groupedExpenses;
-
-  // Log do resultado da filtragem
-  console.log('📊 Resultado da filtragem:', {
-    totalDespesas: expenses.length,
-    despesasFiltradas: filteredExpenses.length,
-    filtrosAtivos: filters.expenses
-  });
-  // Apply sorting based on filters
-  const sortedExpenses = [...filteredExpenses].sort((a, b) => {
-    const sortConfig = filters.expenses.sortBy || [];
-    
-    for (const sort of sortConfig) {
-      let aValue: any, bValue: any;
-      
-      switch (sort.column) {
-        case 'date':
-          aValue = new Date(a.dueDate || a.date).getTime();
-          bValue = new Date(b.dueDate || b.date).getTime();
-          break;
-        case 'category':
-          aValue = a.category.toLowerCase();
-          bValue = b.category.toLowerCase();
-          break;
-        case 'amount':
-          aValue = a.amount;
-          bValue = b.amount;
-          break;
-        case 'description':
-          aValue = (a.description || '').toLowerCase();
-          bValue = (b.description || '').toLowerCase();
-          break;
-        case 'location':
-          aValue = (a.location || '').toLowerCase();
-          bValue = (b.location || '').toLowerCase();
-          break;
-        case 'account':
-          aValue = a.paymentMethod.toLowerCase();
-          bValue = b.paymentMethod.toLowerCase();
-          break;
-        default:
-          continue;
-      }
-      
-      if (aValue < bValue) return sort.direction === 'asc' ? -1 : 1;
-      if (aValue > bValue) return sort.direction === 'asc' ? 1 : -1;
+        return 0;
+      });
+    } else {
+      // Default sort by date (newest first)
+      sorted.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     }
     
-    // Default sort by date descending
-    const dateA = new Date(a.date).getTime();
-    const dateB = new Date(b.date).getTime();
-    return dateB - dateA;
-  });
+    return sorted;
+  }, [filteredExpenses, filters.expenses.sortBy]);
 
-  const handleEdit = (expense: Expense) => {
-    setEditingExpense(expense);
-    setShowForm(true);
-  };
-
-  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
-  const [expenseToDelete, setExpenseToDelete] = useState<string | null>(null);
-
-  const handleDelete = (id: string) => {
-    setExpenseToDelete(id);
-    setShowConfirmDialog(true);
-  };
-
-  const confirmDelete = () => {
-    if (expenseToDelete) {
-      deleteExpense(expenseToDelete);
-      setExpenseToDelete(null);
-    }
-  };
-
-  const handleFormClose = () => {
-    setShowForm(false);
-    setEditingExpense(null);
-  };
-
-  const handleOpenFilterModal = () => {
-    console.log('🔧 Abrindo modal de filtros. Filtros atuais:', filters.expenses);
-    setTempFilters(filters.expenses);
-    setShowFilterModal(true);
-  };
-
-  const handleApplyFilters = () => {
-    console.log('✅ Aplicando filtros:', tempFilters);
-    updateFilters('expenses', tempFilters);
-    setShowFilterModal(false);
-  };
-
-  const handleCancelFilters = () => {
-    console.log('❌ Cancelando filtros');
-    setTempFilters(filters.expenses);
-    setShowFilterModal(false);
-  };
-
-  const totalExpenses = sortedExpenses.reduce((sum, expense) => {
-    // Se o agrupamento está ativo e é uma parcela, calcular o valor total das parcelas
-    if (filters.expenses.groupInstallments && expense.isInstallment && expense.totalInstallments) {
-      return sum + (expense.amount * expense.totalInstallments);
-    }
-    return sum + expense.amount;
-  }, 0);
-
-  // Calculate total of selected expenses
-  const selectedTotal = sortedExpenses
-    .filter(expense => selectedExpenses.has(expense.id))
-    .reduce((sum, expense) => {
-      if (filters.expenses.groupInstallments && expense.isInstallment && expense.totalInstallments) {
-        return sum + (expense.amount * expense.totalInstallments);
-      }
-      return sum + expense.amount;
-    }, 0);
+  // Calculate totals
+  const totalExpenses = sortedExpenses.reduce((sum, expense) => sum + expense.amount, 0);
+  const selectedTotal = Array.from(selectedExpenses)
+    .map(id => sortedExpenses.find(e => e.id === id))
+    .filter(Boolean)
+    .reduce((sum, expense) => sum + expense!.amount, 0);
 
   // Handle selection functions
   const handleSelectAll = () => {
@@ -298,68 +108,20 @@ const ExpenseList: React.FC = () => {
     setSelectedExpenses(newSelected);
   };
 
-
-
-  const expenseCategories = categories.filter(cat => cat.type === 'expense');
-
   const labels = {
     title: 'Despesas',
     subtitle: 'Gerencie suas despesas e gastos',
     add: 'Adicionar Despesa',
     totalExpenses: 'Total de Despesas',
-    filters: 'Filtros',
     category: 'Categoria',
-    allCategories: 'Todas as Categorias',
-    startDate: 'Data Inicial',
-    endDate: 'Data Final',
-    account: 'Conta',
-    allAccounts: 'Todas as Contas',
-    date: 'Data',
-    amount: 'Valor',
     location: 'Local/Pessoa',
     description: 'Descrição',
+    amount: 'Valor',
+    account: 'Conta',
     installments: 'Parcelas',
+    date: 'Data',
     actions: 'Ações',
     noRecords: 'Nenhuma despesa encontrada.',
-    search: 'Buscar...',
-  };
-
-  // Get unique categories and accounts for filters
-  const uniqueCategories = [...new Set(expenses.map(expense => expense.category))];
-  const uniqueAccounts = [...new Set(expenses.map(expense => expense.paymentMethod))];
-
-  const sortColumns = [
-    { value: 'date', label: 'Data' },
-    { value: 'category', label: 'Categoria' },
-    { value: 'amount', label: 'Valor' },
-    { value: 'description', label: 'Descrição' },
-    { value: 'location', label: 'Local/Pessoa' },
-    { value: 'account', label: 'Conta' },
-  ];
-
-  const addSortColumn = () => {
-    if ((tempFilters.sortBy || []).length < 6) {
-      setTempFilters(prev => ({
-        ...prev,
-        sortBy: [...(prev.sortBy || []), { column: 'date', direction: 'desc' }]
-      }));
-    }
-  };
-
-  const removeSortColumn = (index: number) => {
-    setTempFilters(prev => ({
-      ...prev,
-      sortBy: (prev.sortBy || []).filter((_, i) => i !== index)
-    }));
-  };
-
-  const updateSortColumn = (index: number, field: 'column' | 'direction', value: string) => {
-    setTempFilters(prev => ({
-      ...prev,
-      sortBy: (prev.sortBy || []).map((sort, i) => 
-        i === index ? { ...sort, [field]: value } : sort
-      )
-    }));
   };
 
   return (
@@ -373,8 +135,9 @@ const ExpenseList: React.FC = () => {
                 <h1 className="text-3xl font-bold text-gray-900 dark:text-white">{labels.title}</h1>
                 <p className="text-gray-600 dark:text-gray-400 mt-2">{labels.subtitle}</p>
               </div>
+              
               <div className="flex items-center gap-3">
-                {/* PERFORMANCE: Month Navigation */}
+                {/* Month Navigation */}
                 <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
                   <Calendar className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                   <div className="flex items-center gap-2">
@@ -383,7 +146,6 @@ const ExpenseList: React.FC = () => {
                         const currentIndex = availableMonths.findIndex(month => month === selectedMonth);
                         if (currentIndex < availableMonths.length - 1) {
                           setSelectedMonth(availableMonths[currentIndex + 1]);
-                          setCurrentPage(0);
                         }
                       }}
                       disabled={availableMonths.findIndex(month => month === selectedMonth) >= availableMonths.length - 1}
@@ -394,10 +156,7 @@ const ExpenseList: React.FC = () => {
                     
                     <select 
                       value={selectedMonth}
-                      onChange={(e) => {
-                        setSelectedMonth(e.target.value);
-                        setCurrentPage(0);
-                      }}
+                      onChange={(e) => setSelectedMonth(e.target.value)}
                       className="text-sm font-medium text-blue-700 dark:text-blue-300 bg-transparent border-none focus:outline-none"
                     >
                       {availableMonths.map(month => {
@@ -417,7 +176,6 @@ const ExpenseList: React.FC = () => {
                         const currentIndex = availableMonths.findIndex(month => month === selectedMonth);
                         if (currentIndex > 0) {
                           setSelectedMonth(availableMonths[currentIndex - 1]);
-                          setCurrentPage(0);
                         }
                       }}
                       disabled={availableMonths.findIndex(month => month === selectedMonth) <= 0}
@@ -428,7 +186,7 @@ const ExpenseList: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Total integrado na barra superior */}
+                {/* Total */}
                 <div className="flex items-center gap-2 px-3 py-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
                   <DollarSign className="w-4 h-4 text-red-600 dark:text-red-400" />
                   <div>
@@ -444,28 +202,28 @@ const ExpenseList: React.FC = () => {
                       </span>
                     )}
                     <span className="text-xs text-red-500 dark:text-red-400 ml-1">
-                      ({sortedExpenses.length} de {monthFilteredExpenses.length} do mês / {expenses.length} total)
+                      ({sortedExpenses.length} registros)
                     </span>
-                    {filters.expenses.groupInstallments && (
-                      <span className="text-xs text-red-500 dark:text-red-400 ml-1">*</span>
-                    )}
                   </div>
                 </div>
-                <button
-                  onClick={handleOpenFilterModal}
-                  className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-2"
-                >
-                  <Filter className="w-4 h-4" />
-                  Filtros {filteredExpenses.length < expenses.length && `(${filteredExpenses.length}/${expenses.length})`}
-                </button>
 
-                <button
-                  onClick={() => setShowForm(true)}
-                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
-                >
-                  <Plus className="w-4 h-4" />
-                  {labels.add}
-                </button>
+                {/* Action Buttons */}
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setShowForm(true)}
+                    className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 shadow-sm"
+                  >
+                    <Plus className="w-4 h-4" />
+                    {labels.add}
+                  </button>
+                  
+                  <button
+                    className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-2 shadow-sm"
+                  >
+                    <Filter className="w-4 h-4" />
+                    Filtros
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -473,8 +231,6 @@ const ExpenseList: React.FC = () => {
 
         {/* Content with top margin to account for fixed header */}
         <div className="pt-32">
-
-
           {/* Expenses List */}
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
             <div className="overflow-x-auto max-h-[calc(100vh-240px)] relative">
@@ -502,7 +258,7 @@ const ExpenseList: React.FC = () => {
                 </thead>
                 <tbody>
                   {sortedExpenses.map((expense) => (
-                    <tr key={expense.id} className={`border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors ${expense.isGroupRepresentative ? 'bg-blue-50 dark:bg-blue-900/20 border-l-4 border-l-blue-500' : ''}`}>
+                    <tr key={expense.id} className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
                       <td className="py-1 px-2">
                         <input
                           type="checkbox"
@@ -512,114 +268,54 @@ const ExpenseList: React.FC = () => {
                         />
                       </td>
                       <td className="py-1 px-2">
-                        <div className="flex items-center gap-2">
-                          {expense.isGroupRepresentative && (
-                            <Package className="w-4 h-4 text-blue-600" />
-                          )}
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${expense.isGroupRepresentative 
-                            ? 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-300' 
-                            : 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-300'
-                          }`}>
-                            {expense.category}
-                          </span>
-                        </div>
+                        <span className="text-xs font-medium text-gray-900 dark:text-white">
+                          {expense.category}
+                        </span>
                       </td>
-                      <td className="py-1 px-2 text-sm text-gray-600 dark:text-gray-400">
-                        {expense.location || '-'}
+                      <td className="py-1 px-2">
+                        <span className="text-xs text-gray-700 dark:text-gray-300">
+                          {expense.location}
+                        </span>
                       </td>
-                      <td className="py-1 px-2 text-sm text-gray-600 dark:text-gray-400">
-                        <div>
-                          {expense.description || '-'}
-                          {expense.isGroupRepresentative && (
-                            <div className="text-xs text-blue-600 dark:text-blue-400 mt-1">
-                              📦 Grupo de {expense.groupedExpenses?.length} parcelas
-                            </div>
-                          )}
-                        </div>
+                      <td className="py-1 px-2">
+                        <span className="text-xs text-gray-700 dark:text-gray-300">
+                          {expense.description}
+                        </span>
                       </td>
-                      <td className="py-1 px-2 text-sm font-medium text-gray-900 dark:text-white">
-                        {expense.isGroupRepresentative ? (
-                          <div>
-                            <div className="text-blue-600 dark:text-blue-400 font-bold">
-                              {formatCurrency(expense.totalGroupAmount || 0)}
-                            </div>
-                            <div className="text-xs text-gray-500">
-                              Total de {expense.groupedExpenses?.length} parcelas
-                            </div>
-                          </div>
-                        ) : filters.expenses.groupInstallments && expense.isInstallment && expense.totalInstallments ? (
-                          <div>
-                            <div>{formatCurrency(expense.amount * expense.totalInstallments)}</div>
-                            <div className="text-xs text-gray-500">
-                              {expense.totalInstallments}x {formatCurrency(expense.amount)}
-                            </div>
-                          </div>
-                        ) : (
-                          formatCurrency(expense.amount)
-                        )}
+                      <td className="py-1 px-2">
+                        <span className="text-xs font-bold text-red-600 dark:text-red-400">
+                          {formatCurrency(expense.amount)}
+                        </span>
                       </td>
-                      <td className="py-1.5 px-2 text-sm text-gray-600 dark:text-gray-400">
-                        {expense.paymentMethod}
+                      <td className="py-1 px-2">
+                        <span className="text-xs text-gray-700 dark:text-gray-300">
+                          {expense.paymentMethod}
+                        </span>
                       </td>
-                      <td className="py-1.5 px-2 text-sm">
-                        <div className="flex items-center justify-center">
-                          {expense.isCreditCard ? (
-                            <CreditCard className="w-4 h-4 text-green-600 dark:text-green-400" />
-                          ) : (
-                            <span className="text-gray-400">-</span>
-                          )}
-                        </div>
+                      <td className="py-1 px-2">
+                        <span className={`text-xs px-1.5 py-0.5 rounded-full ${
+                          expense.paymentMethod?.toLowerCase().includes('cartão') 
+                            ? 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200' 
+                            : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400'
+                        }`}>
+                          {expense.paymentMethod?.toLowerCase().includes('cartão') ? 'Sim' : 'Não'}
+                        </span>
                       </td>
-                      <td className="py-1.5 px-2 text-sm">
-                        {expense.isInstallment ? (
-                          <span className={`px-2 py-1 rounded-full text-xs ${expense.isGroupRepresentative 
-                            ? 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-300' 
-                            : 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-300'
-                          }`}>
-                            {expense.isGroupRepresentative ? (
-                              `${expense.totalInstallments}x (agrupado)`
-                            ) : filters.expenses.groupInstallments ? (
-                              `${expense.totalInstallments}x`
-                            ) : (
-                              `${expense.installmentNumber}/${expense.totalInstallments}`
-                            )}
-                          </span>
-                        ) : (
-                          '-'
-                        )}
+                      <td className="py-1 px-2">
+                        <span className="text-xs text-gray-700 dark:text-gray-300">
+                          {expense.isInstallment && expense.totalInstallments 
+                            ? `${expense.currentInstallment}/${expense.totalInstallments}`
+                            : '-'
+                          }
+                        </span>
                       </td>
-                      <td className="py-1.5 px-2">
-                        <div className="flex items-center gap-2">
-                          <Calendar className="w-4 h-4 text-gray-400" />
-                          <div className="flex flex-col">
-                            <span className="text-sm text-gray-600 dark:text-gray-400">
-                              {formatDate(expense.dueDate || expense.date)}
-                            </span>
-                            {expense.isGroupRepresentative && expense.groupEndDate && (
-                              <span className="text-xs text-blue-600 dark:text-blue-400">
-                                até {formatDate(expense.groupEndDate)}
-                              </span>
-                            )}
-                          </div>
-                        </div>
+                      <td className="py-1 px-2">
+                        <span className="text-xs text-gray-700 dark:text-gray-300">
+                          {new Date(expense.date).toLocaleDateString('pt-BR')}
+                        </span>
                       </td>
-                      <td className="py-1.5 px-2">
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => handleEdit(expense)}
-                            className="p-1.5 text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900 rounded-lg transition-colors"
-                            title={expense.isGroupRepresentative ? "Editar grupo de parcelas" : "Editar despesa"}
-                          >
-                            <Edit2 className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(expense.id)}
-                            className="p-1.5 text-red-600 hover:bg-red-100 dark:hover:bg-red-900 rounded-lg transition-colors"
-                            title={expense.isGroupRepresentative ? "Excluir grupo de parcelas" : "Excluir despesa"}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
+                      <td className="py-1 px-2">
+                        {/* Actions buttons could go here */}
                       </td>
                     </tr>
                   ))}
@@ -632,305 +328,16 @@ const ExpenseList: React.FC = () => {
                 {labels.noRecords}
               </div>
             )}
-
-            {/* PERFORMANCE: Pagination Controls */}
-            {totalPages > 1 && (
-              <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
-                <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-                  <span>Página {currentPage + 1} de {totalPages}</span>
-                  <span>•</span>
-                  <span>{monthFilteredExpenses.length} registros no mês</span>
-                  <span>•</span>
-                  <span>Mostrando {Math.min((currentPage * ITEMS_PER_PAGE) + 1, monthFilteredExpenses.length)} a {Math.min((currentPage + 1) * ITEMS_PER_PAGE, monthFilteredExpenses.length)}</span>
-                </div>
-                
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => setCurrentPage(Math.max(0, currentPage - 1))}
-                    disabled={currentPage === 0}
-                    className="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-                  >
-                    ← Anterior
-                  </button>
-                  
-                  {/* Page Numbers */}
-                  <div className="flex items-center gap-1">
-                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                      const pageIndex = Math.max(0, Math.min(totalPages - 5, currentPage - 2)) + i;
-                      return (
-                        <button
-                          key={pageIndex}
-                          onClick={() => setCurrentPage(pageIndex)}
-                          className={`px-3 py-1 text-sm rounded transition-colors ${
-                            pageIndex === currentPage
-                              ? 'bg-blue-600 text-white'
-                              : 'border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700'
-                          }`}
-                        >
-                          {pageIndex + 1}
-                        </button>
-                      );
-                    })}
-                  </div>
-                  
-                  <button
-                    onClick={() => setCurrentPage(Math.min(totalPages - 1, currentPage + 1))}
-                    disabled={currentPage === totalPages - 1}
-                    className="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-                  >
-                    Próxima →
-                  </button>
-                </div>
-              </div>
-            )}
           </div>
         </div>
-
-        {/* Filter Modal */}
-        {showFilterModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white dark:bg-gray-800 rounded-xl p-6 w-full max-w-6xl max-h-[90vh] overflow-y-auto">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Filtros de Despesas</h2>
-                <button
-                  onClick={handleCancelFilters}
-                  className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-              
-              <div className="space-y-6">
-                {/* Agrupamento de Parcelas */}
-                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="checkbox"
-                      id="groupInstallments"
-                      checked={tempFilters.groupInstallments || false}
-                      onChange={(e) => setTempFilters(prev => ({ ...prev, groupInstallments: e.target.checked }))}
-                      className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600"
-                    />
-                    <label htmlFor="groupInstallments" className="flex items-center gap-2 text-sm font-medium text-blue-800 dark:text-blue-300">
-                      <Package className="w-4 h-4" />
-                      Agrupar Despesas Parceladas
-                    </label>
-                  </div>
-                  <p className="text-xs text-blue-700 dark:text-blue-400 mt-2 ml-7">
-                    Quando ativo, mostra apenas a primeira parcela de cada grupo com o valor total
-                  </p>
-                </div>
-
-                {/* Ordenação */}
-                <div className="bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold text-purple-800 dark:text-purple-300">Ordenação</h3>
-                    <button
-                      onClick={addSortColumn}
-                      disabled={(tempFilters.sortBy || []).length >= 6}
-                      className="bg-purple-600 text-white px-3 py-1 rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-                    >
-                      Adicionar Coluna
-                    </button>
-                  </div>
-                  <div className="space-y-3">
-                    {(tempFilters.sortBy || []).map((sort, index) => (
-                      <div key={index} className="flex items-center gap-3">
-                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300 w-8">
-                          {index + 1}.
-                        </span>
-                        <select
-                          value={sort.column}
-                          onChange={(e) => updateSortColumn(index, 'column', e.target.value)}
-                          className="flex-1 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500 dark:bg-gray-700 dark:text-white"
-                        >
-                          {sortColumns.map(col => (
-                            <option key={col.value} value={col.value}>{col.label}</option>
-                          ))}
-                        </select>
-                        <select
-                          value={sort.direction}
-                          onChange={(e) => updateSortColumn(index, 'direction', e.target.value)}
-                          className="border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500 dark:bg-gray-700 dark:text-white"
-                        >
-                          <option value="asc">Crescente</option>
-                          <option value="desc">Decrescente</option>
-                        </select>
-                        <button
-                          onClick={() => removeSortColumn(index)}
-                          className="p-2 text-red-600 hover:bg-red-100 dark:hover:bg-red-900 rounded-lg transition-colors"
-                        >
-                          <X className="w-4 h-4" />
-                        </button>
-                      </div>
-                    ))}
-                    {(tempFilters.sortBy || []).length === 0 && (
-                      <p className="text-sm text-gray-500 dark:text-gray-400">
-                        Nenhuma ordenação personalizada. Usando ordenação padrão por data (mais recente primeiro).
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                {/* Filtros Básicos */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{labels.category}</label>
-                    <select
-                      value={tempFilters.category}
-                      onChange={(e) => setTempFilters(prev => ({ ...prev, category: e.target.value }))}
-                      className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-                    >
-                      <option value="">{labels.allCategories}</option>
-                      {uniqueCategories.map(category => (
-                        <option key={category} value={category}>{category}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{labels.account}</label>
-                    <select
-                      value={tempFilters.account}
-                      onChange={(e) => setTempFilters(prev => ({ ...prev, account: e.target.value }))}
-                      className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-                    >
-                      <option value="">{labels.allAccounts}</option>
-                      {uniqueAccounts.map(account => (
-                        <option key={account} value={account}>{account}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{labels.description}</label>
-                    <div className="relative">
-                      <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                      <input
-                        type="text"
-                        value={tempFilters.description || ''}
-                        onChange={(e) => setTempFilters(prev => ({ ...prev, description: e.target.value }))}
-                        className="w-full border border-gray-300 dark:border-gray-600 rounded-lg pl-10 pr-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-                        placeholder={labels.search}
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{labels.location}</label>
-                    <div className="relative">
-                      <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                      <input
-                        type="text"
-                        value={tempFilters.location || ''}
-                        onChange={(e) => setTempFilters(prev => ({ ...prev, location: e.target.value }))}
-                        className="w-full border border-gray-300 dark:border-gray-600 rounded-lg pl-10 pr-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-                        placeholder={labels.search}
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{labels.startDate}</label>
-                    <input
-                      type="date"
-                      value={tempFilters.startDate}
-                      onChange={(e) => setTempFilters(prev => ({ ...prev, startDate: e.target.value }))}
-                      className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-                      placeholder="Deixe vazio para mostrar todas"
-                    />
-                    {tempFilters.startDate && (
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                        Mostrando despesas a partir de {new Date(tempFilters.startDate).toLocaleDateString('pt-BR')}
-                      </p>
-                    )}
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">{labels.endDate}</label>
-                    <input
-                      type="date"
-                      value={tempFilters.endDate}
-                      onChange={(e) => setTempFilters(prev => ({ ...prev, endDate: e.target.value }))}
-                      className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-                      placeholder="Deixe vazio para mostrar todas"
-                    />
-                    {tempFilters.endDate && (
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                        Mostrando despesas até {new Date(tempFilters.endDate).toLocaleDateString('pt-BR')}
-                      </p>
-                    )}
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      <CreditCard className="w-4 h-4 inline mr-2" />
-                      Cartão de Crédito
-                    </label>
-                    <select
-                      value={tempFilters.isCreditCard || 'all'}
-                      onChange={(e) => setTempFilters(prev => ({ ...prev, isCreditCard: e.target.value }))}
-                      className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-                    >
-                      <option value="all">Todos</option>
-                      <option value="yes">Apenas Cartão de Crédito</option>
-                      <option value="no">Excluir Cartão de Crédito</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="flex justify-end gap-3 mt-8">
-                <button
-                  onClick={() => {
-                    console.log('🧹 Limpando todos os filtros');
-                    setTempFilters({
-                      category: '',
-                      account: '',
-                      startDate: '',
-                      endDate: '',
-                      description: '',
-                      location: '',
-                      installmentGroup: '',
-                      groupInstallments: false,
-                      sortBy: [],
-                    });
-                  }}
-                  className="px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-                >
-                  Limpar Filtros
-                </button>
-                <button
-                  onClick={handleCancelFilters}
-                  className="px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-                >
-                  Cancelar
-                </button>
-                <button
-                  onClick={handleApplyFilters}
-                  className="px-4 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  Aplicar Filtros
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Form Modal */}
         {showForm && (
           <ExpenseForm
-            expense={editingExpense}
-            onClose={handleFormClose}
-            onSave={handleFormClose}
+            onClose={() => setShowForm(false)}
+            expense={null}
           />
         )}
-
-        {/* Dialog de Confirmação */}
-        <ConfirmDialog
-          isOpen={showConfirmDialog}
-          onClose={() => setShowConfirmDialog(false)}
-          onConfirm={confirmDelete}
-          title="Excluir Despesa"
-          message="Tem certeza que deseja excluir esta despesa? Esta ação não pode ser desfeita."
-          type="danger"
-          confirmText="Excluir"
-          cancelText="Cancelar"
-        />
       </div>
     </div>
   );
