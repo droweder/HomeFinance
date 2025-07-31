@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Plus, Edit2, Trash2, Calendar, DollarSign, Filter, Search, X, Package } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { Plus, Edit2, Trash2, Calendar, DollarSign, Filter, Search, X, Package, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useFinance } from '../context/FinanceContext';
 import { useSettings } from '../context/SettingsContext';
 import { Income } from '../types';
@@ -15,8 +15,31 @@ const IncomeList: React.FC = () => {
   const [tempFilters, setTempFilters] = useState(filters.income);
   const [selectedIncome, setSelectedIncome] = useState<Set<string>>(new Set());
   const [confirmDeleteIncome, setConfirmDeleteIncome] = useState<Income | null>(null);
+  const [selectedMonth, setSelectedMonth] = useState<string>(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}`;
+  });
 
-  const filteredIncome = income.filter(incomeItem => {
+  // PERFORMANCE: First filter by selected month to reduce dataset
+  const monthFilteredIncome = useMemo(() => {
+    return income.filter(incomeItem => {
+      const incomeMonth = incomeItem.date.substring(0, 7); // YYYY-MM format
+      return incomeMonth === selectedMonth;
+    });
+  }, [income, selectedMonth]);
+
+  // Get available months for dropdown
+  const availableMonths = useMemo(() => {
+    const months = new Set<string>();
+    income.forEach(incomeItem => {
+      const month = incomeItem.date.substring(0, 7);
+      months.add(month);
+    });
+    return Array.from(months).sort().reverse(); // Most recent first
+  }, [income]);
+
+  // PERFORMANCE: Monthly filtering reduces dataset - now filter the monthly data
+  const filteredIncome = monthFilteredIncome.filter(incomeItem => {
     const incomeFilters = filters.income;
     if (incomeFilters.source && incomeItem.source !== incomeFilters.source) return false;
     if (incomeFilters.startDate && incomeItem.date < incomeFilters.startDate) return false;
@@ -214,13 +237,63 @@ const IncomeList: React.FC = () => {
                 <h1 className="text-3xl font-bold text-gray-900 dark:text-white">{labels.title}</h1>
                 <p className="text-gray-600 dark:text-gray-400 mt-2">{labels.subtitle}</p>
               </div>
+              
               <div className="flex items-center gap-3">
-                {/* Total integrado na barra superior */}
+                {/* Month Navigation */}
+                <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                  <Calendar className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => {
+                        const currentIndex = availableMonths.findIndex(month => month === selectedMonth);
+                        if (currentIndex < availableMonths.length - 1) {
+                          setSelectedMonth(availableMonths[currentIndex + 1]);
+                        }
+                      }}
+                      disabled={availableMonths.findIndex(month => month === selectedMonth) >= availableMonths.length - 1}
+                      className="p-1 hover:bg-blue-100 dark:hover:bg-blue-800 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <ChevronLeft className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                    </button>
+                    
+                    <select 
+                      value={selectedMonth}
+                      onChange={(e) => setSelectedMonth(e.target.value)}
+                      className="text-sm font-medium text-blue-700 dark:text-blue-300 bg-transparent border-none focus:outline-none"
+                    >
+                      {availableMonths.map(month => {
+                        const [year, monthNum] = month.split('-');
+                        const monthName = new Date(parseInt(year), parseInt(monthNum) - 1).toLocaleDateString('pt-BR', { year: 'numeric', month: 'long' });
+                        const monthCount = income.filter(inc => inc.date.substring(0, 7) === month).length;
+                        return (
+                          <option key={month} value={month}>
+                            {monthName} ({monthCount})
+                          </option>
+                        );
+                      })}
+                    </select>
+                    
+                    <button
+                      onClick={() => {
+                        const currentIndex = availableMonths.findIndex(month => month === selectedMonth);
+                        if (currentIndex > 0) {
+                          setSelectedMonth(availableMonths[currentIndex - 1]);
+                        }
+                      }}
+                      disabled={availableMonths.findIndex(month => month === selectedMonth) <= 0}
+                      className="p-1 hover:bg-blue-100 dark:hover:bg-blue-800 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <ChevronRight className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Total */}
                 <div className="flex items-center gap-2 px-3 py-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
                   <DollarSign className="w-4 h-4 text-green-600 dark:text-green-400" />
                   <div>
                     <span className="text-xs text-green-600 dark:text-green-400 font-medium">
-                      {selectedIncome.size > 0 ? 'Selecionado' : labels.totalIncome}: 
+                      {selectedIncome.size > 0 ? 'Selecionado' : 'Total do Mês'}: 
                     </span>
                     <span className="text-sm font-bold text-green-700 dark:text-green-300">
                       {formatCurrency(selectedIncome.size > 0 ? selectedTotal : totalIncome)}
@@ -230,23 +303,35 @@ const IncomeList: React.FC = () => {
                         ({selectedIncome.size} de {sortedIncome.length})
                       </span>
                     )}
+                    <span className="text-xs text-green-500 dark:text-green-400 ml-1">
+                      ({sortedIncome.length} registros)
+                    </span>
                   </div>
                 </div>
-                <button
-                  onClick={handleOpenFilterModal}
-                  className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-2"
-                >
-                  <Filter className="w-4 h-4" />
-                  Filtros
-                </button>
 
-                <button
-                  onClick={() => setShowForm(true)}
-                  className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
-                >
-                  <Plus className="w-4 h-4" />
-                  {labels.add}
-                </button>
+                {/* Action Buttons */}
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setShowForm(true)}
+                    className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2 shadow-sm"
+                  >
+                    <Plus className="w-4 h-4" />
+                    {labels.add}
+                  </button>
+                  
+                  <button
+                    onClick={handleOpenFilterModal}
+                    className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-2 shadow-sm"
+                  >
+                    <Filter className="w-4 h-4" />
+                    Filtros
+                    {filteredIncome.length < monthFilteredIncome.length && (
+                      <span className="bg-gray-500 text-xs px-1.5 py-0.5 rounded-full">
+                        {filteredIncome.length}
+                      </span>
+                    )}
+                  </button>
+                </div>
               </div>
             </div>
           </div>
