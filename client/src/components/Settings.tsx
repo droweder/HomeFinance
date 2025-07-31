@@ -30,7 +30,7 @@ const Settings: React.FC = () => {
   const [tempGeminiModel, setTempGeminiModel] = useState(settings.geminiModel || 'gemini-2.0-flash');
 
   // Estados para controlar seções expandidas
-  const [expandedSections, setExpandedSections] = useState<string[]>(['general', 'ai']);
+  const [expandedSections, setExpandedSections] = useState<string[]>(['general']);
 
   const geminiModels = [
     { value: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash' },
@@ -308,13 +308,6 @@ const Settings: React.FC = () => {
       description: 'Tema, sincronização e status de conexão'
     },
     {
-      id: 'ai',
-      title: 'Assistente IA',
-      icon: Brain,
-      iconColor: 'bg-purple-100 dark:bg-purple-900 text-purple-600 dark:text-purple-400',
-      description: 'Configure o Gemini para análises inteligentes'
-    },
-    {
       id: 'data',
       title: 'Gerenciar Dados',
       icon: FileText,
@@ -334,6 +327,13 @@ const Settings: React.FC = () => {
       icon: CreditCard,
       iconColor: 'bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-400',
       description: 'Gerencie suas contas bancárias e carteiras'
+    },
+    {
+      id: 'ai',
+      title: 'Assistente IA',
+      icon: Brain,
+      iconColor: 'bg-purple-100 dark:bg-purple-900 text-purple-600 dark:text-purple-400',
+      description: 'Configure o Gemini para análises inteligentes'
     }
   ];
 
