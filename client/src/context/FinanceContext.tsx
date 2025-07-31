@@ -27,6 +27,7 @@ interface FinanceContextType {
   deleteCategory: (id: string) => void;
   deleteTransfer: (id: string) => void;
   updateFilters: (section: keyof FilterState, newFilters: Partial<FilterState[keyof FilterState]>) => void;
+  refreshData: () => Promise<void>;
   isLoading: boolean;
 }
 
@@ -116,32 +117,43 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
     return getDefaultFilters();
   });
 
-  // Load data from Supabase when user is authenticated (prevent rapid reloads)
+  // Load data from Supabase when user is authenticated (only when necessary)
   useEffect(() => {
     let loadTimeout: NodeJS.Timeout;
     
     const fetchData = async () => {
       if (!currentUser) {
-        console.log('⚠️ User not authenticated - clearing data');
-        setExpenses([]);
-        setIncome([]);
-        setCategories([]);
-        setTransfers([]);
+        // Only clear data if we actually had data before
+        if (isDataLoaded) {
+          console.log('⚠️ User logged out - clearing data');
+          setExpenses([]);
+          setIncome([]);
+          setCategories([]);
+          setTransfers([]);
+          setIsDataLoaded(false);
+          localStorage.removeItem('finance-data-user-id');
+        }
         setIsLoading(false);
         setLoadingError(null);
-        setIsDataLoaded(false);
         return;
       }
 
-      // Prevent rapid successive loads with debouncing
+      // Prevent loading if already loaded for this user
+      const storedUserId = localStorage.getItem('finance-data-user-id');
+      if (isDataLoaded && storedUserId === currentUser.id) {
+        console.log('📋 Data already loaded for user:', currentUser.email);
+        return;
+      }
+
+      // Prevent rapid successive loads
       const now = Date.now();
       if (isLoading) {
         console.log('⏸️ Already loading, skipping duplicate request');
         return;
       }
 
-      // Debounce: prevent loading if less than 5 seconds since last load
-      if (isDataLoaded && now - lastLoadTime < 5000) {
+      // Debounce: prevent loading if less than 3 seconds since last load
+      if (now - lastLoadTime < 3000) {
         console.log('⏸️ Debouncing: skipping load (too soon since last load)');
         return;
       }
@@ -315,6 +327,9 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
         console.log('🎉 All financial data loaded successfully!');
         setIsDataLoaded(true);
         setLastLoadTime(Date.now());
+        
+        // Save user ID to prevent unnecessary reloads
+        localStorage.setItem('finance-data-user-id', currentUser.id);
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
         console.error('❌ Critical error loading data:', error);
@@ -911,6 +926,28 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
     });
   };
 
+  const refreshData = async () => {
+    if (!currentUser) {
+      console.log('⚠️ Cannot refresh data - user not authenticated');
+      return;
+    }
+    
+    console.log('🔄 Manual data refresh requested');
+    // Clear localStorage to force reload
+    localStorage.removeItem('finance-data-user-id');
+    setIsDataLoaded(false);
+    setLastLoadTime(0);
+    
+    // Trigger data reload
+    setIsLoading(true);
+    try {
+      // The useEffect will handle the actual loading
+      await new Promise(resolve => setTimeout(resolve, 100));
+    } catch (error) {
+      console.error('❌ Error during manual refresh:', error);
+    }
+  };
+
   return (
     <FinanceContext.Provider
       value={{
@@ -932,6 +969,7 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
         deleteCategory,
         deleteTransfer,
         updateFilters,
+        refreshData,
         isLoading,
       }}
     >
