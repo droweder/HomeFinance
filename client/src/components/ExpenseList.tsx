@@ -415,7 +415,6 @@ const ExpenseList: React.FC = () => {
 
                 {/* Total integrado na barra superior */}
                 <div className="flex items-center gap-2 px-3 py-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-                  <DollarSign className="w-4 h-4 text-red-600 dark:text-red-400" />
                   <div>
                     <span className="text-xs text-red-600 dark:text-red-400 font-medium">
                       {selectedExpenses.size > 0 ? 'Selecionado' : 'Total do Mês'}: 

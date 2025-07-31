@@ -290,7 +290,6 @@ const IncomeList: React.FC = () => {
 
                 {/* Total */}
                 <div className="flex items-center gap-2 px-3 py-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
-                  <DollarSign className="w-4 h-4 text-green-600 dark:text-green-400" />
                   <div>
                     <span className="text-xs text-green-600 dark:text-green-400 font-medium">
                       {selectedIncome.size > 0 ? 'Selecionado' : 'Total do Mês'}: 

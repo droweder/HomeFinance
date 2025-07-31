@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useCallback } from 'react';
-import { Calendar, TrendingUp, TrendingDown, DollarSign, Filter, Eye, EyeOff, X } from 'lucide-react';
+import { Calendar, TrendingUp, TrendingDown, DollarSign, Filter, Eye, EyeOff, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useFinance } from '../context/FinanceContext';
 import { useAccounts } from '../context/AccountContext';
 import { useSettings } from '../context/SettingsContext';
@@ -24,6 +24,49 @@ const DailyAccountSummary: React.FC = () => {
   const [tempFilters, setTempFilters] = useState(filters.dailySummary);
   const [modalSelectedMonth, setModalSelectedMonth] = useState<number>(0); // 0-indexed month
   const [modalSelectedYear, setModalSelectedYear] = useState<number>(new Date().getFullYear());
+  const [selectedMonth, setSelectedMonth] = useState<string>(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}`;
+  });
+
+  // Get available months from all financial data
+  const availableMonths = useMemo(() => {
+    const months = new Set<string>();
+    
+    // Add months from expenses
+    expenses.forEach(expense => {
+      const month = expense.date.substring(0, 7);
+      months.add(month);
+    });
+    
+    // Add months from income
+    income.forEach(incomeItem => {
+      const month = incomeItem.date.substring(0, 7);
+      months.add(month);
+    });
+    
+    // Add months from transfers
+    transfers.forEach(transfer => {
+      const month = transfer.date.substring(0, 7);
+      months.add(month);
+    });
+    
+    return Array.from(months).sort().reverse(); // Most recent first
+  }, [expenses, income, transfers]);
+
+  // Update filters when month changes
+  const handleMonthChange = (newMonth: string) => {
+    setSelectedMonth(newMonth);
+    const [year, monthNum] = newMonth.split('-');
+    const startDate = new Date(parseInt(year), parseInt(monthNum) - 1, 1);
+    const endDate = new Date(parseInt(year), parseInt(monthNum), 0); // Last day of month
+    
+    updateFilters('dailySummary', {
+      ...filters.dailySummary,
+      startDate: startDate.toISOString().split('T')[0],
+      endDate: endDate.toISOString().split('T')[0],
+    });
+  };
 
   // Função para calcular diferença em dias de forma segura
   const getDaysDifference = useCallback((startDate: string, endDate: string): number => {
@@ -409,10 +452,61 @@ const DailyAccountSummary: React.FC = () => {
                 <p className="text-gray-600 dark:text-gray-400 mt-2">Visão geral diária do movimento financeiro por conta</p>
               </div>
               
-              {/* Cards integrados na barra superior */}
+              {/* Navigation and Cards */}
               <div className="flex items-center gap-3">
+                {/* Month Navigation */}
+                <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+                  <Calendar className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => {
+                        const currentIndex = availableMonths.findIndex(month => month === selectedMonth);
+                        if (currentIndex < availableMonths.length - 1) {
+                          handleMonthChange(availableMonths[currentIndex + 1]);
+                        }
+                      }}
+                      disabled={availableMonths.findIndex(month => month === selectedMonth) >= availableMonths.length - 1}
+                      className="p-1 hover:bg-amber-100 dark:hover:bg-amber-800 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <ChevronLeft className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                    </button>
+                    
+                    <select 
+                      value={selectedMonth}
+                      onChange={(e) => handleMonthChange(e.target.value)}
+                      className="text-sm font-medium text-amber-700 dark:text-amber-300 bg-transparent border-none focus:outline-none"
+                    >
+                      {availableMonths.map(month => {
+                        const [year, monthNum] = month.split('-');
+                        const monthName = new Date(parseInt(year), parseInt(monthNum) - 1).toLocaleDateString('pt-BR', { year: 'numeric', month: 'long' });
+                        const recordCount = expenses.filter(exp => exp.date.substring(0, 7) === month).length + 
+                                           income.filter(inc => inc.date.substring(0, 7) === month).length +
+                                           transfers.filter(tr => tr.date.substring(0, 7) === month).length;
+                        return (
+                          <option key={month} value={month}>
+                            {monthName} ({recordCount})
+                          </option>
+                        );
+                      })}
+                    </select>
+                    
+                    <button
+                      onClick={() => {
+                        const currentIndex = availableMonths.findIndex(month => month === selectedMonth);
+                        if (currentIndex > 0) {
+                          handleMonthChange(availableMonths[currentIndex - 1]);
+                        }
+                      }}
+                      disabled={availableMonths.findIndex(month => month === selectedMonth) <= 0}
+                      className="p-1 hover:bg-amber-100 dark:hover:bg-amber-800 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <ChevronRight className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Summary Cards */}
                 <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-                  <DollarSign className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                   <div>
                     <span className="text-xs text-blue-600 dark:text-blue-400 font-medium">Contas: </span>
                     <span className="text-sm font-bold text-blue-700 dark:text-blue-300">{accounts.length}</span>
@@ -421,23 +515,23 @@ const DailyAccountSummary: React.FC = () => {
                 <div className="flex items-center gap-2 px-3 py-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
                   <TrendingUp className="w-4 h-4 text-green-600 dark:text-green-400" />
                   <div>
-                    <span className="text-xs text-green-600 dark:text-green-400 font-medium">Saldo Total: </span>
-                    <span className="text-sm font-bold text-green-700 dark:text-green-300">{formatCurrency(dailySummaries[0]?.totalDailyBalance || 0)}</span>
+                    <span className="text-xs text-green-600 dark:text-green-400 font-medium">Saldo Final: </span>
+                    <span className="text-sm font-bold text-green-700 dark:text-green-300">{formatCurrency(dailySummaries[dailySummaries.length - 1]?.totalDailyBalance || 0)}</span>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 px-3 py-2 bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg">
-                  <Calendar className="w-4 h-4 text-purple-600 dark:text-purple-400" />
                   <div>
                     <span className="text-xs text-purple-600 dark:text-purple-400 font-medium">Período: </span>
                     <span className="text-sm font-bold text-purple-700 dark:text-purple-300">{dailySummaries.length} dias</span>
                   </div>
                 </div>
+                
                 <button
                   onClick={handleOpenFilterModal}
-                  className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-2"
+                  className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-2 shadow-sm"
                 >
                   <Filter className="w-4 h-4" />
-                  Período
+                  Personalizar
                 </button>
               </div>
             </div>

@@ -230,7 +230,6 @@ const TransferList: React.FC = () => {
 
                 {/* Total */}
                 <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-                  <ArrowRightLeft className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                   <div>
                     <span className="text-xs text-blue-600 dark:text-blue-400 font-medium">Total do Mês: </span>
                     <span className="text-sm font-bold text-blue-700 dark:text-blue-300">{formatCurrency(totalTransferred)}</span>
@@ -263,14 +262,7 @@ const TransferList: React.FC = () => {
                     )}
                   </button>
 
-                  <button
-                    onClick={handleExportCSV}
-                    disabled={sortedTransfers.length === 0}
-                    className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2 shadow-sm disabled:bg-gray-400 disabled:cursor-not-allowed"
-                  >
-                    <Download className="w-4 h-4" />
-                    Exportar CSV
-                  </button>
+
                 </div>
               </div>
             </div>
