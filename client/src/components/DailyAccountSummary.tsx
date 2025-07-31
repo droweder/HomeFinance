@@ -28,6 +28,14 @@ const DailyAccountSummary: React.FC = () => {
     const now = new Date();
     return `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}`;
   });
+  
+  // Estado para o modal de extrato
+  const [showExtractModal, setShowExtractModal] = useState(false);
+  const [extractAccount, setExtractAccount] = useState<string>('');
+  const [extractMonth, setExtractMonth] = useState<string>(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}`;
+  });
 
   // Get available months from all financial data
   const availableMonths = useMemo(() => {
@@ -66,6 +74,113 @@ const DailyAccountSummary: React.FC = () => {
       startDate: startDate.toISOString().split('T')[0],
       endDate: endDate.toISOString().split('T')[0],
     });
+  };
+
+  // Calcular movimentações para o extrato
+  const extractMovements = useMemo(() => {
+    if (!extractAccount || !extractMonth) return [];
+
+    const [year, monthNum] = extractMonth.split('-');
+    const movements: Array<{
+      date: string;
+      description: string;
+      amount: number;
+      type: 'entrada' | 'saida';
+      category?: string;
+    }> = [];
+
+    // Despesas da conta no mês
+    expenses
+      .filter(expense => 
+        expense.date.substring(0, 7) === extractMonth && 
+        expense.paymentMethod === extractAccount
+      )
+      .forEach(expense => {
+        movements.push({
+          date: expense.date,
+          description: `${expense.category} - ${expense.description || 'Despesa'}`,
+          amount: expense.amount,
+          type: 'saida',
+          category: expense.category
+        });
+      });
+
+    // Receitas da conta no mês
+    income
+      .filter(incomeItem => 
+        incomeItem.date.substring(0, 7) === extractMonth && 
+        incomeItem.account === extractAccount
+      )
+      .forEach(incomeItem => {
+        movements.push({
+          date: incomeItem.date,
+          description: `${incomeItem.source} - ${incomeItem.notes || 'Receita'}`,
+          amount: incomeItem.amount,
+          type: 'entrada',
+          category: incomeItem.source
+        });
+      });
+
+    // Transferências de/para a conta no mês
+    transfers
+      .filter(transfer => 
+        transfer.date.substring(0, 7) === extractMonth && 
+        (transfer.fromAccount === extractAccount || transfer.toAccount === extractAccount)
+      )
+      .forEach(transfer => {
+        const fromAccountName = accounts.find(acc => acc.id === transfer.fromAccount)?.name || transfer.fromAccount;
+        const toAccountName = accounts.find(acc => acc.id === transfer.toAccount)?.name || transfer.toAccount;
+        
+        if (transfer.fromAccount === extractAccount) {
+          // Saída da conta
+          movements.push({
+            date: transfer.date,
+            description: `Transferência para ${toAccountName} - ${transfer.description || ''}`,
+            amount: transfer.amount,
+            type: 'saida'
+          });
+        } else {
+          // Entrada na conta
+          movements.push({
+            date: transfer.date,
+            description: `Transferência de ${fromAccountName} - ${transfer.description || ''}`,
+            amount: transfer.amount,
+            type: 'entrada'
+          });
+        }
+      });
+
+    // Ordenar por data
+    return movements.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  }, [extractAccount, extractMonth, expenses, income, transfers, accounts]);
+
+  // Calcular saldo acumulado
+  const extractWithBalance = useMemo(() => {
+    let runningBalance = 0;
+    const accountObj = accounts.find(acc => acc.name === extractAccount);
+    if (accountObj) {
+      runningBalance = accountObj.initialBalance || 0;
+    }
+
+    return extractMovements.map(movement => {
+      if (movement.type === 'entrada') {
+        runningBalance += movement.amount;
+      } else {
+        runningBalance -= movement.amount;
+      }
+      
+      return {
+        ...movement,
+        balance: runningBalance
+      };
+    });
+  }, [extractMovements, extractAccount, accounts]);
+
+  const handleOpenExtract = () => {
+    if (accounts.length > 0) {
+      setExtractAccount(accounts[0].name);
+    }
+    setShowExtractModal(true);
   };
 
   // Função para calcular diferença em dias de forma segura
@@ -527,6 +642,14 @@ const DailyAccountSummary: React.FC = () => {
                 </div>
                 
                 <button
+                  onClick={handleOpenExtract}
+                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 shadow-sm"
+                >
+                  <Calendar className="w-4 h-4" />
+                  Extrato
+                </button>
+                
+                <button
                   onClick={handleOpenFilterModal}
                   className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-2 shadow-sm"
                 >
@@ -785,6 +908,182 @@ const DailyAccountSummary: React.FC = () => {
                   Aplicar Filtros
                 </button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal de Extrato */}
+        {showExtractModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-6 w-full max-w-5xl max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Extrato Bancário</h2>
+                <button
+                  onClick={() => setShowExtractModal(false)}
+                  className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex items-center gap-2"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              
+              {/* Filtros do Extrato */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Conta</label>
+                  <select
+                    value={extractAccount}
+                    onChange={(e) => setExtractAccount(e.target.value)}
+                    className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white"
+                  >
+                    <option value="">Selecione uma conta</option>
+                    {accounts.map(account => (
+                      <option key={account.id} value={account.name}>
+                        {account.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Mês</label>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => {
+                        const currentIndex = availableMonths.findIndex(month => month === extractMonth);
+                        if (currentIndex < availableMonths.length - 1) {
+                          setExtractMonth(availableMonths[currentIndex + 1]);
+                        }
+                      }}
+                      disabled={availableMonths.findIndex(month => month === extractMonth) >= availableMonths.length - 1}
+                      className="p-2 hover:bg-gray-200 dark:hover:bg-gray-600 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                    </button>
+                    
+                    <select 
+                      value={extractMonth}
+                      onChange={(e) => setExtractMonth(e.target.value)}
+                      className="flex-1 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white"
+                    >
+                      {availableMonths.map(month => {
+                        const [year, monthNum] = month.split('-');
+                        const monthName = new Date(parseInt(year), parseInt(monthNum) - 1).toLocaleDateString('pt-BR', { year: 'numeric', month: 'long' });
+                        const recordCount = expenses.filter(exp => exp.date.substring(0, 7) === month && exp.paymentMethod === extractAccount).length + 
+                                           income.filter(inc => inc.date.substring(0, 7) === month && inc.account === extractAccount).length +
+                                           transfers.filter(tr => tr.date.substring(0, 7) === month && 
+                                             (tr.fromAccount === extractAccount || tr.toAccount === extractAccount)).length;
+                        return (
+                          <option key={month} value={month}>
+                            {monthName} ({recordCount})
+                          </option>
+                        );
+                      })}
+                    </select>
+                    
+                    <button
+                      onClick={() => {
+                        const currentIndex = availableMonths.findIndex(month => month === extractMonth);
+                        if (currentIndex > 0) {
+                          setExtractMonth(availableMonths[currentIndex - 1]);
+                        }
+                      }}
+                      disabled={availableMonths.findIndex(month => month === extractMonth) <= 0}
+                      className="p-2 hover:bg-gray-200 dark:hover:bg-gray-600 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Resumo do Período */}
+              {extractAccount && extractWithBalance.length > 0 && (
+                <div className="grid grid-cols-3 gap-4 mb-6">
+                  <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
+                    <div className="text-green-600 dark:text-green-400 text-sm font-medium">Total de Entradas</div>
+                    <div className="text-green-700 dark:text-green-300 text-lg font-bold">
+                      {formatCurrency(extractWithBalance.filter(m => m.type === 'entrada').reduce((sum, m) => sum + m.amount, 0))}
+                    </div>
+                  </div>
+                  <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+                    <div className="text-red-600 dark:text-red-400 text-sm font-medium">Total de Saídas</div>
+                    <div className="text-red-700 dark:text-red-300 text-lg font-bold">
+                      {formatCurrency(extractWithBalance.filter(m => m.type === 'saida').reduce((sum, m) => sum + m.amount, 0))}
+                    </div>
+                  </div>
+                  <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                    <div className="text-blue-600 dark:text-blue-400 text-sm font-medium">Saldo Final</div>
+                    <div className={`text-lg font-bold ${extractWithBalance[extractWithBalance.length - 1]?.balance >= 0 ? 'text-green-700 dark:text-green-300' : 'text-red-700 dark:text-red-300'}`}>
+                      {formatCurrency(extractWithBalance[extractWithBalance.length - 1]?.balance || 0)}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Tabela do Extrato */}
+              {extractAccount ? (
+                <div className="bg-gray-50 dark:bg-gray-700 rounded-lg overflow-hidden">
+                  <div className="max-h-96 overflow-y-auto">
+                    <table className="w-full">
+                      <thead className="bg-gray-100 dark:bg-gray-600 sticky top-0">
+                        <tr>
+                          <th className="text-left py-3 px-4 font-medium text-gray-900 dark:text-white">Data</th>
+                          <th className="text-left py-3 px-4 font-medium text-gray-900 dark:text-white">Descrição</th>
+                          <th className="text-right py-3 px-4 font-medium text-gray-900 dark:text-white">Valor</th>
+                          <th className="text-right py-3 px-4 font-medium text-gray-900 dark:text-white">Saldo</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {extractWithBalance.length === 0 ? (
+                          <tr>
+                            <td colSpan={4} className="text-center py-8 text-gray-500 dark:text-gray-400">
+                              <Calendar className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                              Nenhuma movimentação encontrada para este período.
+                            </td>
+                          </tr>
+                        ) : (
+                          extractWithBalance.map((movement, index) => (
+                            <tr key={index} className="border-b border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600">
+                              <td className="py-3 px-4 text-sm text-gray-900 dark:text-white">
+                                {formatDate(movement.date)}
+                              </td>
+                              <td className="py-3 px-4 text-sm text-gray-700 dark:text-gray-300">
+                                <div className="flex items-center gap-2">
+                                  {movement.type === 'entrada' ? (
+                                    <TrendingUp className="w-4 h-4 text-green-500" />
+                                  ) : (
+                                    <TrendingDown className="w-4 h-4 text-red-500" />
+                                  )}
+                                  {movement.description}
+                                </div>
+                              </td>
+                              <td className={`py-3 px-4 text-sm text-right font-medium ${
+                                movement.type === 'entrada' 
+                                  ? 'text-green-600 dark:text-green-400' 
+                                  : 'text-red-600 dark:text-red-400'
+                              }`}>
+                                {movement.type === 'entrada' ? '+' : '-'}{formatCurrency(movement.amount)}
+                              </td>
+                              <td className={`py-3 px-4 text-sm text-right font-bold ${
+                                movement.balance >= 0 
+                                  ? 'text-green-600 dark:text-green-400' 
+                                  : 'text-red-600 dark:text-red-400'
+                              }`}>
+                                {formatCurrency(movement.balance)}
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                  <Calendar className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                  Selecione uma conta para visualizar o extrato.
+                </div>
+              )}
             </div>
           </div>
         )}
