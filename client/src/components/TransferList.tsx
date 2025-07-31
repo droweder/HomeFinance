@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Plus, Edit2, Trash2, Calendar, DollarSign, Filter, Search, X, ArrowRightLeft, Download } from 'lucide-react';
+import { Plus, Edit2, Trash2, Calendar, DollarSign, Filter, Search, X, ArrowRightLeft, Download, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useFinance } from '../context/FinanceContext';
 import { useAccounts } from '../context/AccountContext';
 import { useSettings } from '../context/SettingsContext';
@@ -18,6 +18,10 @@ const TransferList: React.FC = () => {
   const [tempFilters, setTempFilters] = useState(filters.transfers);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [transferToDelete, setTransferToDelete] = useState<string | null>(null);
+  const [selectedMonth, setSelectedMonth] = useState<string>(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}`;
+  });
 
   // Export CSV functionality
   const handleExportCSV = () => {
@@ -53,7 +57,26 @@ const TransferList: React.FC = () => {
     document.body.removeChild(link);
   };
 
-  const filteredTransfers = transfers.filter(transfer => {
+  // PERFORMANCE: First filter by selected month to reduce dataset
+  const monthFilteredTransfers = useMemo(() => {
+    return transfers.filter(transfer => {
+      const transferMonth = transfer.date.substring(0, 7); // YYYY-MM format
+      return transferMonth === selectedMonth;
+    });
+  }, [transfers, selectedMonth]);
+
+  // Get available months for dropdown
+  const availableMonths = useMemo(() => {
+    const months = new Set<string>();
+    transfers.forEach(transfer => {
+      const month = transfer.date.substring(0, 7);
+      months.add(month);
+    });
+    return Array.from(months).sort().reverse(); // Most recent first
+  }, [transfers]);
+
+  // PERFORMANCE: Monthly filtering reduces dataset - now filter the monthly data
+  const filteredTransfers = monthFilteredTransfers.filter(transfer => {
     const transferFilters = filters.transfers;
     
     if (transferFilters.fromAccount && transfer.fromAccount !== transferFilters.fromAccount) return false;
@@ -154,29 +177,101 @@ const TransferList: React.FC = () => {
                 <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Transferências</h1>
                 <p className="text-gray-600 dark:text-gray-400 mt-2">Gerencie suas transferências entre contas</p>
               </div>
+              
               <div className="flex items-center gap-3">
-                {/* Total integrado na barra superior */}
-                <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-                  <DollarSign className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                  <div>
-                    <span className="text-xs text-blue-600 dark:text-blue-400 font-medium">Total Transferido: </span>
-                    <span className="text-sm font-bold text-blue-700 dark:text-blue-300">{formatCurrency(totalTransferred)}</span>
+                {/* Month Navigation */}
+                <div className="flex items-center gap-2 px-3 py-2 bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg">
+                  <Calendar className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => {
+                        const currentIndex = availableMonths.findIndex(month => month === selectedMonth);
+                        if (currentIndex < availableMonths.length - 1) {
+                          setSelectedMonth(availableMonths[currentIndex + 1]);
+                        }
+                      }}
+                      disabled={availableMonths.findIndex(month => month === selectedMonth) >= availableMonths.length - 1}
+                      className="p-1 hover:bg-purple-100 dark:hover:bg-purple-800 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <ChevronLeft className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                    </button>
+                    
+                    <select 
+                      value={selectedMonth}
+                      onChange={(e) => setSelectedMonth(e.target.value)}
+                      className="text-sm font-medium text-purple-700 dark:text-purple-300 bg-transparent border-none focus:outline-none"
+                    >
+                      {availableMonths.map(month => {
+                        const [year, monthNum] = month.split('-');
+                        const monthName = new Date(parseInt(year), parseInt(monthNum) - 1).toLocaleDateString('pt-BR', { year: 'numeric', month: 'long' });
+                        const monthCount = transfers.filter(tr => tr.date.substring(0, 7) === month).length;
+                        return (
+                          <option key={month} value={month}>
+                            {monthName} ({monthCount})
+                          </option>
+                        );
+                      })}
+                    </select>
+                    
+                    <button
+                      onClick={() => {
+                        const currentIndex = availableMonths.findIndex(month => month === selectedMonth);
+                        if (currentIndex > 0) {
+                          setSelectedMonth(availableMonths[currentIndex - 1]);
+                        }
+                      }}
+                      disabled={availableMonths.findIndex(month => month === selectedMonth) <= 0}
+                      className="p-1 hover:bg-purple-100 dark:hover:bg-purple-800 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <ChevronRight className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                    </button>
                   </div>
                 </div>
-                <button
-                  onClick={() => setShowFilterModal(true)}
-                  className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-2"
-                >
-                  <Filter className="w-4 h-4" />
-                  Filtros
-                </button>
-                <button
-                  onClick={() => setShowForm(true)}
-                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
-                >
-                  <Plus className="w-4 h-4" />
-                  Adicionar Transferência
-                </button>
+
+                {/* Total */}
+                <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                  <ArrowRightLeft className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                  <div>
+                    <span className="text-xs text-blue-600 dark:text-blue-400 font-medium">Total do Mês: </span>
+                    <span className="text-sm font-bold text-blue-700 dark:text-blue-300">{formatCurrency(totalTransferred)}</span>
+                    <span className="text-xs text-blue-500 dark:text-blue-400 ml-1">
+                      ({sortedTransfers.length} registros)
+                    </span>
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setShowForm(true)}
+                    className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 shadow-sm"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Adicionar Transferência
+                  </button>
+                  
+                  <button
+                    onClick={() => setShowFilterModal(true)}
+                    className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-2 shadow-sm"
+                  >
+                    <Filter className="w-4 h-4" />
+                    Filtros
+                    {filteredTransfers.length < monthFilteredTransfers.length && (
+                      <span className="bg-gray-500 text-xs px-1.5 py-0.5 rounded-full">
+                        {filteredTransfers.length}
+                      </span>
+                    )}
+                  </button>
+
+                  <button
+                    onClick={handleExportCSV}
+                    disabled={sortedTransfers.length === 0}
+                    className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2 shadow-sm disabled:bg-gray-400 disabled:cursor-not-allowed"
+                  >
+                    <Download className="w-4 h-4" />
+                    Exportar CSV
+                  </button>
+                </div>
               </div>
             </div>
           </div>
