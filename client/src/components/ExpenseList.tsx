@@ -1,5 +1,6 @@
-import React, { useState, useMemo } from 'react';
-import { Plus, Edit2, Trash2, Calendar, DollarSign, Filter, Search, X, Package, CreditCard } from 'lucide-react';
+import React, { useState, useMemo, useCallback } from 'react';
+import { Plus, Edit2, Trash2, Calendar, DollarSign, Filter, Search, X, Package, CreditCard, ChevronLeft, ChevronRight } from 'lucide-react';
+import { FixedSizeList as List } from 'react-window';
 import { useFinance } from '../context/FinanceContext';
 import { useSettings } from '../context/SettingsContext';
 import { Expense } from '../types';
@@ -37,11 +38,47 @@ const ExpenseList: React.FC = () => {
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [tempFilters, setTempFilters] = useState(filters.expenses);
   const [selectedExpenses, setSelectedExpenses] = useState<Set<string>>(new Set());
+  const [currentPage, setCurrentPage] = useState(0);
+  const [selectedMonth, setSelectedMonth] = useState<string>(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}`;
+  });
+  
+  // PERFORMANCE: Pagination - show 25 items per page
+  const ITEMS_PER_PAGE = 25;
 
-  // Função para agrupar despesas por installment_group
+  // PERFORMANCE: First filter by selected month to reduce dataset
+  const monthFilteredExpenses = useMemo(() => {
+    return expenses.filter(expense => {
+      const expenseMonth = expense.date.substring(0, 7); // YYYY-MM format
+      return expenseMonth === selectedMonth;
+    });
+  }, [expenses, selectedMonth]);
+
+  // Get available months for dropdown
+  const availableMonths = useMemo(() => {
+    const months = new Set<string>();
+    expenses.forEach(expense => {
+      const month = expense.date.substring(0, 7);
+      months.add(month);
+    });
+    return Array.from(months).sort().reverse(); // Most recent first
+  }, [expenses]);
+
+  // PERFORMANCE: Paginated expenses for current month
+  const paginatedExpenses = useMemo(() => {
+    const startIndex = currentPage * ITEMS_PER_PAGE;
+    const endIndex = startIndex + ITEMS_PER_PAGE;
+    return monthFilteredExpenses.slice(startIndex, endIndex);
+  }, [monthFilteredExpenses, currentPage, ITEMS_PER_PAGE]);
+
+  // Total pages for current month  
+  const totalPages = Math.ceil(monthFilteredExpenses.length / ITEMS_PER_PAGE);
+
+  // PERFORMANCE: Work with smaller monthly dataset
   const groupedExpenses = useMemo(() => {
     if (!filters.expenses.groupInstallments) {
-      return expenses.filter(expense => {
+      return paginatedExpenses.filter(expense => {
         const expenseFilters = filters.expenses;
         
         if (expenseFilters.category && expense.category !== expenseFilters.category) return false;
@@ -62,8 +99,8 @@ const ExpenseList: React.FC = () => {
       });
     }
 
-    // Aplicar filtros básicos primeiro
-    const basicFilteredExpenses = expenses.filter(expense => {
+    // Aplicar filtros básicos primeiro - já com filtro de mês e paginação
+    const basicFilteredExpenses = paginatedExpenses.filter(expense => {
       const expenseFilters = filters.expenses;
       
       if (expenseFilters.category && expense.category !== expenseFilters.category) return false;
@@ -125,7 +162,7 @@ const ExpenseList: React.FC = () => {
     });
 
     return [...standaloneExpenses, ...groupRepresentatives];
-  }, [expenses, filters.expenses]);
+  }, [paginatedExpenses, filters.expenses]);
 
   const filteredExpenses = groupedExpenses;
 
@@ -337,12 +374,66 @@ const ExpenseList: React.FC = () => {
                 <p className="text-gray-600 dark:text-gray-400 mt-2">{labels.subtitle}</p>
               </div>
               <div className="flex items-center gap-3">
+                {/* PERFORMANCE: Month Navigation */}
+                <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                  <Calendar className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => {
+                        const currentIndex = availableMonths.findIndex(month => month === selectedMonth);
+                        if (currentIndex < availableMonths.length - 1) {
+                          setSelectedMonth(availableMonths[currentIndex + 1]);
+                          setCurrentPage(0);
+                        }
+                      }}
+                      disabled={availableMonths.findIndex(month => month === selectedMonth) >= availableMonths.length - 1}
+                      className="p-1 hover:bg-blue-100 dark:hover:bg-blue-800 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <ChevronLeft className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                    </button>
+                    
+                    <select 
+                      value={selectedMonth}
+                      onChange={(e) => {
+                        setSelectedMonth(e.target.value);
+                        setCurrentPage(0);
+                      }}
+                      className="text-sm font-medium text-blue-700 dark:text-blue-300 bg-transparent border-none focus:outline-none"
+                    >
+                      {availableMonths.map(month => {
+                        const [year, monthNum] = month.split('-');
+                        const monthName = new Date(parseInt(year), parseInt(monthNum) - 1).toLocaleDateString('pt-BR', { year: 'numeric', month: 'long' });
+                        const monthCount = expenses.filter(exp => exp.date.substring(0, 7) === month).length;
+                        return (
+                          <option key={month} value={month}>
+                            {monthName} ({monthCount})
+                          </option>
+                        );
+                      })}
+                    </select>
+                    
+                    <button
+                      onClick={() => {
+                        const currentIndex = availableMonths.findIndex(month => month === selectedMonth);
+                        if (currentIndex > 0) {
+                          setSelectedMonth(availableMonths[currentIndex - 1]);
+                          setCurrentPage(0);
+                        }
+                      }}
+                      disabled={availableMonths.findIndex(month => month === selectedMonth) <= 0}
+                      className="p-1 hover:bg-blue-100 dark:hover:bg-blue-800 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <ChevronRight className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                    </button>
+                  </div>
+                </div>
+
                 {/* Total integrado na barra superior */}
                 <div className="flex items-center gap-2 px-3 py-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
                   <DollarSign className="w-4 h-4 text-red-600 dark:text-red-400" />
                   <div>
                     <span className="text-xs text-red-600 dark:text-red-400 font-medium">
-                      {selectedExpenses.size > 0 ? 'Selecionado' : labels.totalExpenses}: 
+                      {selectedExpenses.size > 0 ? 'Selecionado' : 'Total do Mês'}: 
                     </span>
                     <span className="text-sm font-bold text-red-700 dark:text-red-300">
                       {formatCurrency(selectedExpenses.size > 0 ? selectedTotal : totalExpenses)}
@@ -352,6 +443,9 @@ const ExpenseList: React.FC = () => {
                         ({selectedExpenses.size} de {sortedExpenses.length})
                       </span>
                     )}
+                    <span className="text-xs text-red-500 dark:text-red-400 ml-1">
+                      ({sortedExpenses.length} de {monthFilteredExpenses.length} do mês / {expenses.length} total)
+                    </span>
                     {filters.expenses.groupInstallments && (
                       <span className="text-xs text-red-500 dark:text-red-400 ml-1">*</span>
                     )}
@@ -536,6 +630,57 @@ const ExpenseList: React.FC = () => {
             {sortedExpenses.length === 0 && (
               <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                 {labels.noRecords}
+              </div>
+            )}
+
+            {/* PERFORMANCE: Pagination Controls */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+                <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                  <span>Página {currentPage + 1} de {totalPages}</span>
+                  <span>•</span>
+                  <span>{monthFilteredExpenses.length} registros no mês</span>
+                  <span>•</span>
+                  <span>Mostrando {Math.min((currentPage * ITEMS_PER_PAGE) + 1, monthFilteredExpenses.length)} a {Math.min((currentPage + 1) * ITEMS_PER_PAGE, monthFilteredExpenses.length)}</span>
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setCurrentPage(Math.max(0, currentPage - 1))}
+                    disabled={currentPage === 0}
+                    className="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                  >
+                    ← Anterior
+                  </button>
+                  
+                  {/* Page Numbers */}
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                      const pageIndex = Math.max(0, Math.min(totalPages - 5, currentPage - 2)) + i;
+                      return (
+                        <button
+                          key={pageIndex}
+                          onClick={() => setCurrentPage(pageIndex)}
+                          className={`px-3 py-1 text-sm rounded transition-colors ${
+                            pageIndex === currentPage
+                              ? 'bg-blue-600 text-white'
+                              : 'border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700'
+                          }`}
+                        >
+                          {pageIndex + 1}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  
+                  <button
+                    onClick={() => setCurrentPage(Math.min(totalPages - 1, currentPage + 1))}
+                    disabled={currentPage === totalPages - 1}
+                    className="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                  >
+                    Próxima →
+                  </button>
+                </div>
               </div>
             )}
           </div>

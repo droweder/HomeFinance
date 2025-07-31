@@ -285,22 +285,43 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
           console.log('✅ Categories loaded:', mappedCategories.length);
         }
 
-        // PERFORMANCE: Load only last 6 months by default (much faster!)
-        const sixMonthsAgo = new Date();
-        sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-        const dateFilter = sixMonthsAgo.toISOString().split('T')[0];
-        
-        console.log(`💳 Loading expenses from last 6 months (after ${dateFilter}) for better performance...`);
-        
-        const { data: expensesData, error: expensesError } = await withSupabaseRetry(() =>
-          supabase
-            .from('expenses')
-            .select('*')
-            .eq('user_id', currentUser.id)
-            .gte('date', dateFilter) // Only last 6 months
-            .order('date', { ascending: false })
-            .limit(2000) // Reasonable limit
-        );
+        // Load ALL expenses - use pagination to ensure we get all records
+        console.log('💳 Loading ALL expenses...');
+        let allExpenses: any[] = [];
+        let hasMore = true;
+        let offset = 0;
+        const batchSize = 1000;
+
+        while (hasMore) {
+          const { data: batchData, error: batchError } = await withSupabaseRetry(() =>
+            supabase
+              .from('expenses')
+              .select('*')
+              .eq('user_id', currentUser.id)
+              .order('created_at', { ascending: false })
+              .range(offset, offset + batchSize - 1)
+          );
+
+          if (batchError) {
+            console.error('❌ Error loading expenses batch:', batchError);
+            throw batchError;
+          }
+
+          if (batchData && batchData.length > 0) {
+            allExpenses = [...allExpenses, ...batchData];
+            offset += batchSize;
+            console.log(`📦 Loaded batch: ${batchData.length} expenses (total: ${allExpenses.length})`);
+            
+            if (batchData.length < batchSize) {
+              hasMore = false;
+            }
+          } else {
+            hasMore = false;
+          }
+        }
+
+        const expensesData = allExpenses;
+        const expensesError = null;
 
         if (expensesError) {
           console.error('❌ Error loading expenses:', expensesError);
@@ -326,22 +347,21 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
           createdAt: exp.created_at,
         }));
         setExpenses(mappedExpenses);
-        console.log(`✅ Expenses loaded: ${mappedExpenses.length} (last 6 months - much faster!)`);
+        console.log(`✅ ALL Expenses loaded: ${mappedExpenses.length}`);
         
-        if (mappedExpenses.length === 0) {
-          console.log('ℹ️ No expenses found in the last 6 months');
+        if (mappedExpenses.length < 3000) {
+          console.warn(`⚠️ Loaded fewer expenses than expected! Got ${mappedExpenses.length}, expected 3500+`);
         }
 
-        // PERFORMANCE: Load only last 6 months of income too
-        console.log('💰 Loading income from last 6 months...');
+        // Load ALL income
+        console.log('💰 Loading ALL income...');
         const { data: incomeData, error: incomeError } = await withSupabaseRetry(() =>
           supabase
             .from('income')
             .select('*')
             .eq('user_id', currentUser.id)
-            .gte('date', dateFilter) // Only last 6 months
-            .order('date', { ascending: false })
-            .limit(1000) // Reasonable limit
+            .order('created_at', { ascending: false })
+            .limit(10000)
         );
 
         if (incomeError) {
@@ -363,17 +383,16 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
           console.log('✅ Income loaded:', mappedIncome.length);
         }
 
-        // PERFORMANCE: Load only last 6 months of transfers too
-        console.log('🔄 Loading transfers from last 6 months...');
+        // Load ALL transfers
+        console.log('🔄 Loading ALL transfers...');
         try {
           const { data: transfersData, error: transfersError } = await withSupabaseRetry(() =>
             supabase
               .from('transfers')
               .select('*')
               .eq('user_id', currentUser.id)
-              .gte('date', dateFilter) // Only last 6 months
-              .order('date', { ascending: false })
-              .limit(500) // Reasonable limit
+              .order('created_at', { ascending: false })
+              .limit(10000)
           );
 
           if (transfersError) {
