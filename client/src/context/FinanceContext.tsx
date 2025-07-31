@@ -59,6 +59,13 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [lastUserInteraction, setLastUserInteraction] = useState<number>(Date.now());
   const [dataLoadingDisabled, setDataLoadingDisabled] = useState(false);
+  
+  // Global flag to prevent any data loading
+  const isLoadingBlocked = () => {
+    const hasData = expenses.length > 0 && income.length > 0 && categories.length > 0;
+    const isLoaded = isDataLoaded && loadedUserId === currentUser?.id;
+    return hasData && isLoaded && dataLoadingDisabled;
+  };
   // Persistent filters with localStorage
   const getDefaultFilters = (): FilterState => ({
     expenses: {
@@ -240,6 +247,12 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
       }
 
       try {
+        // FINAL BLOCK: Check global loading block
+        if (isLoadingBlocked()) {
+          console.log('🔒 GLOBAL BLOCK: Data already loaded, preventing reload');
+          return;
+        }
+        
         console.log('🔄 Loading financial data for user:', currentUser.username);
         setIsLoading(true);
         setLoadingError(null);
