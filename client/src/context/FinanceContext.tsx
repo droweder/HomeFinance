@@ -58,6 +58,7 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
   const [loadedUserId, setLoadedUserId] = useState<string | null>(null);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [lastUserInteraction, setLastUserInteraction] = useState<number>(Date.now());
+  const [dataLoadingDisabled, setDataLoadingDisabled] = useState(false);
   // Persistent filters with localStorage
   const getDefaultFilters = (): FilterState => ({
     expenses: {
@@ -153,6 +154,12 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
     let loadTimeout: NodeJS.Timeout;
     
     const fetchData = async () => {
+      // ABSOLUTE BLOCK: If data loading is disabled, don't load anything
+      if (dataLoadingDisabled) {
+        console.log('🚫 DATA LOADING PERMANENTLY DISABLED - No reload allowed');
+        return;
+      }
+
       if (!currentUser) {
         // Only clear data if we actually had data before
         if (isDataLoaded) {
@@ -163,6 +170,7 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
           setTransfers([]);
           setIsDataLoaded(false);
           setLoadedUserId(null);
+          setDataLoadingDisabled(false); // Re-enable for next user
           localStorage.removeItem('finance-data-user-id');
           // Clear data lock on logout
           if (currentUser) {
@@ -388,6 +396,10 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
         setLastLoadTime(Date.now());
         setLoadedUserId(currentUser.id);
         setIsInitialLoad(false);
+        
+        // PERMANENTLY DISABLE data loading for this session
+        setDataLoadingDisabled(true);
+        console.log('🔒 DATA LOADING PERMANENTLY DISABLED for session');
         
         // Save user ID to prevent unnecessary reloads
         localStorage.setItem('finance-data-user-id', currentUser.id);
@@ -1007,6 +1019,7 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
     setLoadedUserId(null);
     setIsInitialLoad(true);
     setLastLoadTime(0);
+    setDataLoadingDisabled(false); // Re-enable loading for manual refresh
     
     // Trigger data reload
     setIsLoading(true);
