@@ -55,6 +55,7 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
   const [loadingError, setLoadingError] = useState<string | null>(null);
   const [lastLoadTime, setLastLoadTime] = useState<number>(0);
   const [isDataLoaded, setIsDataLoaded] = useState(false);
+  const [loadedUserId, setLoadedUserId] = useState<string | null>(null);
   // Persistent filters with localStorage
   const getDefaultFilters = (): FilterState => ({
     expenses: {
@@ -131,6 +132,7 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
           setCategories([]);
           setTransfers([]);
           setIsDataLoaded(false);
+          setLoadedUserId(null);
           localStorage.removeItem('finance-data-user-id');
         }
         setIsLoading(false);
@@ -140,8 +142,8 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
 
       // Prevent loading if already loaded for this user
       const storedUserId = localStorage.getItem('finance-data-user-id');
-      if (isDataLoaded && storedUserId === currentUser.id) {
-        console.log('📋 Data already loaded for user:', currentUser.email);
+      if (isDataLoaded && storedUserId === currentUser.id && loadedUserId === currentUser.id && expenses.length > 0) {
+        console.log('📋 Data already loaded for user:', currentUser.email || currentUser.username, '- Skipping reload');
         return;
       }
 
@@ -327,6 +329,7 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
         console.log('🎉 All financial data loaded successfully!');
         setIsDataLoaded(true);
         setLastLoadTime(Date.now());
+        setLoadedUserId(currentUser.id);
         
         // Save user ID to prevent unnecessary reloads
         localStorage.setItem('finance-data-user-id', currentUser.id);
@@ -354,7 +357,7 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
         clearTimeout(loadTimeout);
       }
     };
-  }, [currentUser]);
+  }, [currentUser?.id]); // Only depend on user ID, not the entire user object
 
   const addExpense = async (expense: Omit<Expense, 'id' | 'createdAt'>) => {
     if (!currentUser) {
