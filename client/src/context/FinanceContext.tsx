@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo, ReactNode } from 'react';
 import { Expense, Income, Category, FilterState, Transfer } from '../types';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthContext';
@@ -145,6 +145,9 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
     };
   }, []);
 
+  // Memoize current user ID to prevent unnecessary effect triggers
+  const currentUserId = useMemo(() => currentUser?.id || null, [currentUser?.id]);
+  
   // Load data from Supabase when user is authenticated (only when necessary)
   useEffect(() => {
     let loadTimeout: NodeJS.Timeout;
@@ -405,17 +408,20 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
       }
     };
 
-    // Debounce loading to prevent rapid successive calls when tab switching
-    loadTimeout = setTimeout(() => {
-      fetchData();
-    }, 100);
+    // Only execute if we have a user and haven't loaded data for this user yet
+    if (currentUserId && (!loadedUserId || loadedUserId !== currentUserId || !isDataLoaded)) {
+      // Debounce loading to prevent rapid successive calls when tab switching
+      loadTimeout = setTimeout(() => {
+        fetchData();
+      }, 100);
+    }
 
     return () => {
       if (loadTimeout) {
         clearTimeout(loadTimeout);
       }
     };
-  }, [currentUser?.id]); // Only depend on user ID, not the entire user object
+  }, [currentUserId]); // Only depend on user ID to prevent object recreation triggers
 
   const addExpense = async (expense: Omit<Expense, 'id' | 'createdAt'>) => {
     if (!currentUser) {
