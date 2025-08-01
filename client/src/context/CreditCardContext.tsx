@@ -65,7 +65,6 @@ export const CreditCardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           installmentNumber: cc.installment_number,
           totalInstallments: cc.total_installments,
           installmentGroup: cc.installment_group,
-          isCreditCard: cc.is_credit_card,
           createdAt: cc.created_at,
         }));
 
@@ -108,7 +107,6 @@ export const CreditCardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           installment_number: creditCardData.installmentNumber || null,
           total_installments: creditCardData.totalInstallments || null,
           installment_group: creditCardData.installmentGroup || null,
-          is_credit_card: true,
           user_id: user.id,
         }])
         .select()
@@ -129,7 +127,6 @@ export const CreditCardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         installmentNumber: data.installment_number,
         totalInstallments: data.total_installments,
         installmentGroup: data.installment_group,
-        isCreditCard: data.is_credit_card,
         createdAt: data.created_at,
       };
 

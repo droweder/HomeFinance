@@ -179,7 +179,6 @@ const CreditCardForm: React.FC<CreditCardFormProps> = ({ creditCard, onClose, on
             installmentNumber: i + 1,
             totalInstallments: formData.totalInstallments,
             installmentGroup: installmentGroup,
-            isCreditCard: true,
           };
 
           console.log(`📝 Criando parcela ${i + 1}/${formData.totalInstallments}:`, creditCardData);
@@ -195,7 +194,6 @@ const CreditCardForm: React.FC<CreditCardFormProps> = ({ creditCard, onClose, on
           paymentMethod: formData.account,
           location: formData.location,
           isInstallment: false,
-          isCreditCard: true,
         };
 
         console.log('📝 Criando cartão de crédito único:', creditCardData);

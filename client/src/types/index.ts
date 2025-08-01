@@ -34,7 +34,6 @@ export interface CreditCard {
   installmentNumber?: number;
   totalInstallments?: number;
   installmentGroup?: string;
-  isCreditCard?: boolean;
   paid?: boolean;
   createdAt: string;
   // Propriedades para agrupamento de parcelas
