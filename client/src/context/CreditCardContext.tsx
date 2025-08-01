@@ -237,17 +237,25 @@ export const CreditCardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       
       console.log(`💳 Syncing invoice for ${paymentMethod} - ${monthKey}`);
 
-      // Calculate total for this card in this month
-      const monthTotal = creditCards
-        .filter(cc => {
-          const ccDate = new Date(cc.date + 'T00:00:00');
-          const ccMonthKey = `${ccDate.getFullYear()}-${(ccDate.getMonth() + 1).toString().padStart(2, '0')}`;
-          return cc.paymentMethod === paymentMethod && ccMonthKey === monthKey;
-        })
-        .reduce((sum, cc) => sum + cc.amount, 0);
+      // Get all cards for this payment method in this month
+      const monthCards = creditCards.filter(cc => {
+        const ccDate = new Date(cc.date + 'T00:00:00');
+        const ccMonthKey = `${ccDate.getFullYear()}-${(ccDate.getMonth() + 1).toString().padStart(2, '0')}`;
+        return cc.paymentMethod === paymentMethod && ccMonthKey === monthKey;
+      });
+
+      // Calculate total and get representative data
+      const monthTotal = monthCards.reduce((sum, cc) => sum + cc.amount, 0);
+      
+      // Get month name in Portuguese
+      const monthNames = [
+        'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+        'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+      ];
+      const monthName = monthNames[month - 1];
 
       // Define invoice description and category
-      const invoiceDescription = `Fatura ${paymentMethod} - ${monthKey}`;
+      const invoiceDescription = `Fatura ${paymentMethod} - ${monthName}/${year}`;
       const invoiceCategory = 'Cartão de Crédito';
 
       // Check if invoice already exists in expenses
@@ -264,8 +272,10 @@ export const CreditCardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       }
 
       if (monthTotal > 0) {
-        // Create invoice date (last day of the month)
-        const invoiceDate = new Date(year, month, 0).toISOString().split('T')[0];
+        // Use the same payment method and an average date from the card transactions
+        const representativeCard = monthCards[Math.floor(monthCards.length / 2)]; // Get middle card as representative
+        const invoicePaymentMethod = representativeCard?.paymentMethod || paymentMethod;
+        const invoiceDate = representativeCard?.date || new Date(year, month, 0).toISOString().split('T')[0];
 
         if (existingInvoices && existingInvoices.length > 0) {
           // Update existing invoice
@@ -274,13 +284,14 @@ export const CreditCardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
             .update({
               amount: monthTotal,
               date: invoiceDate,
+              payment_method: invoicePaymentMethod,
             })
             .eq('id', existingInvoices[0].id);
 
           if (updateError) {
             console.error('Error updating invoice:', updateError);
           } else {
-            console.log(`✅ Updated invoice: ${invoiceDescription} - ${monthTotal}`);
+            console.log(`✅ Updated invoice: ${invoiceDescription} - R$ ${monthTotal.toFixed(2)}`);
           }
         } else {
           // Create new invoice
@@ -291,7 +302,7 @@ export const CreditCardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
               category: invoiceCategory,
               description: invoiceDescription,
               amount: monthTotal,
-              payment_method: 'Débito', // Default payment method for invoices
+              payment_method: invoicePaymentMethod,
               location: 'Fatura Automática',
               is_credit_card: false, // This is the invoice, not the individual purchase
               paid: false, // Invoice starts as unpaid
@@ -301,7 +312,7 @@ export const CreditCardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           if (insertError) {
             console.error('Error creating invoice:', insertError);
           } else {
-            console.log(`✅ Created invoice: ${invoiceDescription} - ${monthTotal}`);
+            console.log(`✅ Created invoice: ${invoiceDescription} - R$ ${monthTotal.toFixed(2)}`);
           }
         }
       } else {
@@ -351,7 +362,16 @@ export const CreditCardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       let processed = 0;
       for (const [groupKey, total] of Object.entries(invoiceGroups)) {
         const [paymentMethod, monthKey] = groupKey.split('|');
-        const invoiceDescription = `Fatura ${paymentMethod} - ${monthKey}`;
+        
+        // Get month name in Portuguese
+        const [year, month] = monthKey.split('-');
+        const monthNames = [
+          'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+          'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+        ];
+        const monthName = monthNames[parseInt(month) - 1];
+        
+        const invoiceDescription = `Fatura ${paymentMethod} - ${monthName}/${year}`;
         
         try {
           // Check if invoice already exists
@@ -367,9 +387,16 @@ export const CreditCardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
             continue;
           }
 
-          // Create invoice date (last day of the month)
-          const [year, month] = monthKey.split('-');
-          const invoiceDate = new Date(parseInt(year), parseInt(month), 0).toISOString().split('T')[0];
+          // Get representative card data for this group
+          const groupCards = creditCards.filter(cc => {
+            const ccDate = new Date(cc.date + 'T00:00:00');
+            const ccMonthKey = `${ccDate.getFullYear()}-${(ccDate.getMonth() + 1).toString().padStart(2, '0')}`;
+            return cc.paymentMethod === paymentMethod && ccMonthKey === monthKey;
+          });
+          
+          const representativeCard = groupCards[Math.floor(groupCards.length / 2)]; // Get middle card as representative
+          const invoicePaymentMethod = representativeCard?.paymentMethod || paymentMethod;
+          const invoiceDate = representativeCard?.date || new Date(parseInt(year), parseInt(month), 0).toISOString().split('T')[0];
 
           if (existingInvoices && existingInvoices.length > 0) {
             // Update existing invoice
@@ -378,6 +405,7 @@ export const CreditCardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
               .update({
                 amount: total,
                 date: invoiceDate,
+                payment_method: invoicePaymentMethod,
               })
               .eq('id', existingInvoices[0].id);
 
@@ -394,7 +422,7 @@ export const CreditCardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                 category: 'Cartão de Crédito',
                 description: invoiceDescription,
                 amount: total,
-                payment_method: 'Débito',
+                payment_method: invoicePaymentMethod,
                 location: 'Fatura Automática',
                 is_credit_card: false,
                 paid: false,
