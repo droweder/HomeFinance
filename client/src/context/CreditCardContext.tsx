@@ -8,6 +8,7 @@ interface CreditCardContextType {
   addCreditCard: (creditCard: Omit<CreditCard, 'id' | 'createdAt'>) => Promise<void>;
   updateCreditCard: (id: string, creditCard: Partial<CreditCard>) => Promise<void>;
   deleteCreditCard: (id: string) => Promise<void>;
+  syncInvoiceToExpenses: (paymentMethod: string, targetDate: string) => Promise<void>;
   loading: boolean;
 }
 
@@ -131,6 +132,10 @@ export const CreditCardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       };
 
       setCreditCards(prev => [newCreditCard, ...prev]);
+      
+      // Sync invoice after adding
+      await syncInvoiceToExpenses(newCreditCard.paymentMethod, newCreditCard.date);
+      
       console.log('✅ Credit card added');
     } catch (error) {
       console.error('Erro ao adicionar cartão de crédito:', error);
@@ -169,6 +174,17 @@ export const CreditCardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         cc.id === id ? { ...cc, ...updates } : cc
       ));
 
+      // Sync invoice after updating
+      const updatedCard = creditCards.find(cc => cc.id === id);
+      if (updatedCard) {
+        await syncInvoiceToExpenses(updates.paymentMethod || updatedCard.paymentMethod, updates.date || updatedCard.date);
+        
+        // If payment method changed, also sync the old method
+        if (updates.paymentMethod && updates.paymentMethod !== updatedCard.paymentMethod) {
+          await syncInvoiceToExpenses(updatedCard.paymentMethod, updatedCard.date);
+        }
+      }
+
       console.log('✅ Credit card updated');
     } catch (error) {
       console.error('Erro ao atualizar cartão de crédito:', error);
@@ -181,6 +197,10 @@ export const CreditCardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
     try {
       console.log('🔄 Tentativa 1/3 da operação Supabase');
+      
+      // Get the card before deleting to know which invoice to sync
+      const cardToDelete = creditCards.find(cc => cc.id === id);
+      
       const { error } = await supabase
         .from('cartao')
         .delete()
@@ -190,10 +210,116 @@ export const CreditCardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       if (error) throw error;
 
       setCreditCards(prev => prev.filter(cc => cc.id !== id));
+      
+      // Sync invoice after deletion
+      if (cardToDelete) {
+        await syncInvoiceToExpenses(cardToDelete.paymentMethod, cardToDelete.date);
+      }
+      
       console.log('✅ Credit card deleted');
     } catch (error) {
       console.error('Erro ao deletar cartão de crédito:', error);
       throw error;
+    }
+  };
+
+  // Function to sync credit card totals to expenses as invoices
+  const syncInvoiceToExpenses = async (paymentMethod: string, targetDate: string) => {
+    if (!user) return;
+
+    try {
+      // Extract year and month from target date
+      const date = new Date(targetDate + 'T00:00:00');
+      const year = date.getFullYear();
+      const month = date.getMonth() + 1;
+      const monthKey = `${year}-${month.toString().padStart(2, '0')}`;
+      
+      console.log(`💳 Syncing invoice for ${paymentMethod} - ${monthKey}`);
+
+      // Calculate total for this card in this month
+      const monthTotal = creditCards
+        .filter(cc => {
+          const ccDate = new Date(cc.date + 'T00:00:00');
+          const ccMonthKey = `${ccDate.getFullYear()}-${(ccDate.getMonth() + 1).toString().padStart(2, '0')}`;
+          return cc.paymentMethod === paymentMethod && ccMonthKey === monthKey;
+        })
+        .reduce((sum, cc) => sum + cc.amount, 0);
+
+      // Define invoice description and category
+      const invoiceDescription = `Fatura ${paymentMethod} - ${monthKey}`;
+      const invoiceCategory = 'Cartão de Crédito';
+
+      // Check if invoice already exists in expenses
+      const { data: existingInvoices, error: searchError } = await supabase
+        .from('expenses')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('description', invoiceDescription)
+        .limit(1);
+
+      if (searchError) {
+        console.error('Error searching for existing invoice:', searchError);
+        return;
+      }
+
+      if (monthTotal > 0) {
+        // Create invoice date (last day of the month)
+        const invoiceDate = new Date(year, month, 0).toISOString().split('T')[0];
+
+        if (existingInvoices && existingInvoices.length > 0) {
+          // Update existing invoice
+          const { error: updateError } = await supabase
+            .from('expenses')
+            .update({
+              amount: monthTotal,
+              date: invoiceDate,
+            })
+            .eq('id', existingInvoices[0].id);
+
+          if (updateError) {
+            console.error('Error updating invoice:', updateError);
+          } else {
+            console.log(`✅ Updated invoice: ${invoiceDescription} - ${monthTotal}`);
+          }
+        } else {
+          // Create new invoice
+          const { error: insertError } = await supabase
+            .from('expenses')
+            .insert([{
+              date: invoiceDate,
+              category: invoiceCategory,
+              description: invoiceDescription,
+              amount: monthTotal,
+              payment_method: 'Débito', // Default payment method for invoices
+              location: 'Fatura Automática',
+              is_credit_card: false, // This is the invoice, not the individual purchase
+              paid: false, // Invoice starts as unpaid
+              user_id: user.id,
+            }]);
+
+          if (insertError) {
+            console.error('Error creating invoice:', insertError);
+          } else {
+            console.log(`✅ Created invoice: ${invoiceDescription} - ${monthTotal}`);
+          }
+        }
+      } else {
+        // If total is 0, delete existing invoice if it exists
+        if (existingInvoices && existingInvoices.length > 0) {
+          const { error: deleteError } = await supabase
+            .from('expenses')
+            .delete()
+            .eq('id', existingInvoices[0].id);
+
+          if (deleteError) {
+            console.error('Error deleting empty invoice:', deleteError);
+          } else {
+            console.log(`✅ Deleted empty invoice: ${invoiceDescription}`);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error syncing invoice to expenses:', error);
     }
   };
 
@@ -204,6 +330,7 @@ export const CreditCardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         addCreditCard,
         updateCreditCard,
         deleteCreditCard,
+        syncInvoiceToExpenses,
         loading,
       }}
     >
