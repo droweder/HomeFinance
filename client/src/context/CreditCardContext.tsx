@@ -258,17 +258,44 @@ export const CreditCardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       const invoiceDescription = `Fatura ${paymentMethod} - ${monthName}/${year}`;
       const invoiceCategory = 'Cartão de Crédito';
 
-      // Check if invoice already exists in expenses
-      const { data: existingInvoices, error: searchError } = await supabase
+      // Check if invoice already exists (try both old and new formats)
+      const oldInvoiceDescription = `Fatura ${paymentMethod} - ${monthKey}`;
+      
+      let existingInvoices: any[] = [];
+      let searchError: any = null;
+
+      // First try to find with new format
+      const { data: newFormatInvoices, error: newError } = await supabase
         .from('expenses')
         .select('*')
         .eq('user_id', user.id)
         .eq('description', invoiceDescription)
         .limit(1);
 
-      if (searchError) {
-        console.error('Error searching for existing invoice:', searchError);
+      if (newError) {
+        console.error('Error searching for new format invoice:', newError);
         return;
+      }
+
+      if (newFormatInvoices && newFormatInvoices.length > 0) {
+        existingInvoices = newFormatInvoices;
+      } else {
+        // If not found, try old format
+        const { data: oldFormatInvoices, error: oldError } = await supabase
+          .from('expenses')
+          .select('*')
+          .eq('user_id', user.id)
+          .eq('description', oldInvoiceDescription)
+          .limit(1);
+
+        if (oldError) {
+          console.error('Error searching for old format invoice:', oldError);
+          return;
+        }
+
+        if (oldFormatInvoices && oldFormatInvoices.length > 0) {
+          existingInvoices = oldFormatInvoices;
+        }
       }
 
       if (monthTotal > 0) {
@@ -278,13 +305,14 @@ export const CreditCardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         const invoiceDate = representativeCard?.date || new Date(year, month, 0).toISOString().split('T')[0];
 
         if (existingInvoices && existingInvoices.length > 0) {
-          // Update existing invoice
+          // Update existing invoice with new format
           const { error: updateError } = await supabase
             .from('expenses')
             .update({
               amount: monthTotal,
               date: invoiceDate,
               payment_method: invoicePaymentMethod,
+              description: invoiceDescription, // Update to new format
             })
             .eq('id', existingInvoices[0].id);
 
@@ -374,17 +402,43 @@ export const CreditCardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         const invoiceDescription = `Fatura ${paymentMethod} - ${monthName}/${year}`;
         
         try {
-          // Check if invoice already exists
-          const { data: existingInvoices, error: searchError } = await supabase
+          // Check if invoice already exists (try both old and new formats)
+          const oldInvoiceDescription = `Fatura ${paymentMethod} - ${monthKey}`;
+          
+          let existingInvoices: any[] = [];
+
+          // First try to find with new format
+          const { data: newFormatInvoices, error: newError } = await supabase
             .from('expenses')
             .select('*')
             .eq('user_id', user.id)
             .eq('description', invoiceDescription)
             .limit(1);
 
-          if (searchError) {
-            console.error(`Error searching for invoice ${invoiceDescription}:`, searchError);
+          if (newError) {
+            console.error(`Error searching for new format invoice ${invoiceDescription}:`, newError);
             continue;
+          }
+
+          if (newFormatInvoices && newFormatInvoices.length > 0) {
+            existingInvoices = newFormatInvoices;
+          } else {
+            // If not found, try old format
+            const { data: oldFormatInvoices, error: oldError } = await supabase
+              .from('expenses')
+              .select('*')
+              .eq('user_id', user.id)
+              .eq('description', oldInvoiceDescription)
+              .limit(1);
+
+            if (oldError) {
+              console.error(`Error searching for old format invoice ${oldInvoiceDescription}:`, oldError);
+              continue;
+            }
+
+            if (oldFormatInvoices && oldFormatInvoices.length > 0) {
+              existingInvoices = oldFormatInvoices;
+            }
           }
 
           // Get representative card data for this group
@@ -399,13 +453,14 @@ export const CreditCardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           const invoiceDate = representativeCard?.date || new Date(parseInt(year), parseInt(month), 0).toISOString().split('T')[0];
 
           if (existingInvoices && existingInvoices.length > 0) {
-            // Update existing invoice
+            // Update existing invoice with new format
             const { error: updateError } = await supabase
               .from('expenses')
               .update({
                 amount: total,
                 date: invoiceDate,
                 payment_method: invoicePaymentMethod,
+                description: invoiceDescription, // Update to new format
               })
               .eq('id', existingInvoices[0].id);
 
