@@ -160,22 +160,42 @@ const DailyAccountSummary: React.FC = () => {
     return movements.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   }, [extractAccount, extractMonth, expenses, income, transfers, accounts]);
 
-  // Calcular saldo acumulado
+  // Calcular saldo acumulado com a mesma lógica do resumo diário
   const extractWithBalance = useMemo(() => {
-    let runningBalance = 0;
     const accountObj = accounts.find(acc => acc.name === extractAccount);
-    if (accountObj) {
-      runningBalance = accountObj.initialBalance || 0;
-    }
+    if (!accountObj) return [];
+
+    // Calcular saldo até o final do mês anterior (mesmo cálculo do resumo diário)
+    const [year, month] = extractMonth.split('-');
+    const firstDayOfMonth = `${year}-${month}-01`;
+    const lastDayOfPreviousMonth = new Date(parseInt(year), parseInt(month) - 1, 0).toISOString().split('T')[0];
+    
+    // Receitas acumuladas até o final do mês anterior
+    const previousIncome = income.filter(incomeItem => 
+      incomeItem.date <= lastDayOfPreviousMonth && incomeItem.account === accountObj.name
+    ).reduce((sum, incomeItem) => sum + (incomeItem.amount || 0), 0);
+
+    // Despesas acumuladas até o final do mês anterior
+    const previousExpenses = expenses.filter(expense => 
+      expense.date <= lastDayOfPreviousMonth && expense.paymentMethod === accountObj.name
+    ).reduce((sum, expense) => sum + (expense.amount || 0), 0);
+
+    // Transferências acumuladas até o final do mês anterior
+    const previousTransferOut = transfers.filter(transfer => 
+      transfer.date <= lastDayOfPreviousMonth && transfer.fromAccount === accountObj.id
+    ).reduce((sum, transfer) => sum + (transfer.amount || 0), 0);
+
+    const previousTransferIn = transfers.filter(transfer => 
+      transfer.date <= lastDayOfPreviousMonth && transfer.toAccount === accountObj.id
+    ).reduce((sum, transfer) => sum + (transfer.amount || 0), 0);
+
+    // Saldo no início do mês = saldo inicial + movimentos anteriores
+    let runningBalance = (accountObj.initialBalance || 0) + previousIncome - previousExpenses + previousTransferIn - previousTransferOut;
 
     const movementsWithBalance = [];
 
     // Adicionar linha de saldo inicial se há movimentos no período
     if (extractMovements.length > 0) {
-      const firstDate = extractMovements[0]?.date;
-      const [year, month] = extractMonth.split('-');
-      const firstDayOfMonth = `${year}-${month}-01`;
-      
       movementsWithBalance.push({
         date: firstDayOfMonth,
         description: 'Saldo Inicial',
@@ -186,7 +206,7 @@ const DailyAccountSummary: React.FC = () => {
       });
     }
 
-    // Processar movimentos normais
+    // Processar movimentos do mês
     extractMovements.forEach(movement => {
       if (movement.type === 'entrada') {
         runningBalance += movement.amount;
@@ -201,7 +221,7 @@ const DailyAccountSummary: React.FC = () => {
     });
 
     return movementsWithBalance;
-  }, [extractMovements, extractAccount, accounts, extractMonth]);
+  }, [extractMovements, extractAccount, accounts, extractMonth, expenses, income, transfers]);
 
   const handleOpenExtract = () => {
     if (accounts.length > 0) {
