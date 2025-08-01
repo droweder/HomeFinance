@@ -80,16 +80,6 @@ const DailyAccountSummary: React.FC = () => {
   const extractMovements = useMemo(() => {
     if (!extractAccount || !extractMonth) return [];
 
-    console.log(`🔍 EXTRATO DEBUG - Iniciando cálculo:`, {
-      extractAccount,
-      extractMonth,
-      totalExpenses: expenses.length,
-      totalIncome: income.length,
-      totalTransfers: transfers.length,
-      totalAccounts: accounts.length
-    });
-
-    const [year, monthNum] = extractMonth.split('-');
     const movements: Array<{
       date: string;
       description: string;
@@ -99,78 +89,51 @@ const DailyAccountSummary: React.FC = () => {
     }> = [];
 
     // Despesas da conta no mês
-    const monthExpenses = expenses.filter(expense => 
-      expense.date.substring(0, 7) === extractMonth && 
-      expense.paymentMethod === extractAccount
-    );
-    
-    console.log(`💸 DESPESAS encontradas:`, {
-      total: monthExpenses.length,
-      samples: monthExpenses.slice(0, 3).map(e => ({
-        date: e.date,
-        amount: e.amount,
-        description: e.description,
-        paymentMethod: e.paymentMethod
-      }))
-    });
-
-    monthExpenses.forEach(expense => {
-      movements.push({
-        date: expense.date,
-        description: `${expense.category} - ${expense.description || 'Despesa'}`,
-        amount: expense.amount,
-        type: 'saida',
-        category: expense.category
+    expenses
+      .filter(expense => 
+        expense.date.substring(0, 7) === extractMonth && 
+        expense.paymentMethod === extractAccount
+      )
+      .forEach(expense => {
+        movements.push({
+          date: expense.date,
+          description: `${expense.category} - ${expense.description || 'Despesa'}`,
+          amount: expense.amount,
+          type: 'saida',
+          category: expense.category
+        });
       });
-    });
 
     // Receitas da conta no mês
-    const monthIncome = income.filter(incomeItem => 
-      incomeItem.date.substring(0, 7) === extractMonth && 
-      incomeItem.account === extractAccount
-    );
-
-    console.log(`💰 RECEITAS encontradas:`, {
-      total: monthIncome.length,
-      samples: monthIncome.slice(0, 3).map(i => ({
-        date: i.date,
-        amount: i.amount,
-        account: i.account,
-        source: i.source
-      }))
-    });
-
-    monthIncome.forEach(incomeItem => {
-      movements.push({
-        date: incomeItem.date,
-        description: `${incomeItem.source} - ${incomeItem.notes || 'Receita'}`,
-        amount: incomeItem.amount,
-        type: 'entrada',
-        category: incomeItem.source
+    income
+      .filter(incomeItem => 
+        incomeItem.date.substring(0, 7) === extractMonth && 
+        incomeItem.account === extractAccount
+      )
+      .forEach(incomeItem => {
+        movements.push({
+          date: incomeItem.date,
+          description: `${incomeItem.source} - ${incomeItem.notes || 'Receita'}`,
+          amount: incomeItem.amount,
+          type: 'entrada',
+          category: incomeItem.source
+        });
       });
-    });
 
     // Transferências de/para a conta no mês
-    const accountObj = accounts.find(acc => acc.name === extractAccount);
+    const selectedAccountObj = accounts.find(acc => acc.name === extractAccount);
     
-    // Buscar transferências do mês usando múltiplas estratégias de matching
     transfers
       .filter(transfer => transfer.date.substring(0, 7) === extractMonth)
       .forEach(transfer => {
-        // Estratégia 1: Match por ID da conta
         const fromAccountObj = accounts.find(acc => acc.id === transfer.fromAccount);
         const toAccountObj = accounts.find(acc => acc.id === transfer.toAccount);
         
-        // Estratégia 2: Match direto por nome (fallback)
-        const matchFromById = fromAccountObj?.name === extractAccount;
-        const matchToById = toAccountObj?.name === extractAccount;
-        const matchFromByName = transfer.fromAccount === extractAccount;
-        const matchToByName = transfer.toAccount === extractAccount;
+        // Verificar se a conta selecionada está envolvida na transferência
+        const isFromSelectedAccount = (fromAccountObj?.name === extractAccount) || (transfer.fromAccount === extractAccount);
+        const isToSelectedAccount = (toAccountObj?.name === extractAccount) || (transfer.toAccount === extractAccount);
         
-        const isFromAccount = matchFromById || matchFromByName;
-        const isToAccount = matchToById || matchToByName;
-        
-        if (isFromAccount) {
+        if (isFromSelectedAccount) {
           // Saída da conta selecionada
           const toAccountName = toAccountObj?.name || transfer.toAccount;
           movements.push({
@@ -179,7 +142,9 @@ const DailyAccountSummary: React.FC = () => {
             amount: transfer.amount,
             type: 'saida'
           });
-        } else if (isToAccount) {
+        }
+        
+        if (isToSelectedAccount) {
           // Entrada na conta selecionada
           const fromAccountName = fromAccountObj?.name || transfer.fromAccount;
           movements.push({
@@ -755,13 +720,11 @@ const DailyAccountSummary: React.FC = () => {
                   </tr>
                   <tr className="bg-gray-50 dark:bg-gray-700">
                     <th className="py-1.5 px-3 sticky left-0 bg-gray-50 dark:bg-gray-700 z-30"></th>
-                    {visibleAccounts.map(account => (
-                      <React.Fragment key={account.id}>
-                        <th className="text-left py-1.5 px-2 text-xs font-medium text-gray-600 dark:text-gray-400">Entrada</th>
-                        <th className="text-left py-1.5 px-2 text-xs font-medium text-gray-600 dark:text-gray-400">Saída</th>
-                        <th className="text-left py-1.5 px-2 text-xs font-medium text-gray-600 dark:text-gray-400">Saldo</th>
-                      </React.Fragment>
-                    ))}
+                    {visibleAccounts.map(account => [
+                      <th key={`${account.id}-entrada`} className="text-left py-1.5 px-2 text-xs font-medium text-gray-600 dark:text-gray-400">Entrada</th>,
+                      <th key={`${account.id}-saida`} className="text-left py-1.5 px-2 text-xs font-medium text-gray-600 dark:text-gray-400">Saída</th>,
+                      <th key={`${account.id}-saldo`} className="text-left py-1.5 px-2 text-xs font-medium text-gray-600 dark:text-gray-400">Saldo</th>
+                    ]).flat()}
                     <th className="py-1.5 px-3 bg-blue-50 dark:bg-blue-900"></th>
                   </tr>
                 </thead>
@@ -776,24 +739,22 @@ const DailyAccountSummary: React.FC = () => {
                       </td>
                       {visibleAccounts.map(account => {
                         const accountData = summary.accounts[account.id];
-                        return (
-                          <React.Fragment key={account.id}>
-                            <td className="py-1 px-2 text-green-600 dark:text-green-400 text-sm">
-                              {accountData?.dailyIncome > 0 ? formatCurrency(accountData.dailyIncome) : '-'}
-                            </td>
-                            <td className="py-1 px-2 text-red-600 dark:text-red-400 text-sm">
-                              {accountData?.dailyExpenses > 0 ? formatCurrency(accountData.dailyExpenses) : '-'}
-                            </td>
-                            <td className={`py-1 px-2 font-medium text-sm ${
-                              (accountData?.finalBalance || 0) >= 0 
-                                ? 'text-green-600 dark:text-green-400' 
-                                : 'text-red-600 dark:text-red-400'
-                            }`}>
-                              {formatCurrency(accountData?.finalBalance || 0)}
-                            </td>
-                          </React.Fragment>
-                        );
-                      })}
+                        return [
+                          <td key={`${account.id}-income-${summary.date}`} className="py-1 px-2 text-green-600 dark:text-green-400 text-sm">
+                            {accountData?.dailyIncome > 0 ? formatCurrency(accountData.dailyIncome) : '-'}
+                          </td>,
+                          <td key={`${account.id}-expenses-${summary.date}`} className="py-1 px-2 text-red-600 dark:text-red-400 text-sm">
+                            {accountData?.dailyExpenses > 0 ? formatCurrency(accountData.dailyExpenses) : '-'}
+                          </td>,
+                          <td key={`${account.id}-balance-${summary.date}`} className={`py-1 px-2 font-medium text-sm ${
+                            (accountData?.finalBalance || 0) >= 0 
+                              ? 'text-green-600 dark:text-green-400' 
+                              : 'text-red-600 dark:text-red-400'
+                          }`}>
+                            {formatCurrency(accountData?.finalBalance || 0)}
+                          </td>
+                        ];
+                      }).flat()}
                       <td className={`py-1 px-3 font-bold bg-blue-50 dark:bg-blue-900/20 ${
                         summary.totalDailyBalance >= 0 
                           ? 'text-green-600 dark:text-green-400' 
