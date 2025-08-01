@@ -173,7 +173,7 @@ const CreditCardList: React.FC = () => {
     pending: 'Pendente',
   };
 
-  // Sort and paginate results
+  // Sort results (no pagination - show all records from month)
   const sortedCards = useMemo(() => {
     let sorted = [...groupedCards];
     
@@ -197,12 +197,6 @@ const CreditCardList: React.FC = () => {
     
     return sorted;
   }, [groupedCards, tempFilters.sortBy]);
-
-  // Pagination
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 25;
-  const totalPages = Math.ceil(sortedCards.length / itemsPerPage);
-  const paginatedCards = sortedCards.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -330,9 +324,6 @@ const CreditCardList: React.FC = () => {
                       {labels.location}
                     </th>
                     <th className="text-left py-3 px-4 font-medium text-gray-900 dark:text-white">
-                      {labels.status}
-                    </th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-900 dark:text-white">
                       {labels.installments}
                     </th>
                     <th className="text-right py-3 px-4 font-medium text-gray-900 dark:text-white">
@@ -341,86 +332,109 @@ const CreditCardList: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {paginatedCards.map((card) => (
-                    <tr key={card.id} className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-                      <td className="py-3 px-4 text-gray-900 dark:text-white">
-                        <div className="flex items-center gap-2">
-                          <Calendar className="w-4 h-4 text-gray-400" />
-                          {formatDate(card.date)}
-                        </div>
-                      </td>
-                      <td className="py-3 px-4 text-gray-900 dark:text-white">
-                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 dark:bg-purple-900/20 text-purple-800 dark:text-purple-300">
-                          {card.category}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 text-gray-900 dark:text-white">
-                        <div className="max-w-xs truncate" title={card.description}>
-                          {card.description}
-                        </div>
-                      </td>
-                      <td className="py-3 px-4 text-right font-medium text-gray-900 dark:text-white">
-                        {card.isGroupRepresentative ? (
-                          <div>
-                            <div className="text-purple-600 dark:text-purple-400">
-                              {formatCurrency(card.totalGroupAmount || 0)}
+                  {/* Group by Credit Card */}
+                  {(() => {
+                    const cardGroups = sortedCards.reduce((groups, card) => {
+                      const cardName = card.paymentMethod;
+                      if (!groups[cardName]) {
+                        groups[cardName] = [];
+                      }
+                      groups[cardName].push(card);
+                      return groups;
+                    }, {} as Record<string, CreditCard[]>);
+
+                    return Object.entries(cardGroups).map(([cardName, cards]) => {
+                      return [
+                        // Card Group Header
+                        <tr key={`header-${cardName}`} className="bg-blue-50 dark:bg-blue-900/20">
+                          <td colSpan={8} className="py-2 px-4 font-medium text-blue-900 dark:text-blue-100">
+                            <div className="flex items-center gap-2">
+                              <CreditCardIcon className="w-4 h-4" />
+                              <span>{cardName}</span>
+                              <span className="text-xs bg-blue-200 dark:bg-blue-800 px-2 py-1 rounded-full">
+                                {cards.length} {cards.length === 1 ? 'registro' : 'registros'}
+                              </span>
+                              <span className="text-xs bg-blue-200 dark:bg-blue-800 px-2 py-1 rounded-full">
+                                {formatCurrency(cards.reduce((sum, card) => sum + card.amount, 0))}
+                              </span>
                             </div>
-                            <div className="text-xs text-gray-500">
-                              {card.groupedExpenses?.length}x parcelas
-                            </div>
-                          </div>
-                        ) : (
-                          formatCurrency(card.amount)
-                        )}
-                      </td>
-                      <td className="py-3 px-4 text-gray-900 dark:text-white">
-                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300">
-                          {card.paymentMethod}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 text-gray-500 dark:text-gray-400">
-                        {card.location || '-'}
-                      </td>
-                      <td className="py-3 px-4">
-                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                          card.paid 
-                            ? 'bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-300'
-                            : 'bg-yellow-100 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-300'
-                        }`}>
-                          {card.paid ? labels.paid : labels.pending}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 text-gray-500 dark:text-gray-400">
-                        {card.isInstallment ? (
-                          card.isGroupRepresentative ? (
-                            `${card.totalInstallments}x`
-                          ) : (
-                            `${card.installmentNumber}/${card.totalInstallments}`
-                          )
-                        ) : (
-                          '-'
-                        )}
-                      </td>
-                      <td className="py-3 px-4">
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => handleEditCard(card)}
-                            className="p-1.5 text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900 rounded-lg transition-colors"
-                            title={card.isGroupRepresentative ? "Editar grupo de parcelas" : "Editar despesa"}
-                          >
-                            <Edit2 className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => setConfirmDeleteCard(card)}
-                            className="p-1.5 text-red-600 hover:bg-red-100 dark:hover:bg-red-900 rounded-lg transition-colors"
-                            title={card.isGroupRepresentative ? "Excluir grupo de parcelas" : "Excluir despesa"}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                          </td>
+                        </tr>,
+                        // Card Records
+                        ...cards.map((card) => (
+                          <tr key={card.id} className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                            <td className="py-3 px-4 text-gray-900 dark:text-white">
+                              <div className="flex items-center gap-2">
+                                <Calendar className="w-4 h-4 text-gray-400" />
+                                {formatDate(card.date)}
+                              </div>
+                            </td>
+                            <td className="py-3 px-4 text-gray-900 dark:text-white">
+                              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 dark:bg-purple-900/20 text-purple-800 dark:text-purple-300">
+                                {card.category}
+                              </span>
+                            </td>
+                            <td className="py-3 px-4 text-gray-900 dark:text-white">
+                              <div className="max-w-xs truncate" title={card.description}>
+                                {card.description}
+                              </div>
+                            </td>
+                            <td className="py-3 px-4 text-right font-medium text-gray-900 dark:text-white">
+                              {card.isGroupRepresentative ? (
+                                <div>
+                                  <div className="text-purple-600 dark:text-purple-400">
+                                    {formatCurrency(card.totalGroupAmount || 0)}
+                                  </div>
+                                  <div className="text-xs text-gray-500">
+                                    {card.groupedExpenses?.length}x parcelas
+                                  </div>
+                                </div>
+                              ) : (
+                                formatCurrency(card.amount)
+                              )}
+                            </td>
+                            <td className="py-3 px-4 text-gray-900 dark:text-white">
+                              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300">
+                                {card.paymentMethod}
+                              </span>
+                            </td>
+                            <td className="py-3 px-4 text-gray-500 dark:text-gray-400">
+                              {card.location || '-'}
+                            </td>
+                            <td className="py-3 px-4 text-gray-500 dark:text-gray-400">
+                              {card.isInstallment ? (
+                                card.isGroupRepresentative ? (
+                                  `${card.totalInstallments}x`
+                                ) : (
+                                  `${card.installmentNumber}/${card.totalInstallments}`
+                                )
+                              ) : (
+                                '-'
+                              )}
+                            </td>
+                            <td className="py-3 px-4">
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={() => handleEditCard(card)}
+                                  className="p-1.5 text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900 rounded-lg transition-colors"
+                                  title={card.isGroupRepresentative ? "Editar grupo de parcelas" : "Editar despesa"}
+                                >
+                                  <Edit2 className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={() => setConfirmDeleteCard(card)}
+                                  className="p-1.5 text-red-600 hover:bg-red-100 dark:hover:bg-red-900 rounded-lg transition-colors"
+                                  title={card.isGroupRepresentative ? "Excluir grupo de parcelas" : "Excluir despesa"}
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))
+                      ];
+                    }).flat();
+                  })()}
                 </tbody>
               </table>
             </div>
@@ -431,34 +445,6 @@ const CreditCardList: React.FC = () => {
               </div>
             )}
           </div>
-
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="flex items-center justify-between mt-6">
-              <p className="text-sm text-gray-700 dark:text-gray-300">
-                Mostrando {((currentPage - 1) * itemsPerPage) + 1} a {Math.min(currentPage * itemsPerPage, sortedCards.length)} de {sortedCards.length} registros
-              </p>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                  disabled={currentPage === 1}
-                  className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Anterior
-                </button>
-                <span className="px-3 py-2 text-sm text-gray-700 dark:text-gray-300">
-                  Página {currentPage} de {totalPages}
-                </span>
-                <button
-                  onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                  disabled={currentPage === totalPages}
-                  className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Próxima
-                </button>
-              </div>
-            </div>
-          )}
         </div>
       </div>
 
@@ -467,18 +453,20 @@ const CreditCardList: React.FC = () => {
         <CreditCardForm
           creditCard={editingCreditCard}
           onClose={handleCloseForm}
-          onSave={() => setCurrentPage(1)}
+          onSave={() => {}}
         />
       )}
 
-      {confirmDeleteCard && (
-        <ConfirmDialog
-          title="Confirmar Exclusão"
-          message={`Tem certeza de que deseja excluir esta despesa de cartão de crédito: "${confirmDeleteCard.description}"?`}
-          onConfirm={handleDeleteCard}
-          onCancel={() => setConfirmDeleteCard(null)}
-        />
-      )}
+      <ConfirmDialog
+        isOpen={!!confirmDeleteCard}
+        onClose={() => setConfirmDeleteCard(null)}
+        onConfirm={handleDeleteCard}
+        title="Confirmar Exclusão"
+        message={`Tem certeza de que deseja excluir esta despesa de cartão de crédito: "${confirmDeleteCard?.description || ''}"?`}
+        type="danger"
+        confirmText="Excluir"
+        cancelText="Cancelar"
+      />
     </div>
   );
 };
