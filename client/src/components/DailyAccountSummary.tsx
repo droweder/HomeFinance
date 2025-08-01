@@ -162,19 +162,40 @@ const DailyAccountSummary: React.FC = () => {
       runningBalance = accountObj.initialBalance || 0;
     }
 
-    return extractMovements.map(movement => {
+    const movementsWithBalance = [];
+
+    // Adicionar linha de saldo inicial se há movimentos no período
+    if (extractMovements.length > 0) {
+      const firstDate = extractMovements[0]?.date;
+      const [year, month] = extractMonth.split('-');
+      const firstDayOfMonth = `${year}-${month}-01`;
+      
+      movementsWithBalance.push({
+        date: firstDayOfMonth,
+        description: 'Saldo Inicial',
+        amount: 0,
+        type: 'entrada' as const,
+        balance: runningBalance,
+        isInitialBalance: true
+      });
+    }
+
+    // Processar movimentos normais
+    extractMovements.forEach(movement => {
       if (movement.type === 'entrada') {
         runningBalance += movement.amount;
       } else {
         runningBalance -= movement.amount;
       }
       
-      return {
+      movementsWithBalance.push({
         ...movement,
         balance: runningBalance
-      };
+      });
     });
-  }, [extractMovements, extractAccount, accounts]);
+
+    return movementsWithBalance;
+  }, [extractMovements, extractAccount, accounts, extractMonth]);
 
   const handleOpenExtract = () => {
     if (accounts.length > 0) {
@@ -998,13 +1019,13 @@ const DailyAccountSummary: React.FC = () => {
                   <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
                     <div className="text-green-600 dark:text-green-400 text-sm font-medium">Total de Entradas</div>
                     <div className="text-green-700 dark:text-green-300 text-lg font-bold">
-                      {formatCurrency(extractWithBalance.filter(m => m.type === 'entrada').reduce((sum, m) => sum + m.amount, 0))}
+                      {formatCurrency(extractWithBalance.filter((m: any) => m.type === 'entrada' && !m.isInitialBalance).reduce((sum, m) => sum + m.amount, 0))}
                     </div>
                   </div>
                   <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
                     <div className="text-red-600 dark:text-red-400 text-sm font-medium">Total de Saídas</div>
                     <div className="text-red-700 dark:text-red-300 text-lg font-bold">
-                      {formatCurrency(extractWithBalance.filter(m => m.type === 'saida').reduce((sum, m) => sum + m.amount, 0))}
+                      {formatCurrency(extractWithBalance.filter((m: any) => m.type === 'saida' && !m.isInitialBalance).reduce((sum, m) => sum + m.amount, 0))}
                     </div>
                   </div>
                   <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
@@ -1038,14 +1059,20 @@ const DailyAccountSummary: React.FC = () => {
                             </td>
                           </tr>
                         ) : (
-                          extractWithBalance.map((movement, index) => (
-                            <tr key={index} className="border-b border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600">
+                          extractWithBalance.map((movement: any, index) => (
+                            <tr key={index} className={`border-b border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600 ${
+                              movement.isInitialBalance ? 'bg-blue-50 dark:bg-blue-900/20 font-semibold' : ''
+                            }`}>
                               <td className="py-3 px-4 text-sm text-gray-900 dark:text-white">
                                 {formatDate(movement.date)}
                               </td>
                               <td className="py-3 px-4 text-sm text-gray-700 dark:text-gray-300">
                                 <div className="flex items-center gap-2">
-                                  {movement.type === 'entrada' ? (
+                                  {movement.isInitialBalance ? (
+                                    <div className="w-4 h-4 rounded-full bg-blue-500 flex items-center justify-center">
+                                      <div className="w-2 h-2 bg-white rounded-full"></div>
+                                    </div>
+                                  ) : movement.type === 'entrada' ? (
                                     <TrendingUp className="w-4 h-4 text-green-500" />
                                   ) : (
                                     <TrendingDown className="w-4 h-4 text-red-500" />
@@ -1054,11 +1081,16 @@ const DailyAccountSummary: React.FC = () => {
                                 </div>
                               </td>
                               <td className={`py-3 px-4 text-sm text-right font-medium ${
-                                movement.type === 'entrada' 
-                                  ? 'text-green-600 dark:text-green-400' 
-                                  : 'text-red-600 dark:text-red-400'
+                                movement.isInitialBalance 
+                                  ? 'text-blue-600 dark:text-blue-400'
+                                  : movement.type === 'entrada' 
+                                    ? 'text-green-600 dark:text-green-400' 
+                                    : 'text-red-600 dark:text-red-400'
                               }`}>
-                                {movement.type === 'entrada' ? '+' : '-'}{formatCurrency(movement.amount)}
+                                {movement.isInitialBalance 
+                                  ? '-'
+                                  : `${movement.type === 'entrada' ? '+' : '-'}${formatCurrency(movement.amount)}`
+                                }
                               </td>
                               <td className={`py-3 px-4 text-sm text-right font-bold ${
                                 movement.balance >= 0 
