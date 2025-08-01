@@ -197,3 +197,6 @@ The application follows a monorepo structure with shared TypeScript types betwee
 - ✅ **Saldo Inicial**: Criado cartão dedicado para mostrar saldo inicial do período (primeiro dia)
 - ✅ **Saldo Final**: Cartão existente corrigido para exibir corretamente o saldo do último dia do mês
 - ✅ **Visual Diferenciado**: Saldo inicial em azul e saldo final em verde para melhor distinção
+- ✅ **FORMULÁRIO CARTÃO OTIMIZADO (August 1, 2025)**: Removido checkbox "Pago" do formulário de cartão de crédito
+- ✅ **Script SQL Supabase**: Criado script create_cartao_supabase.sql para criar tabela "cartao" diretamente no Supabase
+- ✅ **Interface Limpa**: Formulário agora foca apenas nos dados essenciais sem campo de status pago/pendente

@@ -5,7 +5,7 @@ import { useFinance } from '../context/FinanceContext';
 import { useAccounts } from '../context/AccountContext';
 import { useSettings } from '../context/SettingsContext';
 import { useToast } from './ui/toast';
-import { CreditCard } from '../types';
+import type { CreditCard } from '../types';
 
 interface CreditCardFormProps {
   creditCard?: CreditCard | null;
