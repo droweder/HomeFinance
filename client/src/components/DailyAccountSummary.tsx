@@ -150,114 +150,46 @@ const DailyAccountSummary: React.FC = () => {
       });
     });
 
-    // Transferências de/para a conta no mês - usar ID da conta
+    // Transferências de/para a conta no mês
     const accountObj = accounts.find(acc => acc.name === extractAccount);
-    const accountId = accountObj?.id;
     
-    // Debug completo das transferências
-    const transfersInMonth = transfers.filter(t => t.date.substring(0, 7) === extractMonth);
-    
-    console.log(`🔄 TRANSFERÊNCIAS DEBUG COMPLETO:`, {
-      extractAccount,
-      accountId,
-      accountObj,
-      extractMonth,
-      totalTransfers: transfers.length,
-      transfersInMonth: transfersInMonth.length,
-      allAccounts: accounts.map(a => ({ id: a.id, name: a.name })),
-      transfersInMonthDetails: transfersInMonth.map(t => ({
-        date: t.date,
-        fromAccount: t.fromAccount,
-        toAccount: t.toAccount,
-        amount: t.amount,
-        description: t.description
-      }))
-    });
-    
+    // Buscar transferências do mês usando múltiplas estratégias de matching
     transfers
-      .filter(transfer => {
-        const matchesMonth = transfer.date.substring(0, 7) === extractMonth;
-        
-        // Testar diferentes tipos de matching
-        const matchByFromId = transfer.fromAccount === accountId;
-        const matchByToId = transfer.toAccount === accountId;
-        const matchByFromName = transfer.fromAccount === extractAccount;
-        const matchByToName = transfer.toAccount === extractAccount;
-        
-        const matchesAccount = matchByFromId || matchByToId || matchByFromName || matchByToName;
-        
-        console.log(`🔍 TESTANDO TRANSFER ${transfer.date}:`, {
-          transfer: {
-            fromAccount: transfer.fromAccount,
-            toAccount: transfer.toAccount,
-            amount: transfer.amount
-          },
-          tests: {
-            matchesMonth,
-            matchByFromId,
-            matchByToId, 
-            matchByFromName,
-            matchByToName,
-            matchesAccount
-          },
-          target: {
-            extractAccount,
-            accountId
-          }
-        });
-        
-        return matchesMonth && matchesAccount;
-      })
+      .filter(transfer => transfer.date.substring(0, 7) === extractMonth)
       .forEach(transfer => {
-        const fromAccountName = accounts.find(acc => acc.id === transfer.fromAccount)?.name || transfer.fromAccount;
-        const toAccountName = accounts.find(acc => acc.id === transfer.toAccount)?.name || transfer.toAccount;
+        // Estratégia 1: Match por ID da conta
+        const fromAccountObj = accounts.find(acc => acc.id === transfer.fromAccount);
+        const toAccountObj = accounts.find(acc => acc.id === transfer.toAccount);
         
-        const isOutgoing = transfer.fromAccount === accountId || transfer.fromAccount === extractAccount;
+        // Estratégia 2: Match direto por nome (fallback)
+        const matchFromById = fromAccountObj?.name === extractAccount;
+        const matchToById = toAccountObj?.name === extractAccount;
+        const matchFromByName = transfer.fromAccount === extractAccount;
+        const matchToByName = transfer.toAccount === extractAccount;
         
-        console.log(`✅ PROCESSANDO TRANSFERÊNCIA:`, {
-          date: transfer.date,
-          amount: transfer.amount,
-          fromAccount: transfer.fromAccount,
-          toAccount: transfer.toAccount,
-          fromAccountName,
-          toAccountName,
-          isOutgoing,
-          accountId,
-          extractAccount
-        });
+        const isFromAccount = matchFromById || matchFromByName;
+        const isToAccount = matchToById || matchToByName;
         
-        if (isOutgoing) {
-          // Saída da conta
+        if (isFromAccount) {
+          // Saída da conta selecionada
+          const toAccountName = toAccountObj?.name || transfer.toAccount;
           movements.push({
             date: transfer.date,
             description: `Transferência para ${toAccountName}${transfer.description ? ' - ' + transfer.description : ''}`,
             amount: transfer.amount,
             type: 'saida'
           });
-          console.log(`💸 ADICIONADA SAÍDA: R$ ${transfer.amount} para ${toAccountName}`);
-        } else {
-          // Entrada na conta
+        } else if (isToAccount) {
+          // Entrada na conta selecionada
+          const fromAccountName = fromAccountObj?.name || transfer.fromAccount;
           movements.push({
             date: transfer.date,
             description: `Transferência de ${fromAccountName}${transfer.description ? ' - ' + transfer.description : ''}`,
             amount: transfer.amount,
             type: 'entrada'
           });
-          console.log(`💰 ADICIONADA ENTRADA: R$ ${transfer.amount} de ${fromAccountName}`);
         }
       });
-
-    console.log(`📋 MOVIMENTOS FINAIS:`, {
-      total: movements.length,
-      entradas: movements.filter(m => m.type === 'entrada').length,
-      saidas: movements.filter(m => m.type === 'saida').length,
-      movements: movements.map(m => ({
-        date: m.date,
-        type: m.type,
-        amount: m.amount,
-        description: m.description.substring(0, 50)
-      }))
-    });
 
     // Ordenar por data
     return movements.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
