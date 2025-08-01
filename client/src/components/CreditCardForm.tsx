@@ -1,23 +1,42 @@
 import React, { useState, useEffect } from 'react';
-import { X, Calendar, Plus, Minus } from 'lucide-react';
+import { X, Calendar, CreditCard as CreditCardIcon, Plus, Minus } from 'lucide-react';
+import { useCreditCard } from '../context/CreditCardContext';
 import { useFinance } from '../context/FinanceContext';
 import { useAccounts } from '../context/AccountContext';
 import { useSettings } from '../context/SettingsContext';
 import { useToast } from './ui/toast';
-import { Expense } from '../types';
-import { formatDateForInput, formatDateForStorage, getCurrentDateForInput } from '../utils/dateUtils';
+import { CreditCard } from '../types';
 
-interface ExpenseFormProps {
-  expense?: Expense | null;
+interface CreditCardFormProps {
+  creditCard?: CreditCard | null;
   onClose: () => void;
   onSave?: () => void;
 }
 
-const ExpenseForm: React.FC<ExpenseFormProps> = ({ expense, onClose, onSave }) => {
-  const { addExpense, updateExpense, categories } = useFinance();
+const getCurrentDateForInput = () => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const formatDateForInput = (dateStr: string) => {
+  if (!dateStr) return getCurrentDateForInput();
+  return dateStr;
+};
+
+const formatDateForStorage = (dateStr: string) => {
+  return dateStr;
+};
+
+const CreditCardForm: React.FC<CreditCardFormProps> = ({ creditCard, onClose, onSave }) => {
+  const { addCreditCard, updateCreditCard } = useCreditCard();
+  const { categories } = useFinance();
   const { accounts } = useAccounts();
   const { settings } = useSettings();
   const { showSuccess } = useToast();
+  
   const [formData, setFormData] = useState({
     date: getCurrentDateForInput(),
     category: '',
@@ -25,6 +44,7 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ expense, onClose, onSave }) =
     account: '',
     description: '',
     location: '',
+    paid: false,
     isInstallment: false,
     totalInstallments: 1,
   });
@@ -32,100 +52,118 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ expense, onClose, onSave }) =
   const [installmentDates, setInstallmentDates] = useState<string[]>([]);
 
   useEffect(() => {
-    if (expense) {
-      console.log('🔧 Carregando despesa para edição:', expense);
+    if (creditCard) {
+      console.log('🔧 Carregando cartão de crédito para edição:', creditCard);
       setFormData({
-        date: formatDateForInput(expense.date),
-        category: expense.category,
-        amount: expense.amount.toString().replace('.', ','),
-        account: expense.paymentMethod,
-        description: expense.description,
-        location: expense.location || '',
-        isInstallment: expense.isInstallment || false,
-        totalInstallments: expense.totalInstallments || 1,
+        date: formatDateForInput(creditCard.date),
+        category: creditCard.category,
+        amount: creditCard.amount.toString().replace('.', ','),
+        account: creditCard.paymentMethod,
+        description: creditCard.description,
+        location: creditCard.location || '',
+        paid: creditCard.paid || false,
+        isInstallment: creditCard.isInstallment || false,
+        totalInstallments: creditCard.totalInstallments || 1,
       });
 
-      if (expense.isInstallment && expense.date) {
-        setInstallmentDates([formatDateForInput(expense.date)]);
+      if (creditCard.isInstallment && creditCard.date) {
+        setInstallmentDates([formatDateForInput(creditCard.date)]);
       }
     }
-  }, [expense]);
+  }, [creditCard]);
 
-  useEffect(() => {
-    if (formData.isInstallment) {
-      // Generate dates maintaining the same day of month
-      const dates = [];
-      const baseDate = new Date(formData.date);
-      
-      for (let i = 0; i < formData.totalInstallments; i++) {
-        const installmentDate = new Date(baseDate);
-        installmentDate.setMonth(baseDate.getMonth() + i);
-        dates.push(installmentDate.toISOString().split('T')[0]);
-      }
-      
+  const handleAmountChange = (value: string) => {
+    // Remove tudo que não é número ou vírgula
+    const cleaned = value.replace(/[^\d,]/g, '');
+    
+    // Garante apenas uma vírgula
+    const parts = cleaned.split(',');
+    if (parts.length > 2) {
+      return;
+    }
+    
+    // Limita casas decimais a 2
+    if (parts[1] && parts[1].length > 2) {
+      parts[1] = parts[1].substring(0, 2);
+    }
+    
+    const formatted = parts.join(',');
+    setFormData({ ...formData, amount: formatted });
+  };
+
+  const handleInstallmentChange = (checked: boolean) => {
+    setFormData({ ...formData, isInstallment: checked });
+    
+    if (checked) {
+      // Initialize installment dates with current date
+      const dates = Array.from({ length: formData.totalInstallments }, (_, i) => {
+        const date = new Date(formData.date);
+        date.setMonth(date.getMonth() + i);
+        return date.toISOString().split('T')[0];
+      });
       setInstallmentDates(dates);
     } else {
       setInstallmentDates([]);
     }
-  }, [formData.isInstallment, formData.totalInstallments, formData.date]);
-
-  const handleInstallmentDateChange = (index: number, date: string) => {
-    const newDates = [...installmentDates];
-    newDates[index] = date;
-    setInstallmentDates(newDates);
   };
 
-  const handleAmountChange = (value: string) => {
-    // Allow only numbers, comma and dot
-    const sanitized = value.replace(/[^0-9.,]/g, '');
-    setFormData({ ...formData, amount: sanitized });
+  const updateInstallmentDates = (totalInstallments: number) => {
+    const dates = Array.from({ length: totalInstallments }, (_, i) => {
+      const date = new Date(formData.date);
+      date.setMonth(date.getMonth() + i);
+      return date.toISOString().split('T')[0];
+    });
+    setInstallmentDates(dates);
+  };
+
+  const updateInstallmentDate = (index: number, newDate: string) => {
+    const updatedDates = [...installmentDates];
+    updatedDates[index] = newDate;
+    setInstallmentDates(updatedDates);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!formData.category || !formData.amount || !formData.account) {
-      alert('Por favor, preencha todos os campos obrigatórios');
-      return;
-    }
 
     const baseAmount = parseFloat(formData.amount.replace(',', '.'));
+    
     if (isNaN(baseAmount) || baseAmount <= 0) {
       alert('Por favor, insira um valor válido');
       return;
     }
 
-    console.log('💾 Salvando despesa:', { expense, formData, baseAmount });
+    console.log('💾 Salvando cartão de crédito:', { creditCard, formData, baseAmount });
 
-    if (expense) {
-      // Editando despesa existente
-      const expenseData = {
+    if (creditCard) {
+      // Editando cartão de crédito existente
+      const creditCardData = {
         date: formatDateForStorage(formData.date),
         category: formData.category,
         description: formData.description,
-        amount: baseAmount, // Usar o valor total para edição
+        amount: baseAmount,
         paymentMethod: formData.account,
         location: formData.location,
+        paid: formData.paid,
         // Preservar informações de parcelas se existirem
-        isInstallment: expense.isInstallment,
-        installmentNumber: expense.installmentNumber,
-        totalInstallments: expense.totalInstallments,
-        installmentGroup: expense.installmentGroup,
+        isInstallment: creditCard.isInstallment,
+        installmentNumber: creditCard.installmentNumber,
+        totalInstallments: creditCard.totalInstallments,
+        installmentGroup: creditCard.installmentGroup,
       };
 
-      console.log('✏️ Atualizando despesa:', expenseData);
+      console.log('✏️ Atualizando cartão de crédito:', creditCardData);
       try {
-        await updateExpense(expense.id, expenseData);
-        console.log('✅ Despesa atualizada com sucesso');
-        showSuccess('Despesa atualizada com sucesso!');
+        await updateCreditCard(creditCard.id, creditCardData);
+        console.log('✅ Cartão de crédito atualizado com sucesso');
+        showSuccess('Cartão de crédito atualizado com sucesso!');
         onSave?.();
         onClose();
       } catch (error: any) {
-        console.error('❌ Erro ao atualizar despesa:', error);
-        alert(`Erro ao atualizar despesa: ${error.message || 'Erro desconhecido'}`);
+        console.error('❌ Erro ao atualizar cartão de crédito:', error);
+        alert(`Erro ao atualizar cartão de crédito: ${error.message || 'Erro desconhecido'}`);
       }
     } else {
-      // Criando nova despesa
+      // Criando novo cartão de crédito
       const installmentAmount = formData.isInstallment ? baseAmount / formData.totalInstallments : baseAmount;
 
       if (formData.isInstallment) {
@@ -133,7 +171,7 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ expense, onClose, onSave }) =
         const installmentGroup = Date.now().toString();
         
         for (let i = 0; i < formData.totalInstallments; i++) {
-          const expenseData = {
+          const creditCardData = {
             date: formatDateForStorage(installmentDates[i] || formData.date),
             category: formData.category,
             description: formData.description,
@@ -144,17 +182,16 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ expense, onClose, onSave }) =
             installmentNumber: i + 1,
             totalInstallments: formData.totalInstallments,
             installmentGroup: installmentGroup,
-            // Usando apenas date, sem dueDate
-            isCreditCard: false,
-            paid: false,
+            isCreditCard: true,
+            paid: formData.paid,
           };
 
-          console.log(`📝 Criando parcela ${i + 1}/${formData.totalInstallments}:`, expenseData);
-          addExpense(expenseData);
+          console.log(`📝 Criando parcela ${i + 1}/${formData.totalInstallments}:`, creditCardData);
+          addCreditCard(creditCardData);
         }
       } else {
-        // Single expense
-        const expenseData = {
+        // Single credit card expense
+        const creditCardData = {
           date: formatDateForStorage(formData.date),
           category: formData.category,
           description: formData.description,
@@ -162,12 +199,12 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ expense, onClose, onSave }) =
           paymentMethod: formData.account,
           location: formData.location,
           isInstallment: false,
-          isCreditCard: false,
-          paid: false,
+          isCreditCard: true,
+          paid: formData.paid,
         };
 
-        console.log('📝 Criando despesa única:', expenseData);
-        addExpense(expenseData);
+        console.log('📝 Criando cartão de crédito único:', creditCardData);
+        addCreditCard(creditCardData);
       }
     }
 
@@ -177,19 +214,19 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ expense, onClose, onSave }) =
   const expenseCategories = categories.filter(cat => cat.type === 'expense');
 
   const labels = {
-    title: expense ? 'Editar Despesa' : 'Adicionar Despesa',
+    title: creditCard ? 'Editar Cartão de Crédito' : 'Adicionar Cartão de Crédito',
     date: 'Data',
     category: 'Categoria',
     amount: 'Valor (R$)',
-    account: 'Conta',
+    account: 'Cartão',
     description: 'Descrição',
     location: 'Local/Pessoa',
-
+    paid: 'Pago',
     installment: 'Parcelar esta despesa',
     installments: 'Número de Parcelas',
     dueDates: 'Datas de Vencimento das Parcelas',
     cancel: 'Cancelar',
-    save: expense ? 'Atualizar' : 'Adicionar',
+    save: creditCard ? 'Atualizar' : 'Adicionar',
     perInstallment: 'Valor por parcela',
     installmentInfo: 'Informações da Parcela',
     installmentDetails: 'Detalhes da Parcela',
@@ -211,8 +248,8 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ expense, onClose, onSave }) =
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Informações da Parcela - Mostrar se for despesa parcelada */}
-          {expense && expense.isInstallment && (
+          {/* Informações da Parcela - Mostrar se for cartão de crédito parcelado */}
+          {creditCard && creditCard.isInstallment && (
             <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-6">
               <h3 className="text-lg font-semibold text-blue-800 dark:text-blue-300 mb-3 flex items-center gap-2">
                 <Calendar className="w-5 h-5" />
@@ -222,19 +259,19 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ expense, onClose, onSave }) =
                 <div>
                   <span className="font-medium text-blue-700 dark:text-blue-400">Parcela:</span>
                   <p className="text-blue-800 dark:text-blue-300">
-                    {expense.installmentNumber} de {expense.totalInstallments}
+                    {creditCard.installmentNumber} de {creditCard.totalInstallments}
                   </p>
                 </div>
                 <div>
                   <span className="font-medium text-blue-700 dark:text-blue-400">Valor da Parcela:</span>
                   <p className="text-blue-800 dark:text-blue-300">
-                    R$ {expense.amount.toFixed(2).replace('.', ',')}
+                    R$ {creditCard.amount.toFixed(2).replace('.', ',')}
                   </p>
                 </div>
                 <div>
                   <span className="font-medium text-blue-700 dark:text-blue-400">Valor Total:</span>
                   <p className="text-blue-800 dark:text-blue-300">
-                    R$ {((expense.amount || 0) * (expense.totalInstallments || 1)).toFixed(2).replace('.', ',')}
+                    R$ {((creditCard.amount || 0) * (creditCard.totalInstallments || 1)).toFixed(2).replace('.', ',')}
                   </p>
                 </div>
               </div>
@@ -253,7 +290,7 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ expense, onClose, onSave }) =
                 type="date"
                 value={formData.date}
                 onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500 dark:bg-gray-700 dark:text-white"
                 required
               />
             </div>
@@ -265,7 +302,7 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ expense, onClose, onSave }) =
               <select
                 value={formData.category}
                 onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500 dark:bg-gray-700 dark:text-white"
                 required
               >
                 <option value="">Selecione uma categoria</option>
@@ -285,18 +322,13 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ expense, onClose, onSave }) =
                 type="text"
                 value={formData.amount}
                 onChange={(e) => handleAmountChange(e.target.value)}
-                className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500 dark:bg-gray-700 dark:text-white"
                 placeholder="0,00"
                 required
               />
-              {formData.isInstallment && formData.amount && !expense && (
-                <p className="text-xs text-blue-600 dark:text-blue-400 mt-1 font-medium">
+              {formData.isInstallment && formData.amount && (
+                <p className="text-xs text-purple-600 dark:text-purple-400 mt-1 font-medium">
                   {labels.perInstallment}: R$ {(parseFloat(formData.amount.replace(',', '.')) / formData.totalInstallments).toFixed(2).replace('.', ',')}
-                </p>
-              )}
-              {expense && expense.isInstallment && (
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  💡 Este é o valor desta parcela específica
                 </p>
               )}
             </div>
@@ -308,10 +340,10 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ expense, onClose, onSave }) =
               <select
                 value={formData.account}
                 onChange={(e) => setFormData({ ...formData, account: e.target.value })}
-                className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500 dark:bg-gray-700 dark:text-white"
                 required
               >
-                <option value="">Selecione uma conta</option>
+                <option value="">Selecione um cartão</option>
                 {accounts.map(account => (
                   <option key={account.id} value={account.name}>{account.name}</option>
                 ))}
@@ -321,14 +353,15 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ expense, onClose, onSave }) =
 
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              {labels.description}
+              {labels.description} <span className="text-red-500">*</span>
             </label>
-            <input
-              type="text"
+            <textarea
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-              placeholder="Notas opcionais sobre esta despesa"
+              className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500 dark:bg-gray-700 dark:text-white"
+              placeholder="Descreva a despesa do cartão de crédito"
+              rows={3}
+              required
             />
           </div>
 
@@ -340,31 +373,42 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ expense, onClose, onSave }) =
               type="text"
               value={formData.location}
               onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-              className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-              placeholder="Ex: Supermercado, João Silva, etc."
+              className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500 dark:bg-gray-700 dark:text-white"
+              placeholder="Local ou pessoa (opcional)"
             />
           </div>
 
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="paid"
+              checked={formData.paid}
+              onChange={(e) => setFormData({ ...formData, paid: e.target.checked })}
+              className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+            />
+            <label htmlFor="paid" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+              {labels.paid}
+            </label>
+          </div>
 
-
-          {/* Installment Section - Only for new expenses */}
-          {!expense && (
-            <div className="border-t border-gray-200 dark:border-gray-600 pt-4">
-              <div className="flex items-center gap-3 mb-4">
+          {/* Parcelamento - apenas para novos cartões */}
+          {!creditCard && (
+            <>
+              <div className="flex items-center gap-2">
                 <input
                   type="checkbox"
-                  id="isInstallment"
+                  id="installment"
                   checked={formData.isInstallment}
-                  onChange={(e) => setFormData({ ...formData, isInstallment: e.target.checked })}
-                  className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600"
+                  onChange={(e) => handleInstallmentChange(e.target.checked)}
+                  className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
                 />
-                <label htmlFor="isInstallment" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                <label htmlFor="installment" className="text-sm font-medium text-gray-700 dark:text-gray-300">
                   {labels.installment}
                 </label>
               </div>
 
               {formData.isInstallment && (
-                <div className="space-y-4 bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
+                <div className="bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg p-4 space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       {labels.installments}
@@ -372,33 +416,26 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ expense, onClose, onSave }) =
                     <div className="flex items-center gap-2">
                       <button
                         type="button"
-                        onClick={() => setFormData({ 
-                          ...formData, 
-                          totalInstallments: Math.max(1, formData.totalInstallments - 1) 
-                        })}
-                        className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors"
-                        disabled={formData.totalInstallments <= 1}
+                        onClick={() => {
+                          const newTotal = Math.max(1, formData.totalInstallments - 1);
+                          setFormData({ ...formData, totalInstallments: newTotal });
+                          updateInstallmentDates(newTotal);
+                        }}
+                        className="p-2 bg-gray-200 dark:bg-gray-600 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500"
                       >
                         <Minus className="w-4 h-4" />
                       </button>
-                      <input
-                        type="number"
-                        min="1"
-                        max="60"
-                        value={formData.totalInstallments}
-                        onChange={(e) => setFormData({ 
-                          ...formData, 
-                          totalInstallments: Math.max(1, parseInt(e.target.value) || 1) 
-                        })}
-                        className="w-20 text-center border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-                      />
+                      <span className="px-4 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg min-w-[60px] text-center">
+                        {formData.totalInstallments}
+                      </span>
                       <button
                         type="button"
-                        onClick={() => setFormData({ 
-                          ...formData, 
-                          totalInstallments: Math.min(60, formData.totalInstallments + 1) 
-                        })}
-                        className="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors"
+                        onClick={() => {
+                          const newTotal = Math.min(60, formData.totalInstallments + 1);
+                          setFormData({ ...formData, totalInstallments: newTotal });
+                          updateInstallmentDates(newTotal);
+                        }}
+                        className="p-2 bg-gray-200 dark:bg-gray-600 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500"
                       >
                         <Plus className="w-4 h-4" />
                       </button>
@@ -406,21 +443,18 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ expense, onClose, onSave }) =
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       {labels.dueDates}
                     </label>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-60 overflow-y-auto">
-                      {Array.from({ length: formData.totalInstallments }, (_, index) => (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 max-h-40 overflow-y-auto">
+                      {installmentDates.map((date, index) => (
                         <div key={index} className="flex items-center gap-2">
-                          <Calendar className="w-4 h-4 text-gray-400" />
-                          <span className="text-sm text-gray-600 dark:text-gray-400 w-16">
-                            {index + 1}/{formData.totalInstallments}:
-                          </span>
+                          <span className="text-xs text-gray-500 min-w-[20px]">{index + 1}:</span>
                           <input
                             type="date"
-                            value={installmentDates[index] || ''}
-                            onChange={(e) => handleInstallmentDateChange(index, e.target.value)}
-                            className="flex-1 border border-gray-300 dark:border-gray-600 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                            value={date}
+                            onChange={(e) => updateInstallmentDate(index, e.target.value)}
+                            className="flex-1 text-xs border border-gray-300 dark:border-gray-600 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-purple-500 dark:bg-gray-700 dark:text-white"
                           />
                         </div>
                       ))}
@@ -428,22 +462,22 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ expense, onClose, onSave }) =
                   </div>
                 </div>
               )}
-            </div>
+            </>
           )}
 
           <div className="flex gap-3 pt-4">
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+              className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
             >
               {labels.cancel}
             </button>
             <button
               type="submit"
-              className="flex-1 px-4 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+              className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
             >
-              {labels.save} Despesa
+              {labels.save}
             </button>
           </div>
         </form>
@@ -452,4 +486,4 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ expense, onClose, onSave }) =
   );
 };
 
-export default ExpenseForm;
+export default CreditCardForm;

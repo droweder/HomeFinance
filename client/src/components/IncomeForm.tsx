@@ -23,7 +23,6 @@ const IncomeForm: React.FC<IncomeFormProps> = ({ income, onClose }) => {
     account: '',
     description: '',
     location: '',
-    isCreditCard: false,
     isRecurring: false,
     totalRecurrences: 1,
   });
@@ -39,7 +38,6 @@ const IncomeForm: React.FC<IncomeFormProps> = ({ income, onClose }) => {
         account: income.account || '',
         description: income.notes || '',
         location: income.location || '',
-        isCreditCard: false, // Nota: precisa adicionar coluna no banco
         isRecurring: false,
         totalRecurrences: 1,
       });
@@ -136,7 +134,7 @@ const IncomeForm: React.FC<IncomeFormProps> = ({ income, onClose }) => {
     account: 'Conta',
     description: 'Descrição',
     location: 'Local/Pessoa',
-    creditCard: 'Cartão de Crédito',
+
     recurring: 'Receita recorrente',
     recurrences: 'Número de Recorrências',
     recurrenceDates: 'Datas das Recorrências',
@@ -257,19 +255,7 @@ const IncomeForm: React.FC<IncomeFormProps> = ({ income, onClose }) => {
             />
           </div>
 
-          {/* Credit Card Option */}
-          <div className="flex items-center gap-3">
-            <input
-              type="checkbox"
-              id="isCreditCard"
-              checked={formData.isCreditCard}
-              onChange={(e) => setFormData({ ...formData, isCreditCard: e.target.checked })}
-              className="w-4 h-4 text-green-600 bg-gray-100 border-gray-300 rounded focus:ring-green-500 dark:bg-gray-700 dark:border-gray-600"
-            />
-            <label htmlFor="isCreditCard" className="text-sm font-medium text-gray-700 dark:text-gray-300">
-              {labels.creditCard}
-            </label>
-          </div>
+
 
           {/* Recurring Section */}
           <div className="border-t border-gray-200 dark:border-gray-600 pt-4">

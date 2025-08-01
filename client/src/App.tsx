@@ -4,12 +4,14 @@ import { ToastProvider } from './components/ui/toast';
 import { SettingsProvider } from './context/SettingsContext';
 import { AccountProvider } from './context/AccountContext';
 import { FinanceProvider } from './context/FinanceContext';
+import { CreditCardProvider } from './context/CreditCardContext';
 import { useSupabaseSync } from './hooks/useSupabaseSync';
 import Navigation from './components/Navigation';
 import Dashboard from './components/Dashboard';
 import ExpenseList from './components/ExpenseList';
 import IncomeList from './components/IncomeList';
 import TransferList from './components/TransferList';
+import CreditCardList from './components/CreditCardList';
 import Settings from './components/Settings';
 import DailyAccountSummary from './components/DailyAccountSummary';
 import FinancialAIChat from './components/FinancialAIChat';
@@ -124,6 +126,8 @@ const AppContent: React.FC = () => {
           return <IncomeList />;
         case 'transfers':
           return <TransferList />;
+        case 'credit-cards':
+          return <CreditCardList />;
         case 'daily-summary':
           return <DailyAccountSummary />;
         case 'ai-chat':
@@ -172,7 +176,9 @@ function App() {
           <SettingsProvider>
             <AccountProvider>
               <FinanceProvider>
-                <AppContent />
+                <CreditCardProvider>
+                  <AppContent />
+                </CreditCardProvider>
               </FinanceProvider>
             </AccountProvider>
           </SettingsProvider>

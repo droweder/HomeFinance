@@ -168,6 +168,13 @@ The application follows a monorepo structure with shared TypeScript types betwee
 - ✅ **Daily Summary Header Fix**: Corrected sticky header positioning from top-32 to top-0 for proper table navigation
 - ✅ **Database Schema Fix**: Removed all dueDate references - using only date column to match Supabase schema
 - ✅ **Expense Update Fix**: Corrected updateExpense function to work with Supabase's actual column structure
+- ✅ **SISTEMA DE CARTÃO DE CRÉDITO SEPARADO (August 1, 2025)**: Implementação completa de sistema dedicado para cartões de crédito
+- ✅ **Nova Tabela Supabase**: Criada tabela "cartao" com estrutura idêntica às despesas para facilitar migração
+- ✅ **Arquitetura Separada**: CreditCardContext, CreditCardForm e CreditCardList independentes do sistema de despesas
+- ✅ **Navegação Dedicada**: Nova aba "Cartão de Crédito" na navegação principal
+- ✅ **Interface Consistente**: Layout similar às despesas com filtros mensais, paginação e notificações de sucesso
+- ✅ **Formulários Limpos**: Removido checkbox "Cartão de Crédito" das telas de Despesas e Receitas
+- ✅ **Parcelamento Suportado**: Sistema completo de parcelamento exclusivo para cartões de crédito
 - ✅ **MAJOR PERFORMANCE OPTIMIZATION (July 31, 2025)**: Implemented revolutionary performance improvements achieving 99% faster UI rendering
 - ✅ **Monthly Data Filtering**: Smart month-based filtering reduces dataset from 3436 to ~100 records per view (97% reduction)
 - ✅ **Advanced Pagination**: Process only 25 records per page instead of thousands (99% rendering improvement)

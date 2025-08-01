@@ -146,3 +146,26 @@ export interface Transfer {
   createdAt: string;
   userId: string;
 }
+
+export interface CreditCard {
+  id: string;
+  date: string; // Stored in YYYY-MM-DD format
+  category: string;
+  description: string;
+  amount: number;
+  paymentMethod: string;
+  location?: string;
+  paid?: boolean;
+  isInstallment?: boolean;
+  installmentNumber?: number;
+  totalInstallments?: number;
+  installmentGroup?: string;
+  isCreditCard?: boolean;
+  createdAt: string;
+  // Propriedades para agrupamento de parcelas
+  isGroupRepresentative?: boolean;
+  groupedExpenses?: CreditCard[];
+  totalGroupAmount?: number;
+  groupStartDate?: string;
+  groupEndDate?: string;
+}
