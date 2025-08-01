@@ -121,32 +121,62 @@ const DailyAccountSummary: React.FC = () => {
         });
       });
 
-    // Transferências de/para a conta no mês
+    // Transferências de/para a conta no mês - usar ID da conta
+    const accountObj = accounts.find(acc => acc.name === extractAccount);
+    const accountId = accountObj?.id;
+    
+    console.log(`🔍 DEBUG EXTRATO - Procurando transferências para conta:`, {
+      extractAccount,
+      accountId,
+      accountObj,
+      totalTransfers: transfers.length,
+      transfersInMonth: transfers.filter(t => t.date.substring(0, 7) === extractMonth).length
+    });
+    
     transfers
-      .filter(transfer => 
-        transfer.date.substring(0, 7) === extractMonth && 
-        (transfer.fromAccount === extractAccount || transfer.toAccount === extractAccount)
-      )
+      .filter(transfer => {
+        const matchesMonth = transfer.date.substring(0, 7) === extractMonth;
+        const matchesAccount = transfer.fromAccount === accountId || transfer.toAccount === accountId ||
+                             transfer.fromAccount === extractAccount || transfer.toAccount === extractAccount;
+        
+        if (matchesMonth && matchesAccount) {
+          console.log(`✅ TRANSFERÊNCIA ENCONTRADA:`, {
+            date: transfer.date,
+            fromAccount: transfer.fromAccount,
+            toAccount: transfer.toAccount,
+            amount: transfer.amount,
+            matchedBy: transfer.fromAccount === accountId ? 'fromAccount-ID' : 
+                      transfer.toAccount === accountId ? 'toAccount-ID' :
+                      transfer.fromAccount === extractAccount ? 'fromAccount-Name' : 'toAccount-Name'
+          });
+        }
+        
+        return matchesMonth && matchesAccount;
+      })
       .forEach(transfer => {
         const fromAccountName = accounts.find(acc => acc.id === transfer.fromAccount)?.name || transfer.fromAccount;
         const toAccountName = accounts.find(acc => acc.id === transfer.toAccount)?.name || transfer.toAccount;
         
-        if (transfer.fromAccount === extractAccount) {
+        const isOutgoing = transfer.fromAccount === accountId || transfer.fromAccount === extractAccount;
+        
+        if (isOutgoing) {
           // Saída da conta
           movements.push({
             date: transfer.date,
-            description: `Transferência para ${toAccountName} - ${transfer.description || ''}`,
+            description: `Transferência para ${toAccountName} - ${transfer.description || ''}`.trim(),
             amount: transfer.amount,
             type: 'saida'
           });
+          console.log(`💸 SAÍDA: ${transfer.amount} para ${toAccountName}`);
         } else {
           // Entrada na conta
           movements.push({
             date: transfer.date,
-            description: `Transferência de ${fromAccountName} - ${transfer.description || ''}`,
+            description: `Transferência de ${fromAccountName} - ${transfer.description || ''}`.trim(),
             amount: transfer.amount,
             type: 'entrada'
           });
+          console.log(`💰 ENTRADA: ${transfer.amount} de ${fromAccountName}`);
         }
       });
 
