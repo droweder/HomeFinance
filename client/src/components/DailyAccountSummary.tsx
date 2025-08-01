@@ -80,6 +80,15 @@ const DailyAccountSummary: React.FC = () => {
   const extractMovements = useMemo(() => {
     if (!extractAccount || !extractMonth) return [];
 
+    console.log(`🔍 EXTRATO DEBUG - Iniciando cálculo:`, {
+      extractAccount,
+      extractMonth,
+      totalExpenses: expenses.length,
+      totalIncome: income.length,
+      totalTransfers: transfers.length,
+      totalAccounts: accounts.length
+    });
+
     const [year, monthNum] = extractMonth.split('-');
     const movements: Array<{
       date: string;
@@ -90,66 +99,112 @@ const DailyAccountSummary: React.FC = () => {
     }> = [];
 
     // Despesas da conta no mês
-    expenses
-      .filter(expense => 
-        expense.date.substring(0, 7) === extractMonth && 
-        expense.paymentMethod === extractAccount
-      )
-      .forEach(expense => {
-        movements.push({
-          date: expense.date,
-          description: `${expense.category} - ${expense.description || 'Despesa'}`,
-          amount: expense.amount,
-          type: 'saida',
-          category: expense.category
-        });
+    const monthExpenses = expenses.filter(expense => 
+      expense.date.substring(0, 7) === extractMonth && 
+      expense.paymentMethod === extractAccount
+    );
+    
+    console.log(`💸 DESPESAS encontradas:`, {
+      total: monthExpenses.length,
+      samples: monthExpenses.slice(0, 3).map(e => ({
+        date: e.date,
+        amount: e.amount,
+        description: e.description,
+        paymentMethod: e.paymentMethod
+      }))
+    });
+
+    monthExpenses.forEach(expense => {
+      movements.push({
+        date: expense.date,
+        description: `${expense.category} - ${expense.description || 'Despesa'}`,
+        amount: expense.amount,
+        type: 'saida',
+        category: expense.category
       });
+    });
 
     // Receitas da conta no mês
-    income
-      .filter(incomeItem => 
-        incomeItem.date.substring(0, 7) === extractMonth && 
-        incomeItem.account === extractAccount
-      )
-      .forEach(incomeItem => {
-        movements.push({
-          date: incomeItem.date,
-          description: `${incomeItem.source} - ${incomeItem.notes || 'Receita'}`,
-          amount: incomeItem.amount,
-          type: 'entrada',
-          category: incomeItem.source
-        });
+    const monthIncome = income.filter(incomeItem => 
+      incomeItem.date.substring(0, 7) === extractMonth && 
+      incomeItem.account === extractAccount
+    );
+
+    console.log(`💰 RECEITAS encontradas:`, {
+      total: monthIncome.length,
+      samples: monthIncome.slice(0, 3).map(i => ({
+        date: i.date,
+        amount: i.amount,
+        account: i.account,
+        source: i.source
+      }))
+    });
+
+    monthIncome.forEach(incomeItem => {
+      movements.push({
+        date: incomeItem.date,
+        description: `${incomeItem.source} - ${incomeItem.notes || 'Receita'}`,
+        amount: incomeItem.amount,
+        type: 'entrada',
+        category: incomeItem.source
       });
+    });
 
     // Transferências de/para a conta no mês - usar ID da conta
     const accountObj = accounts.find(acc => acc.name === extractAccount);
     const accountId = accountObj?.id;
     
-    console.log(`🔍 DEBUG EXTRATO - Procurando transferências para conta:`, {
+    // Debug completo das transferências
+    const transfersInMonth = transfers.filter(t => t.date.substring(0, 7) === extractMonth);
+    
+    console.log(`🔄 TRANSFERÊNCIAS DEBUG COMPLETO:`, {
       extractAccount,
       accountId,
       accountObj,
+      extractMonth,
       totalTransfers: transfers.length,
-      transfersInMonth: transfers.filter(t => t.date.substring(0, 7) === extractMonth).length
+      transfersInMonth: transfersInMonth.length,
+      allAccounts: accounts.map(a => ({ id: a.id, name: a.name })),
+      transfersInMonthDetails: transfersInMonth.map(t => ({
+        date: t.date,
+        fromAccount: t.fromAccount,
+        toAccount: t.toAccount,
+        amount: t.amount,
+        description: t.description
+      }))
     });
     
     transfers
       .filter(transfer => {
         const matchesMonth = transfer.date.substring(0, 7) === extractMonth;
-        const matchesAccount = transfer.fromAccount === accountId || transfer.toAccount === accountId ||
-                             transfer.fromAccount === extractAccount || transfer.toAccount === extractAccount;
         
-        if (matchesMonth && matchesAccount) {
-          console.log(`✅ TRANSFERÊNCIA ENCONTRADA:`, {
-            date: transfer.date,
+        // Testar diferentes tipos de matching
+        const matchByFromId = transfer.fromAccount === accountId;
+        const matchByToId = transfer.toAccount === accountId;
+        const matchByFromName = transfer.fromAccount === extractAccount;
+        const matchByToName = transfer.toAccount === extractAccount;
+        
+        const matchesAccount = matchByFromId || matchByToId || matchByFromName || matchByToName;
+        
+        console.log(`🔍 TESTANDO TRANSFER ${transfer.date}:`, {
+          transfer: {
             fromAccount: transfer.fromAccount,
             toAccount: transfer.toAccount,
-            amount: transfer.amount,
-            matchedBy: transfer.fromAccount === accountId ? 'fromAccount-ID' : 
-                      transfer.toAccount === accountId ? 'toAccount-ID' :
-                      transfer.fromAccount === extractAccount ? 'fromAccount-Name' : 'toAccount-Name'
-          });
-        }
+            amount: transfer.amount
+          },
+          tests: {
+            matchesMonth,
+            matchByFromId,
+            matchByToId, 
+            matchByFromName,
+            matchByToName,
+            matchesAccount
+          },
+          target: {
+            extractAccount,
+            accountId
+          }
+        });
         
         return matchesMonth && matchesAccount;
       })
@@ -159,26 +214,50 @@ const DailyAccountSummary: React.FC = () => {
         
         const isOutgoing = transfer.fromAccount === accountId || transfer.fromAccount === extractAccount;
         
+        console.log(`✅ PROCESSANDO TRANSFERÊNCIA:`, {
+          date: transfer.date,
+          amount: transfer.amount,
+          fromAccount: transfer.fromAccount,
+          toAccount: transfer.toAccount,
+          fromAccountName,
+          toAccountName,
+          isOutgoing,
+          accountId,
+          extractAccount
+        });
+        
         if (isOutgoing) {
           // Saída da conta
           movements.push({
             date: transfer.date,
-            description: `Transferência para ${toAccountName} - ${transfer.description || ''}`.trim(),
+            description: `Transferência para ${toAccountName}${transfer.description ? ' - ' + transfer.description : ''}`,
             amount: transfer.amount,
             type: 'saida'
           });
-          console.log(`💸 SAÍDA: ${transfer.amount} para ${toAccountName}`);
+          console.log(`💸 ADICIONADA SAÍDA: R$ ${transfer.amount} para ${toAccountName}`);
         } else {
           // Entrada na conta
           movements.push({
             date: transfer.date,
-            description: `Transferência de ${fromAccountName} - ${transfer.description || ''}`.trim(),
+            description: `Transferência de ${fromAccountName}${transfer.description ? ' - ' + transfer.description : ''}`,
             amount: transfer.amount,
             type: 'entrada'
           });
-          console.log(`💰 ENTRADA: ${transfer.amount} de ${fromAccountName}`);
+          console.log(`💰 ADICIONADA ENTRADA: R$ ${transfer.amount} de ${fromAccountName}`);
         }
       });
+
+    console.log(`📋 MOVIMENTOS FINAIS:`, {
+      total: movements.length,
+      entradas: movements.filter(m => m.type === 'entrada').length,
+      saidas: movements.filter(m => m.type === 'saida').length,
+      movements: movements.map(m => ({
+        date: m.date,
+        type: m.type,
+        amount: m.amount,
+        description: m.description.substring(0, 50)
+      }))
+    });
 
     // Ordenar por data
     return movements.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
