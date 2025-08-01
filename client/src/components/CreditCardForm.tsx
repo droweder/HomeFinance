@@ -44,7 +44,6 @@ const CreditCardForm: React.FC<CreditCardFormProps> = ({ creditCard, onClose, on
     account: '',
     description: '',
     location: '',
-    paid: false,
     isInstallment: false,
     totalInstallments: 1,
   });
@@ -61,7 +60,6 @@ const CreditCardForm: React.FC<CreditCardFormProps> = ({ creditCard, onClose, on
         account: creditCard.paymentMethod,
         description: creditCard.description,
         location: creditCard.location || '',
-        paid: creditCard.paid || false,
         isInstallment: creditCard.isInstallment || false,
         totalInstallments: creditCard.totalInstallments || 1,
       });
@@ -143,7 +141,6 @@ const CreditCardForm: React.FC<CreditCardFormProps> = ({ creditCard, onClose, on
         amount: baseAmount,
         paymentMethod: formData.account,
         location: formData.location,
-        paid: formData.paid,
         // Preservar informações de parcelas se existirem
         isInstallment: creditCard.isInstallment,
         installmentNumber: creditCard.installmentNumber,
@@ -183,7 +180,6 @@ const CreditCardForm: React.FC<CreditCardFormProps> = ({ creditCard, onClose, on
             totalInstallments: formData.totalInstallments,
             installmentGroup: installmentGroup,
             isCreditCard: true,
-            paid: formData.paid,
           };
 
           console.log(`📝 Criando parcela ${i + 1}/${formData.totalInstallments}:`, creditCardData);
@@ -200,7 +196,6 @@ const CreditCardForm: React.FC<CreditCardFormProps> = ({ creditCard, onClose, on
           location: formData.location,
           isInstallment: false,
           isCreditCard: true,
-          paid: formData.paid,
         };
 
         console.log('📝 Criando cartão de crédito único:', creditCardData);
@@ -221,7 +216,6 @@ const CreditCardForm: React.FC<CreditCardFormProps> = ({ creditCard, onClose, on
     account: 'Cartão',
     description: 'Descrição',
     location: 'Local/Pessoa',
-    paid: 'Pago',
     installment: 'Parcelar esta despesa',
     installments: 'Número de Parcelas',
     dueDates: 'Datas de Vencimento das Parcelas',
@@ -376,19 +370,6 @@ const CreditCardForm: React.FC<CreditCardFormProps> = ({ creditCard, onClose, on
               className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500 dark:bg-gray-700 dark:text-white"
               placeholder="Local ou pessoa (opcional)"
             />
-          </div>
-
-          <div className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              id="paid"
-              checked={formData.paid}
-              onChange={(e) => setFormData({ ...formData, paid: e.target.checked })}
-              className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
-            />
-            <label htmlFor="paid" className="text-sm font-medium text-gray-700 dark:text-gray-300">
-              {labels.paid}
-            </label>
           </div>
 
           {/* Parcelamento - apenas para novos cartões */}
