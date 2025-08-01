@@ -9,6 +9,7 @@ interface CreditCardContextType {
   updateCreditCard: (id: string, creditCard: Partial<CreditCard>) => Promise<void>;
   deleteCreditCard: (id: string) => Promise<void>;
   syncInvoiceToExpenses: (paymentMethod: string, targetDate: string) => Promise<void>;
+  syncAllInvoicesToExpenses: () => Promise<void>;
   loading: boolean;
 }
 
@@ -323,6 +324,100 @@ export const CreditCardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     }
   };
 
+  // Function to sync ALL existing credit card records to expenses as invoices
+  const syncAllInvoicesToExpenses = async () => {
+    if (!user) return;
+
+    try {
+      console.log('🔄 Starting bulk sync of ALL credit card invoices...');
+      
+      // Group all credit cards by payment method and month
+      const invoiceGroups: Record<string, number> = {};
+      
+      creditCards.forEach(cc => {
+        const date = new Date(cc.date + 'T00:00:00');
+        const monthKey = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
+        const groupKey = `${cc.paymentMethod}|${monthKey}`;
+        
+        if (!invoiceGroups[groupKey]) {
+          invoiceGroups[groupKey] = 0;
+        }
+        invoiceGroups[groupKey] += cc.amount;
+      });
+
+      console.log(`💳 Found ${Object.keys(invoiceGroups).length} invoice groups to sync`);
+
+      // Process each invoice group
+      let processed = 0;
+      for (const [groupKey, total] of Object.entries(invoiceGroups)) {
+        const [paymentMethod, monthKey] = groupKey.split('|');
+        const invoiceDescription = `Fatura ${paymentMethod} - ${monthKey}`;
+        
+        try {
+          // Check if invoice already exists
+          const { data: existingInvoices, error: searchError } = await supabase
+            .from('expenses')
+            .select('*')
+            .eq('user_id', user.id)
+            .eq('description', invoiceDescription)
+            .limit(1);
+
+          if (searchError) {
+            console.error(`Error searching for invoice ${invoiceDescription}:`, searchError);
+            continue;
+          }
+
+          // Create invoice date (last day of the month)
+          const [year, month] = monthKey.split('-');
+          const invoiceDate = new Date(parseInt(year), parseInt(month), 0).toISOString().split('T')[0];
+
+          if (existingInvoices && existingInvoices.length > 0) {
+            // Update existing invoice
+            const { error: updateError } = await supabase
+              .from('expenses')
+              .update({
+                amount: total,
+                date: invoiceDate,
+              })
+              .eq('id', existingInvoices[0].id);
+
+            if (!updateError) {
+              console.log(`✅ Updated: ${invoiceDescription} - R$ ${total.toFixed(2)}`);
+              processed++;
+            }
+          } else {
+            // Create new invoice
+            const { error: insertError } = await supabase
+              .from('expenses')
+              .insert([{
+                date: invoiceDate,
+                category: 'Cartão de Crédito',
+                description: invoiceDescription,
+                amount: total,
+                payment_method: 'Débito',
+                location: 'Fatura Automática',
+                is_credit_card: false,
+                paid: false,
+                user_id: user.id,
+              }]);
+
+            if (!insertError) {
+              console.log(`✅ Created: ${invoiceDescription} - R$ ${total.toFixed(2)}`);
+              processed++;
+            }
+          }
+        } catch (error) {
+          console.error(`Error processing invoice ${invoiceDescription}:`, error);
+        }
+      }
+
+      console.log(`🎉 Bulk sync completed! Processed ${processed} invoices from ${creditCards.length} credit card records`);
+      
+    } catch (error) {
+      console.error('Error in bulk sync:', error);
+    }
+  };
+
   return (
     <CreditCardContext.Provider
       value={{
@@ -331,6 +426,7 @@ export const CreditCardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         updateCreditCard,
         deleteCreditCard,
         syncInvoiceToExpenses,
+        syncAllInvoicesToExpenses,
         loading,
       }}
     >

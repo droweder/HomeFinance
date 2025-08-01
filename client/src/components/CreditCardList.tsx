@@ -7,7 +7,7 @@ import CreditCardForm from './CreditCardForm';
 import ConfirmDialog from './ConfirmDialog';
 
 const CreditCardList: React.FC = () => {
-  const { creditCards, deleteCreditCard } = useCreditCard();
+  const { creditCards, deleteCreditCard, syncAllInvoicesToExpenses } = useCreditCard();
   const { formatCurrency, formatDate, settings } = useSettings();
   const [showForm, setShowForm] = useState(false);
   const [editingCreditCard, setEditingCreditCard] = useState<CreditCard | null>(null);
@@ -25,6 +25,41 @@ const CreditCardList: React.FC = () => {
   });
   const [selectedCards, setSelectedCards] = useState<Set<string>>(new Set());
   const [confirmDeleteCard, setConfirmDeleteCard] = useState<CreditCard | null>(null);
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  // Handler functions
+  const handleDeleteCard = async () => {
+    if (confirmDeleteCard) {
+      try {
+        await deleteCreditCard(confirmDeleteCard.id);
+        setConfirmDeleteCard(null);
+      } catch (error) {
+        console.error('Erro ao deletar cartão de crédito:', error);
+      }
+    }
+  };
+
+  const handleSyncAllInvoices = async () => {
+    setIsSyncing(true);
+    try {
+      await syncAllInvoicesToExpenses();
+      console.log('✅ Todas as faturas foram sincronizadas com a aba Despesas!');
+    } catch (error) {
+      console.error('Erro ao sincronizar faturas:', error);
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const handleEditCard = (card: CreditCard) => {
+    setEditingCreditCard(card);
+    setShowForm(true);
+  };
+
+  const handleCloseForm = () => {
+    setShowForm(false);
+    setEditingCreditCard(null);
+  };
   const [selectedMonth, setSelectedMonth] = useState<string>(() => {
     const now = new Date();
     return `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}`;
@@ -51,27 +86,6 @@ const CreditCardList: React.FC = () => {
   // Handle month changes with navigation
   const handleMonthChange = (newMonth: string) => {
     setSelectedMonth(newMonth);
-  };
-
-  const handleEditCard = (card: CreditCard) => {
-    setEditingCreditCard(card);
-    setShowForm(true);
-  };
-
-  const handleDeleteCard = async () => {
-    if (confirmDeleteCard) {
-      try {
-        await deleteCreditCard(confirmDeleteCard.id);
-        setConfirmDeleteCard(null);
-      } catch (error) {
-        console.error('Erro ao deletar cartão de crédito:', error);
-      }
-    }
-  };
-
-  const handleCloseForm = () => {
-    setShowForm(false);
-    setEditingCreditCard(null);
   };
 
   const handleSelectCard = (cardId: string) => {
@@ -276,6 +290,19 @@ const CreditCardList: React.FC = () => {
 
                 {/* Action Buttons */}
                 <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleSyncAllInvoices}
+                    disabled={isSyncing}
+                    className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 shadow-sm ${
+                      isSyncing 
+                        ? 'bg-gray-400 cursor-not-allowed text-white' 
+                        : 'bg-green-600 hover:bg-green-700 text-white'
+                    }`}
+                  >
+                    <Package className="w-4 h-4" />
+                    {isSyncing ? 'Sincronizando...' : 'Sincronizar Faturas'}
+                  </button>
+
                   <button
                     onClick={() => setShowForm(true)}
                     className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 shadow-sm"
