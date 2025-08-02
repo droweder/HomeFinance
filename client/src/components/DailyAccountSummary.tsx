@@ -62,6 +62,17 @@ const DailyAccountSummary: React.FC = () => {
     return Array.from(months).sort().reverse(); // Most recent first
   }, [expenses, income, transfers]);
 
+  // Sync selectedMonth with filter startDate to ensure consistency
+  React.useEffect(() => {
+    if (filters.dailySummary.startDate) {
+      const filterDate = new Date(filters.dailySummary.startDate);
+      const filterMonth = `${filterDate.getFullYear()}-${(filterDate.getMonth() + 1).toString().padStart(2, '0')}`;
+      if (filterMonth !== selectedMonth) {
+        setSelectedMonth(filterMonth);
+      }
+    }
+  }, [filters.dailySummary.startDate, selectedMonth]);
+
   // Update filters when month changes
   const handleMonthChange = (newMonth: string) => {
     setSelectedMonth(newMonth);

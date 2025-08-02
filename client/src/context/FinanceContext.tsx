@@ -122,7 +122,32 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
       if (stored) {
         const parsed = JSON.parse(stored);
         console.log('📖 Filtros carregados do localStorage');
-        return { ...getDefaultFilters(), ...parsed };
+        
+        // Validate dailySummary dates and reset if too old/future
+        const defaults = getDefaultFilters();
+        const correctedFilters = { ...defaults, ...parsed };
+        
+        // Check if dailySummary dates are invalid (more than 6 months old or future)
+        if (correctedFilters.dailySummary?.startDate) {
+          const startDate = new Date(correctedFilters.dailySummary.startDate);
+          const now = new Date();
+          const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 6, 1);
+          const twoMonthsFromNow = new Date(now.getFullYear(), now.getMonth() + 2, 1);
+          
+          if (startDate < sixMonthsAgo || startDate > twoMonthsFromNow) {
+            console.log('🔄 Resetando datas do dailySummary para o mês atual');
+            correctedFilters.dailySummary = {
+              ...correctedFilters.dailySummary,
+              startDate: defaults.dailySummary.startDate,
+              endDate: defaults.dailySummary.endDate,
+            };
+            
+            // Save corrected filters back to localStorage
+            localStorage.setItem('finance-app-filters', JSON.stringify(correctedFilters));
+          }
+        }
+        
+        return correctedFilters;
       }
     } catch (error) {
       console.error('❌ Erro ao carregar filtros:', error);
