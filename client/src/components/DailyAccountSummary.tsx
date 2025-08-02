@@ -62,31 +62,29 @@ const DailyAccountSummary: React.FC = () => {
     return Array.from(months).sort().reverse(); // Most recent first
   }, [expenses, income, transfers]);
 
-  // Initialize filters with the current month when the component mounts
+  // Force current month on component mount - ignore any stored filters
   React.useEffect(() => {
-    if (selectedMonth && (!filters.dailySummary.startDate || !filters.dailySummary.endDate)) {
-      const [year, monthNum] = selectedMonth.split('-');
-      const startDate = new Date(parseInt(year), parseInt(monthNum) - 1, 1);
-      const endDate = new Date(parseInt(year), parseInt(monthNum), 0); // Last day of month
-      
-      updateFilters('dailySummary', {
-        startDate: startDate.toISOString().split('T')[0],
-        endDate: endDate.toISOString().split('T')[0],
-        visibleAccounts: filters.dailySummary.visibleAccounts,
-      });
+    const now = new Date();
+    const currentMonth = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}`;
+    
+    // Always force current month, regardless of selectedMonth value
+    const [year, monthNum] = currentMonth.split('-');
+    const startDate = new Date(parseInt(year), parseInt(monthNum) - 1, 1);
+    const endDate = new Date(parseInt(year), parseInt(monthNum), 0); // Last day of month
+    
+    console.log('🔄 Forçando mês atual no DailyAccountSummary:', currentMonth);
+    
+    // Force update both selectedMonth and filters
+    if (selectedMonth !== currentMonth) {
+      setSelectedMonth(currentMonth);
     }
-  }, [selectedMonth]);
-
-  // Sync selectedMonth with filter startDate to ensure consistency
-  React.useEffect(() => {
-    if (filters.dailySummary.startDate && selectedMonth) {
-      const filterDate = new Date(filters.dailySummary.startDate);
-      const filterMonth = `${filterDate.getFullYear()}-${(filterDate.getMonth() + 1).toString().padStart(2, '0')}`;
-      if (filterMonth !== selectedMonth && availableMonths.includes(filterMonth)) {
-        setSelectedMonth(filterMonth);
-      }
-    }
-  }, [filters.dailySummary.startDate, selectedMonth, availableMonths]);
+    
+    updateFilters('dailySummary', {
+      startDate: startDate.toISOString().split('T')[0],
+      endDate: endDate.toISOString().split('T')[0],
+      visibleAccounts: filters.dailySummary.visibleAccounts,
+    });
+  }, []); // Run only once on mount
 
   // Update filters when month changes
   const handleMonthChange = (newMonth: string) => {

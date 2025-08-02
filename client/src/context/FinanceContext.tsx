@@ -127,14 +127,14 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
         const defaults = getDefaultFilters();
         const correctedFilters = { ...defaults, ...parsed };
         
-        // Check if dailySummary dates are invalid (more than 6 months old or future)
+        // Always force dailySummary to current month for consistency
         if (correctedFilters.dailySummary?.startDate) {
           const startDate = new Date(correctedFilters.dailySummary.startDate);
           const now = new Date();
-          const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 6, 1);
-          const twoMonthsFromNow = new Date(now.getFullYear(), now.getMonth() + 2, 1);
+          const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
           
-          if (startDate < sixMonthsAgo || startDate > twoMonthsFromNow) {
+          // If not exactly the current month, reset to current month
+          if (startDate.getTime() !== currentMonthStart.getTime()) {
             console.log('🔄 Resetando datas do dailySummary para o mês atual');
             correctedFilters.dailySummary = {
               ...correctedFilters.dailySummary,
