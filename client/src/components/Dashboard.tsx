@@ -72,10 +72,7 @@ const Dashboard: React.FC = () => {
 
   // 1. SEÇÃO: Visão Geral Financeira
   const financialOverview = useMemo(() => {
-    // Saldo total das contas
-    const totalBalance = accounts.reduce((sum, account) => sum + account.initialBalance, 0);
-
-    // Receitas do mês atual
+    // Receitas do mês selecionado
     const monthlyIncome = income
       .filter(inc => {
         const incomeDate = new Date(inc.date);
@@ -100,8 +97,49 @@ const Dashboard: React.FC = () => {
       })
       .reduce((sum, cc) => sum + cc.amount, 0);
 
+    // Transferências do mês selecionado
+    const monthlyTransfersIn = transfers
+      .filter(transfer => {
+        const transferDate = new Date(transfer.date);
+        return transferDate.getMonth() === currentMonth && transferDate.getFullYear() === currentYear;
+      })
+      .reduce((sum, transfer) => sum + transfer.amount, 0);
+
+    const monthlyTransfersOut = transfers
+      .filter(transfer => {
+        const transferDate = new Date(transfer.date);
+        return transferDate.getMonth() === currentMonth && transferDate.getFullYear() === currentYear;
+      })
+      .reduce((sum, transfer) => sum + transfer.amount, 0);
+
     const totalMonthlySpending = monthlyExpenses + monthlyCreditCards;
     const monthlyResult = monthlyIncome - totalMonthlySpending;
+
+    // Saldo total disponível: saldo inicial + receitas acumuladas - gastos acumulados + transferências líquidas
+    // Calculando acumulado até o final do mês selecionado
+    const endOfSelectedMonth = new Date(currentYear, currentMonth + 1, 0); // Último dia do mês selecionado
+    
+    const accumulatedIncome = income
+      .filter(inc => new Date(inc.date) <= endOfSelectedMonth)
+      .reduce((sum, inc) => sum + inc.amount, 0);
+
+    const accumulatedExpenses = expenses
+      .filter(exp => new Date(exp.date) <= endOfSelectedMonth && exp.category !== 'Cartão de Crédito')
+      .reduce((sum, exp) => sum + exp.amount, 0);
+
+    const accumulatedCreditCards = creditCards
+      .filter(cc => new Date(cc.date) <= endOfSelectedMonth)
+      .reduce((sum, cc) => sum + cc.amount, 0);
+
+    const accumulatedTransfersNet = transfers
+      .filter(transfer => new Date(transfer.date) <= endOfSelectedMonth)
+      .reduce((sum, transfer) => {
+        // Assume que transferências internas não alteram saldo total geral
+        return sum; // Para saldo geral, transferências se cancelam
+      }, 0);
+
+    const initialBalance = accounts.reduce((sum, account) => sum + account.initialBalance, 0);
+    const totalBalance = initialBalance + accumulatedIncome - accumulatedExpenses - accumulatedCreditCards + accumulatedTransfersNet;
 
     return {
       totalBalance,
@@ -109,7 +147,7 @@ const Dashboard: React.FC = () => {
       totalMonthlySpending,
       monthlyResult
     };
-  }, [accounts, income, expenses, creditCards, currentMonth, currentYear]);
+  }, [accounts, income, expenses, creditCards, transfers, currentMonth, currentYear]);
 
   // 2. SEÇÃO: Cartões de Crédito
   const creditCardAnalysis = useMemo(() => {
@@ -363,7 +401,7 @@ const Dashboard: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <StatCard
               title="Saldo Total Disponível"
-              subtitle="Todas as contas"
+              subtitle={`Posição em ${currentMonthName}`}
               value={formatCurrency(financialOverview.totalBalance)}
               icon={<Wallet className="w-6 h-6" />}
               color="blue"
@@ -474,7 +512,7 @@ const Dashboard: React.FC = () => {
                           </div>
                         </div>
                         <div className="w-16 text-xs text-gray-900 dark:text-white text-right">
-                          {formatCurrency(month.value).replace('R$', '')}
+                          {formatCurrency(Number(month.value)).replace('R$', '')}
                         </div>
                       </div>
                     );
