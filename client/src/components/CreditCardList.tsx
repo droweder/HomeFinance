@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Plus, Edit2, Trash2, Calendar, CreditCard as CreditCardIcon, Filter, Search, X, Package, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Edit2, Trash2, Calendar, CreditCard as CreditCardIcon, Filter, Search, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useCreditCard } from '../context/CreditCardContext';
 import { useSettings } from '../context/SettingsContext';
 import { CreditCard } from '../types/index';
@@ -7,7 +7,7 @@ import CreditCardForm from './CreditCardForm';
 import ConfirmDialog from './ConfirmDialog';
 
 const CreditCardList: React.FC = () => {
-  const { creditCards, deleteCreditCard, syncAllInvoicesToExpenses } = useCreditCard();
+  const { creditCards, deleteCreditCard } = useCreditCard();
   const { formatCurrency, formatDate, settings } = useSettings();
   const [showForm, setShowForm] = useState(false);
   const [editingCreditCard, setEditingCreditCard] = useState<CreditCard | null>(null);

@@ -56,26 +56,17 @@ const Settings: React.FC = () => {
     
     setLoadingProfile(true);
     try {
-      const { data, error } = await supabase.auth.admin.getUserById(currentUser.id);
-      if (error) {
-        console.error('Erro ao carregar perfil do usuário:', error);
-        showError('Erro', 'Não foi possível carregar o perfil do usuário.');
+      // Use the simpler getUser method since admin access is not available
+      const { data: userData, error: userError } = await supabase.auth.getUser();
+      if (!userError && userData.user) {
+        setUserProfile(userData.user);
       } else {
-        setUserProfile(data.user);
+        console.error('Erro ao carregar dados do usuário:', userError);
+        showError('Erro', 'Não foi possível carregar o perfil do usuário.');
       }
     } catch (error) {
-      // Try alternative method using RPC or regular user data
-      try {
-        const { data: userData, error: userError } = await supabase.auth.getUser();
-        if (!userError && userData.user) {
-          setUserProfile(userData.user);
-        } else {
-          console.error('Erro ao carregar dados do usuário:', userError);
-        }
-      } catch (fallbackError) {
-        console.error('Erro completo ao carregar perfil:', fallbackError);
-        showError('Erro', 'Não foi possível carregar o perfil do usuário.');
-      }
+      console.error('Erro completo ao carregar perfil:', error);
+      showError('Erro', 'Não foi possível carregar o perfil do usuário.');
     } finally {
       setLoadingProfile(false);
     }
