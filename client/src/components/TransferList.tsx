@@ -19,7 +19,10 @@ const TransferList: React.FC = () => {
   const [tempFilters, setTempFilters] = useState(filters.transfers);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [transferToDelete, setTransferToDelete] = useState<string | null>(null);
-  const [selectedMonth, setSelectedMonth] = useState<string>('');
+  const [selectedMonth, setSelectedMonth] = useState<string>(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}`;
+  });
 
   // Export CSV functionality
   const handleExportCSV = () => {
@@ -84,12 +87,7 @@ const TransferList: React.FC = () => {
     return Array.from(months).sort().reverse(); // Most recent first
   }, [transfers]);
 
-  // Initialize selectedMonth with the first available month when data loads
-  React.useEffect(() => {
-    if (availableMonths.length > 0 && !selectedMonth) {
-      setSelectedMonth(availableMonths[0]); // Most recent month with transfers
-    }
-  }, [availableMonths, selectedMonth]);
+
 
   // PERFORMANCE: Monthly filtering reduces dataset - now filter the monthly data
   const filteredTransfers = monthFilteredTransfers.filter(transfer => {
