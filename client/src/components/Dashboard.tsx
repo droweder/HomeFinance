@@ -129,60 +129,63 @@ const Dashboard: React.FC = () => {
       .sort(([,a], [,b]) => (b as number) - (a as number))
       .slice(0, 5);
 
-    // Conta mais utilizada (apenas transações financeiras, não transferências)
-    const filteredExpensesForAccount = expenses.filter(exp => exp.category !== 'Cartão de Crédito');
-    const accountUsage = [...filteredExpensesForAccount, ...creditCards, ...income]
+    // Maiores transações do mês
+    const biggestTransactions = [...filteredExpenses, ...creditCards]
       .filter(item => {
         const itemDate = new Date(item.date);
         return itemDate.getMonth() === currentMonth && itemDate.getFullYear() === currentYear;
       })
-      .reduce((acc, item) => {
-        const account = 'paymentMethod' in item ? item.paymentMethod : 
-                       'account' in item ? item.account : '';
-        if (account) {
-          acc[account] = (acc[account] || 0) + 1;
-        }
-        return acc;
-      }, {} as Record<string, number>);
+      .sort((a, b) => b.amount - a.amount)
+      .slice(0, 3);
 
-    const mostUsedAccount = Object.entries(accountUsage)
-      .sort(([,a], [,b]) => (b as number) - (a as number))[0] || ['Nenhuma', 0];
+    // Análise de economia (comparando com o maior gasto histórico mensal)
+    const allMonthlyTotals = Object.values(allMonthsSpending) as number[];
+    const maxMonthlySpending = Math.max(...allMonthlyTotals, 0);
+    const savingsVsWorstMonth = maxMonthlySpending > 0 ? maxMonthlySpending - financialOverview.totalMonthlySpending : 0;
 
-    // Comparação com mês anterior
-    const previousMonth = currentMonth === 0 ? 11 : currentMonth - 1;
-    const previousYear = currentMonth === 0 ? currentYear - 1 : currentYear;
+    // Análise multi-mensal (últimos 6 meses)
+    const last6Months = [];
+    for (let i = 5; i >= 0; i--) {
+      const date = new Date(currentYear, currentMonth - i, 1);
+      const month = date.getMonth();
+      const year = date.getFullYear();
+      const monthKey = `${year}-${month}`;
+      
+      const monthName = date.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' });
+      const spending = allMonthsSpending[monthKey] || 0;
+      
+      last6Months.push({
+        name: monthName,
+        value: spending,
+        isCurrentMonth: month === currentMonth && year === currentYear
+      });
+    }
 
-    const previousMonthExpenses = expenses
-      .filter(exp => {
-        const expenseDate = new Date(exp.date);
-        return expenseDate.getMonth() === previousMonth && 
-               expenseDate.getFullYear() === previousYear &&
-               exp.category !== 'Cartão de Crédito';
-      })
-      .reduce((sum, exp) => sum + exp.amount, 0);
-
-    const previousMonthCreditCards = creditCards
-      .filter(cc => {
-        const ccDate = new Date(cc.date);
-        return ccDate.getMonth() === previousMonth && ccDate.getFullYear() === previousYear;
-      })
-      .reduce((sum, cc) => sum + cc.amount, 0);
-
-    const previousMonthSpending = previousMonthExpenses + previousMonthCreditCards;
-
-    const spendingComparison = previousMonthSpending > 0 
-      ? ((financialOverview.totalMonthlySpending - previousMonthSpending) / previousMonthSpending) * 100
+    // Tendência geral (comparando primeiro com último mês da série)
+    const firstMonthSpending = last6Months[0]?.value || 0;
+    const lastMonthSpending = last6Months[last6Months.length - 1]?.value || 0;
+    const overallTrend = firstMonthSpending > 0 
+      ? ((lastMonthSpending - firstMonthSpending) / firstMonthSpending) * 100
       : 0;
+
+    // Mês com maior e menor gasto
+    const maxSpendingMonth = last6Months.reduce((max, month) => month.value > max.value ? month : max, last6Months[0] || { name: '', value: 0 });
+    const minSpendingMonth = last6Months.reduce((min, month) => month.value < min.value && month.value > 0 ? month : min, last6Months[0] || { name: '', value: Infinity });
+
+    // Média dos últimos 6 meses
+    const avgLast6Months = last6Months.reduce((sum, month) => sum + month.value, 0) / last6Months.length;
 
     return {
       topCategories,
-      mostUsedAccount: {
-        name: mostUsedAccount[0],
-        usage: mostUsedAccount[1]
-      },
-      spendingComparison
+      biggestTransactions,
+      savingsVsWorstMonth,
+      last6Months,
+      overallTrend,
+      maxSpendingMonth,
+      minSpendingMonth,
+      avgLast6Months
     };
-  }, [expenses, creditCards, income, transfers, currentMonth, currentYear, financialOverview.totalMonthlySpending]);
+  }, [expenses, creditCards, income, transfers, currentMonth, currentYear, financialOverview.totalMonthlySpending, allMonthsSpending]);
 
   // 4. SEÇÃO: Alertas e Tendências
   const alertsAndTrends = useMemo(() => {
@@ -361,7 +364,7 @@ const Dashboard: React.FC = () => {
           {/* SEÇÃO 3: Análises Inteligentes */}
           <div>
             <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Análises Inteligentes</h2>
-            <div className="space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Top 5 Categorias */}
               <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
                 <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4 flex items-center">
@@ -383,31 +386,88 @@ const Dashboard: React.FC = () => {
                 </div>
               </div>
 
-              {/* Conta Mais Utilizada */}
-              <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
-                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4 flex items-center">
-                  <Users className="w-5 h-5 mr-2 text-green-600" />
-                  Conta Mais Utilizada
-                </h3>
-                <div className="text-center">
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">{intelligentAnalysis.mostUsedAccount.name}</p>
-                  <p className="text-gray-600 dark:text-gray-400">{intelligentAnalysis.mostUsedAccount.usage as number} transações este mês</p>
-                </div>
-              </div>
-
-              {/* Comparação com Mês Anterior */}
+              {/* Análise Multi-Mensal */}
               <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
                 <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4 flex items-center">
                   <BarChart3 className="w-5 h-5 mr-2 text-purple-600" />
-                  Comparação com Mês Anterior
+                  Evolução dos Últimos 6 Meses
                 </h3>
-                <div className="text-center">
-                  <p className={`text-2xl font-bold ${intelligentAnalysis.spendingComparison >= 0 ? 'text-red-600' : 'text-green-600'}`}>
-                    {intelligentAnalysis.spendingComparison >= 0 ? '+' : ''}{intelligentAnalysis.spendingComparison.toFixed(1)}%
-                  </p>
-                  <p className="text-gray-600 dark:text-gray-400">
-                    {intelligentAnalysis.spendingComparison >= 0 ? 'Aumento nos gastos' : 'Redução nos gastos'}
-                  </p>
+                
+                {/* Gráfico de barras simples */}
+                <div className="space-y-2 mb-4">
+                  {intelligentAnalysis.last6Months.map((month: any, index: number) => {
+                    const maxValue = Math.max(...intelligentAnalysis.last6Months.map((m: any) => m.value));
+                    const percentage = maxValue > 0 ? (month.value / maxValue) * 100 : 0;
+                    
+                    return (
+                      <div key={index} className="flex items-center">
+                        <div className="w-10 text-xs text-gray-600 dark:text-gray-400">{month.name}</div>
+                        <div className="flex-1 mx-2">
+                          <div className="bg-gray-200 dark:bg-gray-700 rounded-full h-3 relative">
+                            <div 
+                              className={`h-3 rounded-full ${month.isCurrentMonth ? 'bg-blue-500' : 'bg-purple-500'}`}
+                              style={{ width: `${percentage}%` }}
+                            />
+                          </div>
+                        </div>
+                        <div className="w-16 text-xs text-gray-900 dark:text-white text-right">
+                          {formatCurrency(month.value).replace('R$', '')}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Estatísticas */}
+                <div className="grid grid-cols-2 gap-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+                  <div className="text-center">
+                    <p className={`text-sm font-bold ${intelligentAnalysis.overallTrend >= 0 ? 'text-red-600' : 'text-green-600'}`}>
+                      {intelligentAnalysis.overallTrend >= 0 ? '+' : ''}{intelligentAnalysis.overallTrend.toFixed(1)}%
+                    </p>
+                    <p className="text-xs text-gray-600 dark:text-gray-400">Tendência</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-sm font-bold text-gray-900 dark:text-white">{formatCurrency(intelligentAnalysis.avgLast6Months).replace('R$', 'R$')}</p>
+                    <p className="text-xs text-gray-600 dark:text-gray-400">Média</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Grid para os cards menores */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 lg:col-span-2">
+                {/* Maiores Transações */}
+                <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
+                  <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4 flex items-center">
+                    <DollarSign className="w-5 h-5 mr-2 text-green-600" />
+                    Maiores Transações do Mês
+                  </h3>
+                  <div className="space-y-3">
+                    {intelligentAnalysis.biggestTransactions.length > 0 ? intelligentAnalysis.biggestTransactions.map((transaction: any, index: number) => (
+                      <div key={index} className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{transaction.description}</p>
+                          <p className="text-xs text-gray-500">{transaction.category}</p>
+                        </div>
+                        <span className="font-semibold text-gray-900 dark:text-white ml-2">{formatCurrency(transaction.amount)}</span>
+                      </div>
+                    )) : (
+                      <p className="text-gray-500 dark:text-gray-400 text-center">Nenhuma transação este mês</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Economia vs Pior Mês */}
+                <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
+                  <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4 flex items-center">
+                    <Target className="w-5 h-5 mr-2 text-blue-600" />
+                    Economia vs Pior Mês
+                  </h3>
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-green-600">{formatCurrency(intelligentAnalysis.savingsVsWorstMonth)}</p>
+                    <p className="text-gray-600 dark:text-gray-400">
+                      {intelligentAnalysis.savingsVsWorstMonth > 0 ? 'economizados' : 'a mais que o recorde'}
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
