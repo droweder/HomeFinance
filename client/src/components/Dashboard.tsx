@@ -546,72 +546,30 @@ const Dashboard: React.FC = () => {
                 </div>
               </div>
 
-              {/* Grid para os cards menores */}
-              <div className="grid grid-cols-1 gap-4 lg:gap-6 md:col-span-2">
-                {/* Maiores Transações */}
-                <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
-                  <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4 flex items-center">
-                    <DollarSign className="w-5 h-5 mr-2 text-green-600" />
-                    Maiores Transações do Mês
-                  </h3>
-                  <div className="space-y-3">
-                    {intelligentAnalysis.biggestTransactions.length > 0 ? intelligentAnalysis.biggestTransactions.map((transaction: any, index: number) => (
-                      <div key={index} className="flex items-start justify-between gap-3">
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-gray-900 dark:text-white truncate" title={transaction.description}>
-                            {transaction.description}
-                          </p>
-                          <p className="text-xs text-gray-500 truncate" title={transaction.category}>
-                            {transaction.category}
-                          </p>
-                        </div>
-                        <span className="font-semibold text-gray-900 dark:text-white flex-shrink-0 text-sm">
-                          {formatCurrency(transaction.amount)}
-                        </span>
+              {/* Maiores Transações do Mês */}
+              <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700 md:col-span-2">
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4 flex items-center">
+                  <DollarSign className="w-5 h-5 mr-2 text-green-600" />
+                  Maiores Transações do Mês
+                </h3>
+                <div className="space-y-3">
+                  {intelligentAnalysis.biggestTransactions.length > 0 ? intelligentAnalysis.biggestTransactions.map((transaction: any, index: number) => (
+                    <div key={index} className="flex items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-900 dark:text-white truncate" title={transaction.description}>
+                          {transaction.description}
+                        </p>
+                        <p className="text-xs text-gray-500 truncate" title={transaction.category}>
+                          {transaction.category}
+                        </p>
                       </div>
-                    )) : (
-                      <p className="text-gray-500 dark:text-gray-400 text-center">Nenhuma transação este mês</p>
-                    )}
-                  </div>
-                </div>
-
-                {/* Parcelamentos Ativos */}
-                <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
-                  <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4 flex items-center">
-                    <Clock className="w-5 h-5 mr-2 text-orange-600" />
-                    Parcelamentos Ativos
-                  </h3>
-                  <div className="space-y-3">
-                    {alertsAndTrends.activeInstallmentsList && alertsAndTrends.activeInstallmentsList.length > 0 ? alertsAndTrends.activeInstallmentsList.map((installment: any, index: number) => (
-                      <div key={index} className="border-l-4 border-orange-500 pl-3">
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-gray-900 dark:text-white truncate" title={installment.description}>
-                              {installment.description}
-                            </p>
-                            <p className="text-xs text-gray-500 truncate" title={installment.category}>
-                              {installment.category}
-                            </p>
-                          </div>
-                          <div className="text-right flex-shrink-0">
-                            <p className="text-sm font-semibold text-gray-900 dark:text-white">
-                              {formatCurrency(installment.monthlyAmount)}/mês
-                            </p>
-                            <p className="text-xs text-orange-600">
-                              {installment.remainingInstallments}x restantes
-                            </p>
-                          </div>
-                        </div>
-                        <div className="mt-2">
-                          <p className="text-xs text-gray-500">
-                            Total restante: {formatCurrency(installment.totalAmount)}
-                          </p>
-                        </div>
-                      </div>
-                    )) : (
-                      <p className="text-gray-500 dark:text-gray-400 text-center">Nenhum parcelamento ativo</p>
-                    )}
-                  </div>
+                      <span className="font-semibold text-gray-900 dark:text-white flex-shrink-0 text-sm">
+                        {formatCurrency(transaction.amount)}
+                      </span>
+                    </div>
+                  )) : (
+                    <p className="text-gray-500 dark:text-gray-400 text-center">Nenhuma transação este mês</p>
+                  )}
                 </div>
               </div>
             </div>
@@ -630,6 +588,45 @@ const Dashboard: React.FC = () => {
                 subtitle={`Média histórica: ${formatCurrency(alertsAndTrends.monthlyAverageSpending)}`}
                 trend={alertsAndTrends.isAboveAverage ? "up" : "down"}
               />
+
+              {/* Parcelamentos Ativos */}
+              <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4 flex items-center">
+                  <Clock className="w-5 h-5 mr-2 text-orange-600" />
+                  Parcelamentos Ativos
+                </h3>
+                <div className="space-y-3">
+                  {alertsAndTrends.activeInstallmentsList && alertsAndTrends.activeInstallmentsList.length > 0 ? alertsAndTrends.activeInstallmentsList.map((installment: any, index: number) => (
+                    <div key={index} className="border-l-4 border-orange-500 pl-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-gray-900 dark:text-white truncate" title={installment.description}>
+                            {installment.description}
+                          </p>
+                          <p className="text-xs text-gray-500 truncate" title={installment.category}>
+                            {installment.category}
+                          </p>
+                        </div>
+                        <div className="text-right flex-shrink-0">
+                          <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                            {formatCurrency(installment.monthlyAmount)}/mês
+                          </p>
+                          <p className="text-xs text-orange-600">
+                            {installment.remainingInstallments}x restantes
+                          </p>
+                        </div>
+                      </div>
+                      <div className="mt-2">
+                        <p className="text-xs text-gray-500">
+                          Total restante: {formatCurrency(installment.totalAmount)}
+                        </p>
+                      </div>
+                    </div>
+                  )) : (
+                    <p className="text-gray-500 dark:text-gray-400 text-center">Nenhum parcelamento ativo</p>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         </div>
