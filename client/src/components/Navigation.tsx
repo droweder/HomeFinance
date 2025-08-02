@@ -3,6 +3,28 @@ import { BarChart3, CreditCard, TrendingUp, Menu, X, Settings, Calendar, LogOut,
 import { useAuth } from '../context/AuthContext';
 import { useSettings } from '../context/SettingsContext';
 
+// HomeFinance Custom Icon Component
+const HomeFinanceIcon = ({ className }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" className={className} fill="none" xmlns="http://www.w3.org/2000/svg">
+    {/* House shape */}
+    <path d="M3 13.5L12 4.5L21 13.5V21H15V16H9V21H3V13.5Z" fill="currentColor" stroke="currentColor" strokeWidth="0.5"/>
+    
+    {/* Roof line */}
+    <path d="M1 13.5L12 2.5L23 13.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+    
+    {/* Door */}
+    <rect x="10.5" y="16" width="3" height="5" fill="rgba(0,0,0,0.3)"/>
+    
+    {/* Dollar sign overlay */}
+    <circle cx="17" cy="10" r="3" fill="rgba(16,185,129,0.9)" stroke="rgba(5,120,87,0.9)" strokeWidth="0.5"/>
+    <path d="M16.2 8.5h1.6M16.2 11.5h1.6M17 7.8v0.7M17 11.5v0.7M15.8 9.3h2.4a0.8 0.8 0 0 1 0 1.6h-1.6a0.8 0.8 0 0 1 0 1.6h2.4" 
+          stroke="white" strokeWidth="0.6" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+    
+    {/* Window */}
+    <rect x="6" y="15" width="1.5" height="1.5" fill="rgba(96,165,250,0.8)"/>
+  </svg>
+);
+
 interface NavigationProps {
   activeTab: string;
   onTabChange: (tab: string) => void;
@@ -40,7 +62,7 @@ const Navigation: React.FC<NavigationProps> = ({ activeTab, onTabChange }) => {
         <div className="flex justify-between items-center h-16">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-blue-600 rounded-lg">
-              <BarChart3 className="w-6 h-6 text-white" />
+              <HomeFinanceIcon className="w-6 h-6 text-white" />
             </div>
             <div>
               <h1 className="text-xl font-bold text-gray-900 dark:text-white">HomeFinance</h1>
