@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -12,7 +12,9 @@ import {
   Wallet,
   PieChart,
   Users,
-  Clock
+  Clock,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { useFinance } from '../context/FinanceContext';
 import { useCreditCard } from '../context/CreditCardContext';
@@ -25,11 +27,48 @@ const Dashboard: React.FC = () => {
   const { accounts } = useAccounts();
   const { formatCurrency, settings } = useSettings();
 
-  // Data atual para cálculos
+  // Estado para controlar o mês selecionado
   const now = new Date();
-  const currentMonth = now.getMonth();
-  const currentYear = now.getFullYear();
+  const [selectedDate, setSelectedDate] = useState(new Date(now.getFullYear(), now.getMonth(), 1));
+  const currentMonth = selectedDate.getMonth();
+  const currentYear = selectedDate.getFullYear();
   const currentDate = now.toISOString().split('T')[0];
+
+  // Funções para navegação entre meses
+  const goToPreviousMonth = () => {
+    setSelectedDate(new Date(currentYear, currentMonth - 1, 1));
+  };
+
+  const goToNextMonth = () => {
+    setSelectedDate(new Date(currentYear, currentMonth + 1, 1));
+  };
+
+  const goToCurrentMonth = () => {
+    setSelectedDate(new Date(now.getFullYear(), now.getMonth(), 1));
+  };
+
+  // Calcula todos os gastos mensais primeiro (para usar em várias análises)
+  const allMonthsSpending = useMemo(() => {
+    const spending = {} as Record<string, number>;
+    
+    // Adicionar despesas (exceto faturas de cartão)
+    expenses
+      .filter(exp => exp.category !== 'Cartão de Crédito')
+      .forEach(exp => {
+        const itemDate = new Date(exp.date);
+        const monthKey = `${itemDate.getFullYear()}-${itemDate.getMonth()}`;
+        spending[monthKey] = (spending[monthKey] || 0) + exp.amount;
+      });
+    
+    // Adicionar cartões de crédito
+    creditCards.forEach(cc => {
+      const itemDate = new Date(cc.date);
+      const monthKey = `${itemDate.getFullYear()}-${itemDate.getMonth()}`;
+      spending[monthKey] = (spending[monthKey] || 0) + cc.amount;
+    });
+
+    return spending;
+  }, [expenses, creditCards]);
 
   // 1. SEÇÃO: Visão Geral Financeira
   const financialOverview = useMemo(() => {
@@ -189,25 +228,6 @@ const Dashboard: React.FC = () => {
 
   // 4. SEÇÃO: Alertas e Tendências
   const alertsAndTrends = useMemo(() => {
-    // Gastos acima da média histórica (despesas exceto faturas + cartões)
-    const allMonthsSpending = {} as Record<string, number>;
-    
-    // Adicionar despesas (exceto faturas de cartão)
-    expenses
-      .filter(exp => exp.category !== 'Cartão de Crédito')
-      .forEach(exp => {
-        const itemDate = new Date(exp.date);
-        const monthKey = `${itemDate.getFullYear()}-${itemDate.getMonth()}`;
-        allMonthsSpending[monthKey] = (allMonthsSpending[monthKey] || 0) + exp.amount;
-      });
-    
-    // Adicionar cartões de crédito
-    creditCards.forEach(cc => {
-      const itemDate = new Date(cc.date);
-      const monthKey = `${itemDate.getFullYear()}-${itemDate.getMonth()}`;
-      allMonthsSpending[monthKey] = (allMonthsSpending[monthKey] || 0) + cc.amount;
-    });
-
     const spendingValues = Object.values(allMonthsSpending) as number[];
     const monthlyAverageSpending = spendingValues.length > 0
       ? spendingValues.reduce((sum: number, amount: number) => sum + amount, 0) / spendingValues.length
@@ -283,15 +303,48 @@ const Dashboard: React.FC = () => {
     );
   };
 
-  const currentMonthName = new Date().toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+  const currentMonthName = selectedDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Dashboard Financeiro</h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-2">Visão completa da sua situação financeira</p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Dashboard Financeiro</h1>
+              <p className="text-gray-600 dark:text-gray-400 mt-2">Visão completa da sua situação financeira</p>
+            </div>
+            
+            {/* Seletor de Mês */}
+            <div className="flex items-center space-x-4">
+              <button
+                onClick={goToPreviousMonth}
+                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+              >
+                <ChevronLeft className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+              </button>
+              
+              <div className="text-center">
+                <p className="text-lg font-semibold text-gray-900 dark:text-white">
+                  {selectedDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
+                </p>
+                <button
+                  onClick={goToCurrentMonth}
+                  className="text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200"
+                >
+                  Ir para mês atual
+                </button>
+              </div>
+              
+              <button
+                onClick={goToNextMonth}
+                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+              >
+                <ChevronRight className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+              </button>
+            </div>
+          </div>
         </div>
 
         {/* SEÇÃO 1: Visão Geral Financeira */}
@@ -411,7 +464,7 @@ const Dashboard: React.FC = () => {
                           </div>
                         </div>
                         <div className="w-16 text-xs text-gray-900 dark:text-white text-right">
-                          {formatCurrency(month.value).replace('R$', '')}
+                          {formatCurrency(Number(month.value)).replace('R$', '')}
                         </div>
                       </div>
                     );
@@ -427,7 +480,7 @@ const Dashboard: React.FC = () => {
                     <p className="text-xs text-gray-600 dark:text-gray-400">Tendência</p>
                   </div>
                   <div className="text-center">
-                    <p className="text-sm font-bold text-gray-900 dark:text-white">{formatCurrency(intelligentAnalysis.avgLast6Months).replace('R$', 'R$')}</p>
+                    <p className="text-sm font-bold text-gray-900 dark:text-white">{formatCurrency(Number(intelligentAnalysis.avgLast6Months))}</p>
                     <p className="text-xs text-gray-600 dark:text-gray-400">Média</p>
                   </div>
                 </div>
