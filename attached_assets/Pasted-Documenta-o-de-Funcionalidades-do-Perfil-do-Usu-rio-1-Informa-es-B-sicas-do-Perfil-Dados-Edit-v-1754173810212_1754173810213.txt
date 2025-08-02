@@ -1,0 +1,188 @@
+Documentação de Funcionalidades do Perfil do Usuário
+1. Informações Básicas do Perfil
+Dados Editáveis
+Nome completo
+Nome de usuário
+Foto de perfil
+E-mail
+Número de telefone
+Localização
+Biografia/Descrição pessoal
+Métodos de Atualização
+// Atualizar metadados do usuário
+
+const { data, error } = await supabase.auth.updateUser({
+  data: { 
+    full_name: 'Novo Nome',
+    username: 'novo_username',
+    bio: 'Descrição pessoal'
+  }
+})
+// Atualizar foto de perfil
+
+const { data, error } = await supabase.storage
+  .from('avatars')
+  .upload(`${userId}/avatar.jpg`, fileBlob, {
+    upsert: 
+true
+
+  })
+
+2. Gerenciamento de Conta
+Funcionalidades de Segurança
+Troca de senha
+Autenticação de dois fatores (2FA)
+Gerenciamento de sessões ativas
+Registro de dispositivo
+Troca de Senha
+// Trocar senha
+
+const
+ { data, error } = 
+await
+ supabase.auth.updateUser({
+  
+password
+: 
+'nova_senha_segura'
+
+})
+// Redefinição de senha via e-mail
+
+const
+ { data, error } = 
+await
+ supabase.auth.resetPasswordForEmail(email)
+
+Autenticação de Dois Fatores
+// Habilitar 2FA
+
+const
+ { data, error } = 
+await
+ supabase.auth.mfa.enroll({
+  
+factorType
+: 
+'totp'
+ 
+// ou 'phone'
+
+})
+// Listar fatores de autenticação
+
+const
+ { data, error } = 
+await
+ supabase.auth.mfa.listFactors()
+// Remover fator de autenticação
+
+const
+ { data, error } = 
+await
+ supabase.auth.mfa.unenroll({ 
+  
+factorId
+: 
+'id_do_fator'
+ 
+})
+
+3. Privacidade e Preferências
+Configurações de privacidade
+Visibilidade do perfil
+Preferências de notificação
+Configurações de privacidade de dados
+// Exemplo de atualização de metadados de preferências
+
+const { data, error } = await supabase.auth.updateUser({
+  data: {
+    privacy_settings: {
+      profile_visibility: 'private',
+      email_notifications: 
+true
+,
+      marketing_emails: 
+false
+
+    }
+  }
+})
+
+4. Gerenciamento de Identidades e Conexões
+Métodos de Login Vinculados
+Contas vinculadas/desvinculares OAuth
+Gerenciar métodos de login
+// Vincular conta OAuth
+
+const
+ { data, error } = 
+await
+ supabase.auth.linkIdentity({
+  
+provider
+: 
+'google'
+
+})
+// Desvincular conta OAuth
+
+const
+ { data, error } = 
+await
+ supabase.auth.unlinkIdentity({
+  
+provider
+: 
+'google'
+
+})
+
+5. Registro de Atividades
+Histórico de Conta
+Log de login
+Registro de alterações no perfil
+Histórico do dispositivo
+Consulta SQL
+
+
+
+-- Exemplo de consulta de logs de atividade
+SELECT 
+  event_type, 
+  created_at, 
+  ip_address
+FROM user_activity_logs
+WHERE user_id = current_user_id
+ORDER BY created_at DESC
+LIMIT 50;
+
+6. Exclusão de Conta
+Opções de encerramento de conta
+Exclusão temporária
+Exclusão permanente
+// Exclusão de usuário (requer confirmação)
+
+const
+ { data, error } = 
+await
+ supabase.auth.admin.deleteUser(userId)
+
+Boas Práticas de Segurança
+Sempre solicite confirmação de senha para alterações seguras
+Implementar validações de força de senha
+Usar autenticação de dois fatores
+Registrar todas as alterações importantes
+Permitir revogação de sessões ativas
+Considerações de Design
+Interface clara e intuitiva
+Feedback imediato sobre ações
+Opções de recuperação
+Proteção contra alterações acidentais
+Fluxos de Implementação Recomendados
+Validação de dados no cliente
+Validação adicional no servidor
+Tratamento de erros amigáveis
+Registros de auditoria
+Notificações de segurança
+Exemplo de Fluxo Completo

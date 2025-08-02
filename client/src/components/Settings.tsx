@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Settings as SettingsIcon, Palette, Tag, CreditCard, Plus, Edit2, Trash2, Upload, Download, FileText, Wifi, WifiOff, CheckCircle, AlertCircle, Clock, Database, Bot, Eye, EyeOff, Key, Brain, Lightbulb, ChevronDown, ChevronUp, Package, User } from 'lucide-react';
+import { Settings as SettingsIcon, Palette, Tag, CreditCard, Plus, Edit2, Trash2, Upload, Download, FileText, Wifi, WifiOff, CheckCircle, AlertCircle, Clock, Database, Bot, Eye, EyeOff, Key, Brain, Lightbulb, ChevronDown, ChevronUp, Package, User, Save, Camera, Shield, Bell, Link, Activity, UserX, LogOut, Smartphone, Globe } from 'lucide-react';
 import { useSettings } from '../context/SettingsContext';
 import { useToast } from './ui/toast';
 import { useFinance } from '../context/FinanceContext';
@@ -35,6 +35,43 @@ const Settings: React.FC = () => {
   const [userProfile, setUserProfile] = useState<any>(null);
   const [loadingProfile, setLoadingProfile] = useState(false);
 
+  // Estados para edição de perfil
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [profileForm, setProfileForm] = useState({
+    full_name: '',
+    username: '',
+    bio: '',
+    location: '',
+    website: '',
+    privacy_settings: {
+      profile_visibility: 'public',
+      email_notifications: true,
+      marketing_emails: false,
+      activity_notifications: true
+    }
+  });
+
+  // Estados para gerenciamento de segurança
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  });
+  const [showPasswords, setShowPasswords] = useState({
+    current: false,
+    new: false,
+    confirm: false
+  });
+
+  // Estados para 2FA
+  const [mfaFactors, setMfaFactors] = useState<any[]>([]);
+  const [isEnabling2FA, setIsEnabling2FA] = useState(false);
+  const [sessions, setSessions] = useState<any[]>([]);
+  const [activities, setActivities] = useState<any[]>([]);
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string>('');
+
   // Estados para controlar seções expandidas
   const [expandedSections, setExpandedSections] = useState<string[]>(['general']);
 
@@ -60,6 +97,26 @@ const Settings: React.FC = () => {
       const { data: userData, error: userError } = await supabase.auth.getUser();
       if (!userError && userData.user) {
         setUserProfile(userData.user);
+        
+        // Populate profile form with existing data
+        setProfileForm({
+          full_name: userData.user.user_metadata?.full_name || '',
+          username: userData.user.user_metadata?.username || '',
+          bio: userData.user.user_metadata?.bio || '',
+          location: userData.user.user_metadata?.location || '',
+          website: userData.user.user_metadata?.website || '',
+          privacy_settings: {
+            profile_visibility: userData.user.user_metadata?.privacy_settings?.profile_visibility || 'public',
+            email_notifications: userData.user.user_metadata?.privacy_settings?.email_notifications ?? true,
+            marketing_emails: userData.user.user_metadata?.privacy_settings?.marketing_emails ?? false,
+            activity_notifications: userData.user.user_metadata?.privacy_settings?.activity_notifications ?? true
+          }
+        });
+
+        // Set avatar preview if exists
+        if (userData.user.user_metadata?.avatar_url) {
+          setAvatarPreview(userData.user.user_metadata.avatar_url);
+        }
       } else {
         console.error('Erro ao carregar dados do usuário:', userError);
         showError('Erro', 'Não foi possível carregar o perfil do usuário.');
@@ -69,6 +126,152 @@ const Settings: React.FC = () => {
       showError('Erro', 'Não foi possível carregar o perfil do usuário.');
     } finally {
       setLoadingProfile(false);
+    }
+  };
+
+  // Update user profile
+  const updateUserProfile = async () => {
+    try {
+      const { data, error } = await supabase.auth.updateUser({
+        data: {
+          full_name: profileForm.full_name,
+          username: profileForm.username,
+          bio: profileForm.bio,
+          location: profileForm.location,
+          website: profileForm.website,
+          privacy_settings: profileForm.privacy_settings
+        }
+      });
+
+      if (error) throw error;
+
+      showSuccess('Perfil Atualizado', 'Suas informações foram salvas com sucesso!');
+      setIsEditingProfile(false);
+      await loadUserProfile(); // Reload to get updated data
+    } catch (error: any) {
+      console.error('Erro ao atualizar perfil:', error);
+      showError('Erro', error.message || 'Não foi possível atualizar o perfil.');
+    }
+  };
+
+  // Handle avatar upload
+  const handleAvatarUpload = async (file: File) => {
+    if (!currentUser) return;
+
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${currentUser.id}/avatar.${fileExt}`;
+
+      const { data, error } = await supabase.storage
+        .from('avatars')
+        .upload(fileName, file, { upsert: true });
+
+      if (error) throw error;
+
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(fileName);
+
+      // Update user metadata with avatar URL
+      const { error: updateError } = await supabase.auth.updateUser({
+        data: { avatar_url: urlData.publicUrl }
+      });
+
+      if (updateError) throw updateError;
+
+      setAvatarPreview(urlData.publicUrl);
+      showSuccess('Avatar Atualizado', 'Sua foto de perfil foi atualizada!');
+      await loadUserProfile();
+    } catch (error: any) {
+      console.error('Erro ao fazer upload do avatar:', error);
+      showError('Erro', error.message || 'Não foi possível atualizar o avatar.');
+    }
+  };
+
+  // Change password
+  const changePassword = async () => {
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      showError('Erro', 'As senhas não coincidem.');
+      return;
+    }
+
+    if (passwordForm.newPassword.length < 6) {
+      showError('Erro', 'A nova senha deve ter pelo menos 6 caracteres.');
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase.auth.updateUser({
+        password: passwordForm.newPassword
+      });
+
+      if (error) throw error;
+
+      showSuccess('Senha Alterada', 'Sua senha foi atualizada com sucesso!');
+      setIsChangingPassword(false);
+      setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+    } catch (error: any) {
+      console.error('Erro ao alterar senha:', error);
+      showError('Erro', error.message || 'Não foi possível alterar a senha.');
+    }
+  };
+
+  // Load MFA factors
+  const loadMFAFactors = async () => {
+    try {
+      const { data, error } = await supabase.auth.mfa.listFactors();
+      if (error) throw error;
+      setMfaFactors(data?.all || []);
+    } catch (error: any) {
+      console.error('Erro ao carregar fatores MFA:', error);
+    }
+  };
+
+  // Enable 2FA
+  const enable2FA = async () => {
+    try {
+      setIsEnabling2FA(true);
+      const { data, error } = await supabase.auth.mfa.enroll({
+        factorType: 'totp'
+      });
+
+      if (error) throw error;
+
+      showSuccess('2FA Habilitado', 'Autenticação de dois fatores foi configurada!');
+      await loadMFAFactors();
+    } catch (error: any) {
+      console.error('Erro ao habilitar 2FA:', error);
+      showError('Erro', error.message || 'Não foi possível habilitar 2FA.');
+    } finally {
+      setIsEnabling2FA(false);
+    }
+  };
+
+  // Disable 2FA
+  const disable2FA = async (factorId: string) => {
+    try {
+      const { data, error } = await supabase.auth.mfa.unenroll({ factorId });
+      if (error) throw error;
+
+      showSuccess('2FA Desabilitado', 'Autenticação de dois fatores foi removida.');
+      await loadMFAFactors();
+    } catch (error: any) {
+      console.error('Erro ao desabilitar 2FA:', error);
+      showError('Erro', error.message || 'Não foi possível desabilitar 2FA.');
+    }
+  };
+
+  // Sign out from all devices
+  const signOutEverywhere = async () => {
+    try {
+      const { error } = await supabase.auth.signOut({ scope: 'global' });
+      if (error) throw error;
+      
+      showSuccess('Sessões Encerradas', 'Você foi desconectado de todos os dispositivos.');
+    } catch (error: any) {
+      console.error('Erro ao encerrar sessões:', error);
+      showError('Erro', error.message || 'Não foi possível encerrar as sessões.');
     }
   };
 
@@ -86,12 +289,26 @@ const Settings: React.FC = () => {
     }
   };
 
-  // Load user profile on component mount
+  // Load user profile and security data on component mount
   useEffect(() => {
     if (currentUser) {
       loadUserProfile();
+      loadMFAFactors();
     }
   }, [currentUser]);
+
+  // Handle file input for avatar
+  const handleAvatarFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setAvatarFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setAvatarPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   const toggleSection = (sectionId: string) => {
     setExpandedSections(prev => 
@@ -610,7 +827,7 @@ const Settings: React.FC = () => {
   );
 
   const renderUserProfileSection = () => (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {/* Status do carregamento */}
       {loadingProfile ? (
         <div className="flex items-center justify-center p-8">
@@ -618,85 +835,371 @@ const Settings: React.FC = () => {
           <span className="ml-3 text-gray-600 dark:text-gray-400">Carregando perfil...</span>
         </div>
       ) : userProfile ? (
-        <div className="space-y-4">
-          {/* Informações Básicas */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
-              <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">ID do Usuário</h4>
-              <p className="text-xs text-gray-600 dark:text-gray-400 font-mono break-all">{userProfile.id}</p>
-            </div>
-            <div className="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
-              <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">E-mail</h4>
-              <p className="text-sm text-gray-600 dark:text-gray-400">{userProfile.email || 'Não informado'}</p>
-              {userProfile.email_confirmed_at && (
-                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100 mt-1">
-                  <CheckCircle className="w-3 h-3 mr-1" />
-                  Confirmado
-                </span>
-              )}
+        <div className="space-y-6">
+          {/* Avatar e Informações Básicas */}
+          <div className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-xl p-6">
+            <div className="flex flex-col md:flex-row items-center gap-6">
+              {/* Avatar */}
+              <div className="relative">
+                <div className="w-24 h-24 rounded-full overflow-hidden bg-gray-200 dark:bg-gray-700 border-4 border-white dark:border-gray-600 shadow-lg">
+                  {avatarPreview || userProfile.user_metadata?.avatar_url ? (
+                    <img 
+                      src={avatarPreview || userProfile.user_metadata?.avatar_url} 
+                      alt="Avatar" 
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <User className="w-10 h-10 text-gray-400" />
+                    </div>
+                  )}
+                </div>
+                <label className="absolute bottom-0 right-0 bg-blue-600 text-white p-2 rounded-full cursor-pointer hover:bg-blue-700 transition-colors shadow-lg">
+                  <Camera className="w-4 h-4" />
+                  <input 
+                    type="file" 
+                    className="hidden" 
+                    accept="image/*"
+                    onChange={handleAvatarFileChange}
+                  />
+                </label>
+                {avatarFile && (
+                  <button
+                    onClick={() => handleAvatarUpload(avatarFile)}
+                    className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 px-3 py-1 bg-green-600 text-white text-xs rounded-lg hover:bg-green-700 transition-colors"
+                  >
+                    Salvar
+                  </button>
+                )}
+              </div>
+
+              {/* Informações do Usuário */}
+              <div className="flex-1 text-center md:text-left">
+                <div className="flex items-center justify-center md:justify-start gap-3 mb-2">
+                  <h3 className="text-2xl font-bold text-gray-900 dark:text-white">
+                    {userProfile.user_metadata?.full_name || userProfile.email?.split('@')[0] || 'Usuário'}
+                  </h3>
+                  <button
+                    onClick={() => setIsEditingProfile(!isEditingProfile)}
+                    className="p-1 text-gray-400 hover:text-blue-600 transition-colors"
+                  >
+                    <Edit2 className="w-4 h-4" />
+                  </button>
+                </div>
+                <p className="text-gray-600 dark:text-gray-400 mb-1">{userProfile.email}</p>
+                {userProfile.user_metadata?.bio && (
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">{userProfile.user_metadata.bio}</p>
+                )}
+                <div className="flex items-center justify-center md:justify-start gap-4 text-xs text-gray-500 dark:text-gray-400">
+                  <span>Membro desde {new Date(userProfile.created_at).toLocaleDateString('pt-BR')}</span>
+                  {userProfile.email_confirmed_at && (
+                    <span className="flex items-center gap-1">
+                      <CheckCircle className="w-3 h-3 text-green-500" />
+                      Verificado
+                    </span>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* Telefone */}
-          {userProfile.phone && (
-            <div className="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
-              <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">Telefone</h4>
-              <p className="text-sm text-gray-600 dark:text-gray-400">{userProfile.phone}</p>
-              {userProfile.phone_confirmed_at && (
-                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100 mt-1">
-                  <CheckCircle className="w-3 h-3 mr-1" />
-                  Confirmado
-                </span>
-              )}
+          {/* Editor de Perfil */}
+          {isEditingProfile && (
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-100 dark:border-gray-700">
+              <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Editar Perfil</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Nome Completo</label>
+                  <input
+                    type="text"
+                    value={profileForm.full_name}
+                    onChange={(e) => setProfileForm(prev => ({ ...prev, full_name: e.target.value }))}
+                    className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                    placeholder="Seu nome completo"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Nome de Usuário</label>
+                  <input
+                    type="text"
+                    value={profileForm.username}
+                    onChange={(e) => setProfileForm(prev => ({ ...prev, username: e.target.value }))}
+                    className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                    placeholder="@username"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Localização</label>
+                  <input
+                    type="text"
+                    value={profileForm.location}
+                    onChange={(e) => setProfileForm(prev => ({ ...prev, location: e.target.value }))}
+                    className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                    placeholder="Cidade, País"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Website</label>
+                  <input
+                    type="url"
+                    value={profileForm.website}
+                    onChange={(e) => setProfileForm(prev => ({ ...prev, website: e.target.value }))}
+                    className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                    placeholder="https://seusite.com"
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Biografia</label>
+                  <textarea
+                    value={profileForm.bio}
+                    onChange={(e) => setProfileForm(prev => ({ ...prev, bio: e.target.value }))}
+                    className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                    rows={3}
+                    placeholder="Conte um pouco sobre você..."
+                  />
+                </div>
+              </div>
+              <div className="flex justify-end gap-3 mt-6">
+                <button
+                  onClick={() => setIsEditingProfile(false)}
+                  className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={updateUserProfile}
+                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+                >
+                  <Save className="w-4 h-4" />
+                  Salvar Alterações
+                </button>
+              </div>
             </div>
           )}
 
-          {/* Informações de Data */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
-              <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">Conta Criada</h4>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                {userProfile.created_at ? new Date(userProfile.created_at).toLocaleDateString('pt-BR', {
-                  day: '2-digit',
-                  month: '2-digit',
-                  year: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit'
-                }) : 'Data não disponível'}
-              </p>
-            </div>
-            <div className="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
-              <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">Último Login</h4>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                {userProfile.last_sign_in_at ? new Date(userProfile.last_sign_in_at).toLocaleDateString('pt-BR', {
-                  day: '2-digit',
-                  month: '2-digit',
-                  year: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit'
-                }) : 'Nunca logou'}
-              </p>
+          {/* Configurações de Privacidade */}
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-100 dark:border-gray-700">
+            <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+              <Bell className="w-5 h-5" />
+              Configurações de Privacidade
+            </h4>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h5 className="font-medium text-gray-900 dark:text-white">Notificações por E-mail</h5>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Receber notificações importantes</p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={profileForm.privacy_settings.email_notifications}
+                    onChange={(e) => setProfileForm(prev => ({
+                      ...prev,
+                      privacy_settings: { ...prev.privacy_settings, email_notifications: e.target.checked }
+                    }))}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+                </label>
+              </div>
+              <div className="flex items-center justify-between">
+                <div>
+                  <h5 className="font-medium text-gray-900 dark:text-white">E-mails de Marketing</h5>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Receber dicas e novidades</p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={profileForm.privacy_settings.marketing_emails}
+                    onChange={(e) => setProfileForm(prev => ({
+                      ...prev,
+                      privacy_settings: { ...prev.privacy_settings, marketing_emails: e.target.checked }
+                    }))}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+                </label>
+              </div>
             </div>
           </div>
 
-          {/* Metadados Personalizados */}
-          {userProfile.raw_user_meta_data && Object.keys(userProfile.raw_user_meta_data).length > 0 && (
-            <div className="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
-              <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">Metadados Personalizados</h4>
-              <pre className="text-xs text-gray-600 dark:text-gray-400 font-mono overflow-x-auto">
-                {JSON.stringify(userProfile.raw_user_meta_data, null, 2)}
-              </pre>
+          {/* Configurações de Segurança */}
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-100 dark:border-gray-700">
+            <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+              <Shield className="w-5 h-5" />
+              Segurança da Conta
+            </h4>
+            
+            {/* Mudança de Senha */}
+            <div className="border-b border-gray-100 dark:border-gray-700 pb-4 mb-4">
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <h5 className="font-medium text-gray-900 dark:text-white">Senha</h5>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Última alteração há 30 dias</p>
+                </div>
+                <button
+                  onClick={() => setIsChangingPassword(!isChangingPassword)}
+                  className="px-4 py-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors text-sm font-medium"
+                >
+                  {isChangingPassword ? 'Cancelar' : 'Alterar Senha'}
+                </button>
+              </div>
+              
+              {isChangingPassword && (
+                <div className="grid grid-cols-1 gap-4 mt-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Nova Senha</label>
+                    <div className="relative">
+                      <input
+                        type={showPasswords.new ? 'text' : 'password'}
+                        value={passwordForm.newPassword}
+                        onChange={(e) => setPasswordForm(prev => ({ ...prev, newPassword: e.target.value }))}
+                        className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                        placeholder="Nova senha"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPasswords(prev => ({ ...prev, new: !prev.new }))}
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      >
+                        {showPasswords.new ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Confirmar Nova Senha</label>
+                    <div className="relative">
+                      <input
+                        type={showPasswords.confirm ? 'text' : 'password'}
+                        value={passwordForm.confirmPassword}
+                        onChange={(e) => setPasswordForm(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                        className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                        placeholder="Confirme a nova senha"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPasswords(prev => ({ ...prev, confirm: !prev.confirm }))}
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      >
+                        {showPasswords.confirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+                  <div className="flex justify-end">
+                    <button
+                      onClick={changePassword}
+                      className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      Alterar Senha
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
-          )}
 
-          {/* Botão para atualizar */}
-          <div className="flex justify-end">
-            <button
-              onClick={loadUserProfile}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
-            >
-              Atualizar Perfil
-            </button>
+            {/* Autenticação de Dois Fatores */}
+            <div className="border-b border-gray-100 dark:border-gray-700 pb-4 mb-4">
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <h5 className="font-medium text-gray-900 dark:text-white">Autenticação de Dois Fatores</h5>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    {mfaFactors.length > 0 ? 'Proteção adicional ativada' : 'Adicione uma camada extra de segurança'}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  {mfaFactors.length > 0 ? (
+                    <span className="px-2 py-1 bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-300 text-xs font-medium rounded-full">
+                      Ativo
+                    </span>
+                  ) : (
+                    <span className="px-2 py-1 bg-yellow-100 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-300 text-xs font-medium rounded-full">
+                      Inativo
+                    </span>
+                  )}
+                  {mfaFactors.length > 0 ? (
+                    <button
+                      onClick={() => disable2FA(mfaFactors[0].id)}
+                      className="px-4 py-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors text-sm font-medium"
+                    >
+                      Desabilitar
+                    </button>
+                  ) : (
+                    <button
+                      onClick={enable2FA}
+                      disabled={isEnabling2FA}
+                      className="px-4 py-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors text-sm font-medium disabled:opacity-50"
+                    >
+                      {isEnabling2FA ? 'Habilitando...' : 'Habilitar'}
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Gerenciamento de Sessões */}
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <h5 className="font-medium text-gray-900 dark:text-white">Sessões Ativas</h5>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Gerencie onde você está logado</p>
+                </div>
+                <button
+                  onClick={signOutEverywhere}
+                  className="px-4 py-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors text-sm font-medium flex items-center gap-2"
+                >
+                  <LogOut className="w-4 h-4" />
+                  Sair de Todos
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Informações da Conta */}
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-100 dark:border-gray-700">
+            <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+              <Activity className="w-5 h-5" />
+              Informações da Conta
+            </h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                <h5 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">ID do Usuário</h5>
+                <p className="text-xs text-gray-600 dark:text-gray-400 font-mono break-all">{userProfile.id}</p>
+              </div>
+              <div className="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                <h5 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">E-mail</h5>
+                <p className="text-sm text-gray-600 dark:text-gray-400">{userProfile.email}</p>
+                {userProfile.email_confirmed_at && (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100 mt-1">
+                    <CheckCircle className="w-3 h-3 mr-1" />
+                    Verificado
+                  </span>
+                )}
+              </div>
+              <div className="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                <h5 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">Conta Criada</h5>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  {new Date(userProfile.created_at).toLocaleDateString('pt-BR', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  })}
+                </p>
+              </div>
+              <div className="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                <h5 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">Último Login</h5>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  {userProfile.last_sign_in_at ? new Date(userProfile.last_sign_in_at).toLocaleDateString('pt-BR', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  }) : 'Nunca logou'}
+                </p>
+              </div>
+            </div>
           </div>
         </div>
       ) : (
