@@ -169,6 +169,11 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ expense, onClose, onSave }) =
         console.log('📝 Criando despesa única:', expenseData);
         addExpense(expenseData);
       }
+      
+      showSuccess(formData.isInstallment 
+        ? `Parcelamento criado com sucesso! ${formData.totalInstallments} parcelas adicionadas.`
+        : 'Despesa adicionada com sucesso!'
+      );
     }
 
     onClose();

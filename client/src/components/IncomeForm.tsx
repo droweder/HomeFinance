@@ -102,6 +102,7 @@ const IncomeForm: React.FC<IncomeFormProps> = ({ income, onClose }) => {
 
         addIncome(incomeData);
       }
+      showSuccess(`Receitas recorrentes criadas! ${formData.totalRecurrences} entradas adicionadas.`);
     } else {
       // Single income or update existing
       const incomeData = {
@@ -118,6 +119,7 @@ const IncomeForm: React.FC<IncomeFormProps> = ({ income, onClose }) => {
         showSuccess('Receita atualizada com sucesso!');
       } else {
         addIncome(incomeData);
+        showSuccess('Receita adicionada com sucesso!');
       }
     }
 

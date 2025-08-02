@@ -3,7 +3,7 @@ import { Plus, Edit2, Trash2, Calendar, DollarSign, Filter, Search, X, ArrowRigh
 import { useFinance } from '../context/FinanceContext';
 import { useAccounts } from '../context/AccountContext';
 import { useSettings } from '../context/SettingsContext';
-import { Transfer } from '../types/index';
+import { Transfer } from '../types';
 import TransferForm from './TransferForm';
 import ConfirmDialog from './ConfirmDialog';
 
@@ -16,20 +16,10 @@ const TransferList: React.FC = () => {
   const [editingTransfer, setEditingTransfer] = useState<Transfer | null>(null);
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [selectedTransfers, setSelectedTransfers] = useState<Set<string>>(new Set());
-  const [tempFilters, setTempFilters] = useState({
-    fromAccount: '',
-    toAccount: '',
-    description: '',
-    startDate: '',
-    endDate: '',
-    sortBy: []
-  });
+  const [tempFilters, setTempFilters] = useState(filters.transfers);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [transferToDelete, setTransferToDelete] = useState<string | null>(null);
-  const [selectedMonth, setSelectedMonth] = useState<string>(() => {
-    const now = new Date();
-    return `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}`;
-  });
+  const [selectedMonth, setSelectedMonth] = useState<string>('');
 
   // Export CSV functionality
   const handleExportCSV = () => {
@@ -65,13 +55,24 @@ const TransferList: React.FC = () => {
     document.body.removeChild(link);
   };
 
-  // PERFORMANCE: First filter by selected month to reduce dataset
+  // PERFORMANCE: First filter by selected month OR date range from filters
   const monthFilteredTransfers = useMemo(() => {
+    // If there are date filters defined, use those instead of month filtering
+    if (filters.transfers.startDate || filters.transfers.endDate) {
+      return transfers.filter(transfer => {
+        const transferDate = transfer.date;
+        if (filters.transfers.startDate && transferDate < filters.transfers.startDate) return false;
+        if (filters.transfers.endDate && transferDate > filters.transfers.endDate) return false;
+        return true;
+      });
+    }
+    
+    // Otherwise, use month filtering for performance
     return transfers.filter(transfer => {
       const transferMonth = transfer.date.substring(0, 7); // YYYY-MM format
       return transferMonth === selectedMonth;
     });
-  }, [transfers, selectedMonth]);
+  }, [transfers, selectedMonth, filters.transfers.startDate, filters.transfers.endDate]);
 
   // Get available months for dropdown
   const availableMonths = useMemo(() => {
@@ -83,6 +84,13 @@ const TransferList: React.FC = () => {
     return Array.from(months).sort().reverse(); // Most recent first
   }, [transfers]);
 
+  // Initialize selectedMonth with the first available month when data loads
+  React.useEffect(() => {
+    if (availableMonths.length > 0 && !selectedMonth) {
+      setSelectedMonth(availableMonths[0]); // Most recent month with transfers
+    }
+  }, [availableMonths, selectedMonth]);
+
   // PERFORMANCE: Monthly filtering reduces dataset - now filter the monthly data
   const filteredTransfers = monthFilteredTransfers.filter(transfer => {
     const transferFilters = filters.transfers;
@@ -91,8 +99,7 @@ const TransferList: React.FC = () => {
     if (transferFilters.toAccount && transfer.toAccount !== transferFilters.toAccount) return false;
     if (transferFilters.description && !transfer.description.toLowerCase().includes(transferFilters.description.toLowerCase())) return false;
     
-    if (transferFilters.startDate && transfer.date < transferFilters.startDate) return false;
-    if (transferFilters.endDate && transfer.date > transferFilters.endDate) return false;
+    // Skip date filtering here since it's already done in monthFilteredTransfers
     
     return true;
   });
@@ -166,6 +173,24 @@ const TransferList: React.FC = () => {
     setShowFilterModal(false);
   };
 
+  const handleSelectTransfer = (transferId: string) => {
+    const newSelected = new Set(selectedTransfers);
+    if (newSelected.has(transferId)) {
+      newSelected.delete(transferId);
+    } else {
+      newSelected.add(transferId);
+    }
+    setSelectedTransfers(newSelected);
+  };
+
+  const handleSelectAll = () => {
+    if (selectedTransfers.size === sortedTransfers.length) {
+      setSelectedTransfers(new Set());
+    } else {
+      setSelectedTransfers(new Set(sortedTransfers.map(transfer => transfer.id)));
+    }
+  };
+
   const getAccountName = (accountId: string) => {
     const account = accounts.find(acc => acc.id === accountId);
     return account ? account.name : 'Conta não encontrada';
@@ -187,53 +212,67 @@ const TransferList: React.FC = () => {
               </div>
               
               <div className="flex items-center gap-3">
-                {/* Month Navigation */}
+                {/* Month Navigation or Period Display */}
                 <div className="flex items-center gap-2 px-3 py-2 bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg">
                   <Calendar className="w-4 h-4 text-purple-600 dark:text-purple-400" />
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => {
-                        const currentIndex = availableMonths.findIndex(month => month === selectedMonth);
-                        if (currentIndex < availableMonths.length - 1) {
-                          setSelectedMonth(availableMonths[currentIndex + 1]);
-                        }
-                      }}
-                      disabled={availableMonths.findIndex(month => month === selectedMonth) >= availableMonths.length - 1}
-                      className="p-1 hover:bg-purple-100 dark:hover:bg-purple-800 rounded disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <ChevronLeft className="w-4 h-4 text-purple-600 dark:text-purple-400" />
-                    </button>
-                    
-                    <select 
-                      value={selectedMonth}
-                      onChange={(e) => setSelectedMonth(e.target.value)}
-                      className="text-sm font-medium text-purple-700 dark:text-purple-300 bg-transparent border-none focus:outline-none"
-                    >
-                      {availableMonths.map(month => {
-                        const [year, monthNum] = month.split('-');
-                        const monthName = new Date(parseInt(year), parseInt(monthNum) - 1).toLocaleDateString('pt-BR', { year: 'numeric', month: 'long' });
-                        const monthCount = transfers.filter(tr => tr.date.substring(0, 7) === month).length;
-                        return (
-                          <option key={month} value={month}>
-                            {monthName} ({monthCount})
-                          </option>
-                        );
-                      })}
-                    </select>
-                    
-                    <button
-                      onClick={() => {
-                        const currentIndex = availableMonths.findIndex(month => month === selectedMonth);
-                        if (currentIndex > 0) {
-                          setSelectedMonth(availableMonths[currentIndex - 1]);
-                        }
-                      }}
-                      disabled={availableMonths.findIndex(month => month === selectedMonth) <= 0}
-                      className="p-1 hover:bg-purple-100 dark:hover:bg-purple-800 rounded disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <ChevronRight className="w-4 h-4 text-purple-600 dark:text-purple-400" />
-                    </button>
-                  </div>
+                  {filters.transfers.startDate || filters.transfers.endDate ? (
+                    // Show period info when filters are active
+                    <div className="text-sm font-medium text-purple-700 dark:text-purple-300">
+                      {filters.transfers.startDate && filters.transfers.endDate ? (
+                        `Período: ${new Date(filters.transfers.startDate).toLocaleDateString('pt-BR')} - ${new Date(filters.transfers.endDate).toLocaleDateString('pt-BR')} (${sortedTransfers.length} registros)`
+                      ) : filters.transfers.startDate ? (
+                        `Desde: ${new Date(filters.transfers.startDate).toLocaleDateString('pt-BR')} (${sortedTransfers.length} registros)`
+                      ) : (
+                        `Até: ${new Date(filters.transfers.endDate).toLocaleDateString('pt-BR')} (${sortedTransfers.length} registros)`
+                      )}
+                    </div>
+                  ) : (
+                    // Show month navigation when no period filters are active
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => {
+                          const currentIndex = availableMonths.findIndex(month => month === selectedMonth);
+                          if (currentIndex < availableMonths.length - 1) {
+                            setSelectedMonth(availableMonths[currentIndex + 1]);
+                          }
+                        }}
+                        disabled={availableMonths.findIndex(month => month === selectedMonth) >= availableMonths.length - 1}
+                        className="p-1 hover:bg-purple-100 dark:hover:bg-purple-800 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <ChevronLeft className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                      </button>
+                      
+                      <select 
+                        value={selectedMonth}
+                        onChange={(e) => setSelectedMonth(e.target.value)}
+                        className="text-sm font-medium text-purple-700 dark:text-purple-300 bg-transparent border-none focus:outline-none"
+                      >
+                        {availableMonths.map(month => {
+                          const [year, monthNum] = month.split('-');
+                          const monthName = new Date(parseInt(year), parseInt(monthNum) - 1).toLocaleDateString('pt-BR', { year: 'numeric', month: 'long' });
+                          const monthCount = transfers.filter(tr => tr.date.substring(0, 7) === month).length;
+                          return (
+                            <option key={month} value={month}>
+                              {monthName} ({monthCount})
+                            </option>
+                          );
+                        })}
+                      </select>
+                      
+                      <button
+                        onClick={() => {
+                          const currentIndex = availableMonths.findIndex(month => month === selectedMonth);
+                          if (currentIndex > 0) {
+                            setSelectedMonth(availableMonths[currentIndex - 1]);
+                          }
+                        }}
+                        disabled={availableMonths.findIndex(month => month === selectedMonth) <= 0}
+                        className="p-1 hover:bg-purple-100 dark:hover:bg-purple-800 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <ChevronRight className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 {/* Total */}
@@ -308,6 +347,14 @@ const TransferList: React.FC = () => {
             <table className="w-full">
               <thead className="bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600 sticky top-0 z-20">
                 <tr>
+                  <th className="text-left py-3 px-4 text-sm font-medium text-gray-600 dark:text-gray-400">
+                    <input
+                      type="checkbox"
+                      checked={selectedTransfers.size > 0 && selectedTransfers.size === sortedTransfers.length}
+                      onChange={handleSelectAll}
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                  </th>
                   <th className="text-left py-3 px-4 text-sm font-medium text-gray-600 dark:text-gray-400">Data</th>
                   <th className="text-left py-3 px-4 text-sm font-medium text-gray-600 dark:text-gray-400">Valor</th>
                   <th className="text-left py-3 px-4 text-sm font-medium text-gray-600 dark:text-gray-400">De</th>
@@ -319,6 +366,14 @@ const TransferList: React.FC = () => {
               <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
                 {sortedTransfers.map((transfer) => (
                   <tr key={transfer.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                    <td className="py-1 px-4">
+                      <input
+                        type="checkbox"
+                        checked={selectedTransfers.has(transfer.id)}
+                        onChange={() => handleSelectTransfer(transfer.id)}
+                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                    </td>
                     <td className="py-1 px-4">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900 rounded-lg flex items-center justify-center">

@@ -500,73 +500,38 @@ const DailyAccountSummary: React.FC = () => {
     filters.dailySummary.endDate,
   ]);
 
-  // Filtrar e ordenar contas visíveis
+  // Filtrar e ordenar contas visíveis baseado na ordem de seleção
   const visibleAccounts = useMemo(() => {
-    let filteredAccounts = accounts.filter(account => 
-      filters.dailySummary.visibleAccounts.length === 0 || 
-      filters.dailySummary.visibleAccounts.includes(account.id)
-    );
-
-    // Aplicar ordenação
-    const sortBy = (filters.dailySummary as any).sortBy || 'name';
-    const sortDirection = (filters.dailySummary as any).sortDirection || 'asc';
-
-    filteredAccounts.sort((a, b) => {
-      let aValue: any;
-      let bValue: any;
-
-      switch (sortBy) {
-        case 'balance':
-          aValue = a.initialBalance || 0;
-          bValue = b.initialBalance || 0;
-          break;
-        case 'finalBalance':
-          // Calcular o saldo final mais recente
-          const latestSummaryA = dailySummaries[0]?.accounts[a.id];
-          const latestSummaryB = dailySummaries[0]?.accounts[b.id];
-          aValue = latestSummaryA?.finalBalance || 0;
-          bValue = latestSummaryB?.finalBalance || 0;
-          break;
-        case 'activity':
-          // Calcular atividade total (receitas + despesas) do período
-          const totalActivityA = dailySummaries.reduce((sum, summary) => {
-            const accountData = summary.accounts[a.id] || { dailyIncome: 0, dailyExpenses: 0 };
-            return sum + accountData.dailyIncome + accountData.dailyExpenses;
-          }, 0);
-          const totalActivityB = dailySummaries.reduce((sum, summary) => {
-            const accountData = summary.accounts[b.id] || { dailyIncome: 0, dailyExpenses: 0 };
-            return sum + accountData.dailyIncome + accountData.dailyExpenses;
-          }, 0);
-          aValue = totalActivityA;
-          bValue = totalActivityB;
-          break;
-        case 'custom':
-          // Usar a ordem da seleção visível
-          const orderA = filters.dailySummary.visibleAccounts.indexOf(a.id);
-          const orderB = filters.dailySummary.visibleAccounts.indexOf(b.id);
-          aValue = orderA === -1 ? 999 : orderA;
-          bValue = orderB === -1 ? 999 : orderB;
-          break;
-        default: // name
-          aValue = a.name.toLowerCase();
-          bValue = b.name.toLowerCase();
-      }
-
-      if (typeof aValue === 'string') {
-        return sortDirection === 'asc' ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
-      } else {
-        return sortDirection === 'asc' ? aValue - bValue : bValue - aValue;
+    if (filters.dailySummary.visibleAccounts.length === 0) {
+      // Se nenhuma conta está especificamente selecionada, mostrar todas na ordem original
+      return accounts;
+    }
+    
+    // Ordenar as contas de acordo com a ordem de seleção
+    const orderedAccounts = [];
+    
+    // Primeiro, adicionar as contas na ordem exata de seleção
+    filters.dailySummary.visibleAccounts.forEach(accountId => {
+      const account = accounts.find(acc => acc.id === accountId);
+      if (account) {
+        orderedAccounts.push(account);
       }
     });
+    
+    return orderedAccounts;
+  }, [accounts, filters.dailySummary.visibleAccounts]);
 
-    return filteredAccounts;
-  }, [accounts, filters.dailySummary.visibleAccounts, (filters.dailySummary as any).sortBy, (filters.dailySummary as any).sortDirection, dailySummaries]);
-
-  const toggleAccountVisibility = useCallback((accountId: string, isTemp = false) => {
+  const toggleAccountVisibility = useCallback((accountId: string, isTemp = false, forceRemove = false) => {
     const currentVisible = isTemp ? tempFilters.visibleAccounts : filters.dailySummary.visibleAccounts;
-    const newVisible = currentVisible.includes(accountId)
-      ? currentVisible.filter(id => id !== accountId)
-      : [...currentVisible, accountId];
+    
+    let newVisible;
+    if (forceRemove || currentVisible.includes(accountId)) {
+      // Remove account from the list
+      newVisible = currentVisible.filter(id => id !== accountId);
+    } else {
+      // Add account to the end of the list (maintains selection order)
+      newVisible = [...currentVisible, accountId];
+    }
     
     if (isTemp) {
       setTempFilters(prev => ({ ...prev, visibleAccounts: newVisible }));
@@ -812,130 +777,85 @@ const DailyAccountSummary: React.FC = () => {
               </div>
               
               <div className="space-y-6">
-                {/* Seleção de Mês Inicial */}
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Mês Inicial do Período (90 dias)</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Mês</label>
-                      <select
-                        value={modalSelectedMonth}
-                        onChange={(e) => {
-                          const newMonth = parseInt(e.target.value, 10);
-                          setModalSelectedMonth(newMonth);
-                          const { startDate, endDate } = calculateDateRangeForMonth(newMonth, modalSelectedYear);
-                          setTempFilters(prev => ({
-                            ...prev,
-                            startDate,
-                            endDate,
-                          }));
-                        }}
-                        className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-                      >
-                        {Array.from({ length: 12 }, (_, i) => (
-                          <option key={i} value={i}>
-                            {new Date(0, i).toLocaleString('pt-BR', { month: 'long' })}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Ano</label>
-                      <select
-                        value={modalSelectedYear}
-                        onChange={(e) => {
-                          const newYear = parseInt(e.target.value, 10);
-                          setModalSelectedYear(newYear);
-                          const { startDate, endDate } = calculateDateRangeForMonth(modalSelectedMonth, newYear);
-                          setTempFilters(prev => ({
-                            ...prev,
-                            startDate,
-                            endDate,
-                          }));
-                        }}
-                        className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-                      >
-                        {Array.from({ length: 5 }, (_, i) => { // Current year +/- 2 years
-                          const year = new Date().getFullYear() - 2 + i;
-                          return <option key={year} value={year}>{year}</option>;
-                        })}
-                      </select>
-                    </div>
-                  </div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    Período selecionado: {formatDate(tempFilters.startDate)} até {formatDate(tempFilters.endDate || calculateDateRangeForMonth(modalSelectedMonth, modalSelectedYear).endDate)} ({getDaysDifference(tempFilters.startDate, tempFilters.endDate || calculateDateRangeForMonth(modalSelectedMonth, modalSelectedYear).endDate) + 1} dias)
-                  </p>
-                </div>
-
-                {/* Contas Visíveis */}
+                {/* Contas Visíveis - Ordenação por Seleção */}
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Contas Visíveis</h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                    Clique nas contas na ordem que deseja visualizá-las. A primeira conta selecionada aparecerá primeiro na tabela.
+                  </p>
+                  
+                  {/* Lista das Contas Selecionadas (Ordenadas) */}
+                  {tempFilters.visibleAccounts.length > 0 && (
+                    <div className="mb-4 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                      <div className="text-sm font-medium text-blue-800 dark:text-blue-300 mb-2">
+                        Ordem das contas selecionadas:
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {tempFilters.visibleAccounts.map((accountId, index) => {
+                          const account = accounts.find(acc => acc.id === accountId);
+                          return (
+                            <div key={accountId} className="flex items-center gap-2 bg-blue-100 dark:bg-blue-800 text-blue-800 dark:text-blue-200 px-3 py-1 rounded-lg text-sm">
+                              <span className="w-5 h-5 bg-blue-600 text-white text-xs rounded-full flex items-center justify-center font-bold">
+                                {index + 1}
+                              </span>
+                              {account?.name}
+                              <button
+                                onClick={() => toggleAccountVisibility(accountId, true, true)}
+                                className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-200"
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                  
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                     {accounts.map(account => (
                       <button
                         key={account.id}
                         onClick={() => toggleAccountVisibility(account.id, true)}
                         className={`flex items-center gap-3 p-3 rounded-lg text-left transition-colors ${
-                          tempFilters.visibleAccounts.length === 0 || tempFilters.visibleAccounts.includes(account.id)
+                          tempFilters.visibleAccounts.includes(account.id)
                             ? 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-300 border-2 border-blue-300 dark:border-blue-700'
-                            : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 border-2 border-gray-300 dark:border-gray-600'
+                            : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 border-2 border-gray-300 dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-gray-600'
                         }`}
                       >
-                        {tempFilters.visibleAccounts.length === 0 || tempFilters.visibleAccounts.includes(account.id) ? (
-                          <Eye className="w-5 h-5" />
+                        {tempFilters.visibleAccounts.includes(account.id) ? (
+                          <div className="flex items-center gap-2">
+                            <div className="w-5 h-5 bg-blue-600 text-white text-xs rounded-full flex items-center justify-center font-bold">
+                              {tempFilters.visibleAccounts.indexOf(account.id) + 1}
+                            </div>
+                            <Eye className="w-4 h-4" />
+                          </div>
                         ) : (
                           <EyeOff className="w-5 h-5" />
                         )}
                         <div>
                           <div className="font-medium">{account.name}</div>
-                          <div className="text-xs opacity-75">
-                            Saldo inicial: {formatCurrency(account.initialBalance)}
-                          </div>
                         </div>
                       </button>
                     ))}
                   </div>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
-                    Clique nas contas para mostrar/ocultar. Sem seleção = todas visíveis.
-                  </p>
-                </div>
-
-                {/* Ordenação das Contas */}
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Ordenação das Contas</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Ordenar por</label>
-                      <select
-                        value={(tempFilters as any).sortBy || 'name'}
-                        onChange={(e) => setTempFilters(prev => ({ ...prev, sortBy: e.target.value }))}
-                        className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                  
+                  <div className="mt-4 flex justify-between items-center">
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      {tempFilters.visibleAccounts.length === 0 
+                        ? 'Nenhuma conta selecionada - todas serão exibidas'
+                        : `${tempFilters.visibleAccounts.length} de ${accounts.length} contas selecionadas`
+                      }
+                    </p>
+                    {tempFilters.visibleAccounts.length > 0 && (
+                      <button
+                        onClick={() => setTempFilters(prev => ({ ...prev, visibleAccounts: [] }))}
+                        className="text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 underline"
                       >
-                        <option value="name">Nome da Conta</option>
-                        <option value="balance">Saldo Inicial</option>
-                        <option value="finalBalance">Saldo Final</option>
-                        <option value="activity">Atividade (Receitas + Despesas)</option>
-                        <option value="custom">Ordem Personalizada</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Direção</label>
-                      <select
-                        value={(tempFilters as any).sortDirection || 'asc'}
-                        onChange={(e) => setTempFilters(prev => ({ ...prev, sortDirection: e.target.value }))}
-                        className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-                      >
-                        <option value="asc">Crescente</option>
-                        <option value="desc">Decrescente</option>
-                      </select>
-                    </div>
+                        Limpar seleção
+                      </button>
+                    )}
                   </div>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
-                    {tempFilters.visibleAccounts.length === 0 
-                      ? 'Todas as contas estão visíveis' 
-                      : `${tempFilters.visibleAccounts.length} de ${accounts.length} contas selecionadas`
-                    }
-                  </p>
                 </div>
               </div>
               

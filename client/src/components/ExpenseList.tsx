@@ -43,13 +43,24 @@ const ExpenseList: React.FC = () => {
     return `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}`;
   });
 
-  // PERFORMANCE: First filter by selected month to reduce dataset
+  // PERFORMANCE: First filter by selected month OR date range from filters
   const monthFilteredExpenses = useMemo(() => {
+    // If there are date filters defined, use those instead of month filtering
+    if (filters.expenses.startDate || filters.expenses.endDate) {
+      return expenses.filter(expense => {
+        const expenseDate = expense.date;
+        if (filters.expenses.startDate && expenseDate < filters.expenses.startDate) return false;
+        if (filters.expenses.endDate && expenseDate > filters.expenses.endDate) return false;
+        return true;
+      });
+    }
+    
+    // Otherwise, use month filtering for performance
     return expenses.filter(expense => {
       const expenseMonth = expense.date.substring(0, 7); // YYYY-MM format
       return expenseMonth === selectedMonth;
     });
-  }, [expenses, selectedMonth]);
+  }, [expenses, selectedMonth, filters.expenses.startDate, filters.expenses.endDate]);
 
   // Get available months for dropdown
   const availableMonths = useMemo(() => {
@@ -77,9 +88,7 @@ const ExpenseList: React.FC = () => {
           if (expenseFilters.isCreditCard === 'no' && isCreditCard) return false;
         }
         
-        const dateToUse = expense.date;
-        if (expenseFilters.startDate && dateToUse < expenseFilters.startDate) return false;
-        if (expenseFilters.endDate && dateToUse > expenseFilters.endDate) return false;
+        // Skip date filtering here since it's already done in monthFilteredExpenses
         if (expenseFilters.description && !expense.description?.toLowerCase().includes(expenseFilters.description.toLowerCase())) return false;
         if (expenseFilters.location && !expense.location?.toLowerCase().includes(expenseFilters.location.toLowerCase())) return false;
         
@@ -99,9 +108,7 @@ const ExpenseList: React.FC = () => {
         if (expenseFilters.isCreditCard === 'no' && isCreditCard) return false;
       }
       
-      const dateToUse = expense.date;
-      if (expenseFilters.startDate && dateToUse < expenseFilters.startDate) return false;
-      if (expenseFilters.endDate && dateToUse > expenseFilters.endDate) return false;
+      // Skip date filtering here since it's already done in monthFilteredExpenses
       if (expenseFilters.description && !expense.description?.toLowerCase().includes(expenseFilters.description.toLowerCase())) return false;
       if (expenseFilters.location && !expense.location?.toLowerCase().includes(expenseFilters.location.toLowerCase())) return false;
       
@@ -362,55 +369,69 @@ const ExpenseList: React.FC = () => {
                 <p className="text-gray-600 dark:text-gray-400 mt-2">{labels.subtitle}</p>
               </div>
               <div className="flex items-center gap-3">
-                {/* PERFORMANCE: Month Navigation */}
+                {/* PERFORMANCE: Month Navigation or Period Display */}
                 <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
                   <Calendar className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => {
-                        const currentIndex = availableMonths.findIndex(month => month === selectedMonth);
-                        if (currentIndex < availableMonths.length - 1) {
-                          setSelectedMonth(availableMonths[currentIndex + 1]);
-                        }
-                      }}
-                      disabled={availableMonths.findIndex(month => month === selectedMonth) >= availableMonths.length - 1}
-                      className="p-1 hover:bg-blue-100 dark:hover:bg-blue-800 rounded disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <ChevronLeft className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                    </button>
-                    
-                    <select 
-                      value={selectedMonth}
-                      onChange={(e) => {
-                        setSelectedMonth(e.target.value);
-                      }}
-                      className="text-sm font-medium text-blue-700 dark:text-blue-300 bg-transparent border-none focus:outline-none"
-                    >
-                      {availableMonths.map(month => {
-                        const [year, monthNum] = month.split('-');
-                        const monthName = new Date(parseInt(year), parseInt(monthNum) - 1).toLocaleDateString('pt-BR', { year: 'numeric', month: 'long' });
-                        const monthCount = expenses.filter(exp => exp.date.substring(0, 7) === month).length;
-                        return (
-                          <option key={month} value={month}>
-                            {monthName} ({monthCount})
-                          </option>
-                        );
-                      })}
-                    </select>
-                    
-                    <button
-                      onClick={() => {
-                        const currentIndex = availableMonths.findIndex(month => month === selectedMonth);
-                        if (currentIndex > 0) {
-                          setSelectedMonth(availableMonths[currentIndex - 1]);
-                        }
-                      }}
-                      disabled={availableMonths.findIndex(month => month === selectedMonth) <= 0}
-                      className="p-1 hover:bg-blue-100 dark:hover:bg-blue-800 rounded disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <ChevronRight className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                    </button>
-                  </div>
+                  {filters.expenses.startDate || filters.expenses.endDate ? (
+                    // Show period info when filters are active
+                    <div className="text-sm font-medium text-blue-700 dark:text-blue-300">
+                      {filters.expenses.startDate && filters.expenses.endDate ? (
+                        `Período: ${new Date(filters.expenses.startDate).toLocaleDateString('pt-BR')} - ${new Date(filters.expenses.endDate).toLocaleDateString('pt-BR')} (${sortedExpenses.length} registros)`
+                      ) : filters.expenses.startDate ? (
+                        `Desde: ${new Date(filters.expenses.startDate).toLocaleDateString('pt-BR')} (${sortedExpenses.length} registros)`
+                      ) : (
+                        `Até: ${new Date(filters.expenses.endDate).toLocaleDateString('pt-BR')} (${sortedExpenses.length} registros)`
+                      )}
+                    </div>
+                  ) : (
+                    // Show month navigation when no period filters are active
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => {
+                          const currentIndex = availableMonths.findIndex(month => month === selectedMonth);
+                          if (currentIndex < availableMonths.length - 1) {
+                            setSelectedMonth(availableMonths[currentIndex + 1]);
+                          }
+                        }}
+                        disabled={availableMonths.findIndex(month => month === selectedMonth) >= availableMonths.length - 1}
+                        className="p-1 hover:bg-blue-100 dark:hover:bg-blue-800 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <ChevronLeft className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                      </button>
+                      
+                      <select 
+                        value={selectedMonth}
+                        onChange={(e) => {
+                          setSelectedMonth(e.target.value);
+                        }}
+                        className="text-sm font-medium text-blue-700 dark:text-blue-300 bg-transparent border-none focus:outline-none"
+                      >
+                        {availableMonths.map(month => {
+                          const [year, monthNum] = month.split('-');
+                          const monthName = new Date(parseInt(year), parseInt(monthNum) - 1).toLocaleDateString('pt-BR', { year: 'numeric', month: 'long' });
+                          const monthCount = expenses.filter(exp => exp.date.substring(0, 7) === month).length;
+                          return (
+                            <option key={month} value={month}>
+                              {monthName} ({monthCount})
+                            </option>
+                          );
+                        })}
+                      </select>
+                      
+                      <button
+                        onClick={() => {
+                          const currentIndex = availableMonths.findIndex(month => month === selectedMonth);
+                          if (currentIndex > 0) {
+                            setSelectedMonth(availableMonths[currentIndex - 1]);
+                          }
+                        }}
+                        disabled={availableMonths.findIndex(month => month === selectedMonth) <= 0}
+                        className="p-1 hover:bg-blue-100 dark:hover:bg-blue-800 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <ChevronRight className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 {/* Total integrado na barra superior */}
@@ -487,7 +508,6 @@ const ExpenseList: React.FC = () => {
                     <th className="text-left py-1.5 px-2 font-medium text-gray-900 dark:text-white text-sm">{labels.description}</th>
                     <th className="text-left py-1.5 px-2 font-medium text-gray-900 dark:text-white text-sm">{labels.amount}</th>
                     <th className="text-left py-1.5 px-2 font-medium text-gray-900 dark:text-white text-sm">{labels.account}</th>
-                    <th className="text-left py-1.5 px-2 font-medium text-gray-900 dark:text-white text-sm">Cartão</th>
                     <th className="text-left py-1.5 px-2 font-medium text-gray-900 dark:text-white text-sm">{labels.installments}</th>
                     <th className="text-left py-1.5 px-2 font-medium text-gray-900 dark:text-white text-sm">{labels.date}</th>
                     <th className="text-left py-1.5 px-2 font-medium text-gray-900 dark:text-white text-sm">{labels.actions}</th>
@@ -553,15 +573,6 @@ const ExpenseList: React.FC = () => {
                       </td>
                       <td className="py-1.5 px-2 text-sm text-gray-600 dark:text-gray-400">
                         {expense.paymentMethod}
-                      </td>
-                      <td className="py-1.5 px-2 text-sm">
-                        <div className="flex items-center justify-center">
-                          {expense.isCreditCard ? (
-                            <CreditCard className="w-4 h-4 text-green-600 dark:text-green-400" />
-                          ) : (
-                            <span className="text-gray-400">-</span>
-                          )}
-                        </div>
                       </td>
                       <td className="py-1.5 px-2 text-sm">
                         {expense.isInstallment ? (

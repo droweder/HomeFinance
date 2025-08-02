@@ -1,202 +1,54 @@
 # Personal Finance Management Application
 
 ## Overview
-
-This is a full-stack personal finance management application built with React, Express, and Supabase. The application allows users to track expenses, income, categories, and accounts with features like installment management, AI financial insights, CSV import/export, and real-time synchronization with Supabase. Successfully migrated from Bolt to Replit with performance optimizations.
+This is a full-stack personal finance management application that enables users to track expenses, income, categories, and accounts. It includes features such as installment management, AI financial insights, CSV import/export, and real-time synchronization. The project aims to provide comprehensive financial tracking and analysis capabilities.
 
 ## User Preferences
-
 Preferred communication style: Simple, everyday language.
 
 ## System Architecture
 
-### Frontend Architecture
+### Frontend
 - **Framework**: React 18 with TypeScript
-- **Build Tool**: Vite for fast development and optimized builds
-- **UI Library**: Radix UI components with Tailwind CSS for styling
-- **State Management**: React Context API for global state management
-- **Data Fetching**: TanStack React Query for server state management
-- **Styling**: Tailwind CSS with shadcn/ui component system
+- **Build Tool**: Vite
+- **UI Library**: Radix UI components with Tailwind CSS (shadcn/ui system)
+- **State Management**: React Context API
+- **Data Fetching**: TanStack React Query
 
-### Backend Architecture
+### Backend
 - **Framework**: Express.js with TypeScript
-- **Database**: Supabase (PostgreSQL) for real-time data synchronization
-- **Authentication**: Supabase Auth with email/password authentication
+- **Database**: Supabase (PostgreSQL) for real-time synchronization
+- **Authentication**: Supabase Auth (email/password)
 - **Session Management**: Supabase session management
-- **Performance**: Optimistic updates and intelligent caching to reduce database load
+- **Performance**: Optimistic updates and intelligent caching.
+- **ORM**: Drizzle ORM for type-safe database operations.
 
-### Database Schema
-The application uses PostgreSQL with the following main tables:
-- `users`: User accounts with email and hashed passwords
-- `expenses`: Expense tracking with installment support
-- `income`: Income tracking with source categorization
-- `categories`: User-defined categories for income/expenses
-- `accounts`: Financial accounts with initial balances
-
-## Key Components
-
-### Authentication System
-- Email/password authentication using Passport.js
-- Secure password hashing with bcrypt
-- Session-based authentication with persistent storage
-- User registration and login flows
-
-### Financial Data Management
-- **Expense Tracking**: Detailed expense records with categories, payment methods, locations, and installment support
-- **Income Tracking**: Income records with sources and account associations
-- **Category Management**: User-defined categories for both income and expenses
-- **Account Management**: Financial account tracking with balance calculations
-
-### Advanced Features
-- **Installment Management**: Support for tracking installment payments over time
-- **Credit Card Integration**: Special handling for credit card transactions
-- **AI Financial Assistant**: Integration with Gemini AI for financial insights and analysis
-- **CSV Import/Export**: Bulk data management capabilities
-- **Dark/Light Theme**: User preference-based theming
-
-## Data Flow
-
-### Frontend to Backend
-1. React components interact with Context providers
-2. Context providers make API calls to Express routes
-3. Express routes use Drizzle ORM to interact with PostgreSQL
-4. Results flow back through the same chain
-
-### Database Integration
-- Drizzle ORM handles all database operations with type safety
-- Connection pooling through Neon serverless PostgreSQL
-- Automatic migrations and schema management
-
-### External Synchronization
-- Supabase integration for real-time data synchronization
-- Offline capability with retry mechanisms
-- Connection status monitoring and error handling
+### Key Features
+- **Financial Data Management**: Comprehensive tracking of expenses, income, categories, and financial accounts.
+- **Advanced Features**: Installment management, credit card specific handling, AI financial insights via Gemini AI, CSV import/export, and dark/light theme support.
+- **Data Flow**: React components interact with Context providers, which make API calls to Express routes. Express routes use Drizzle ORM to interact with PostgreSQL.
+- **Synchronization**: Supabase integration for real-time data synchronization with offline capabilities and retry mechanisms.
+- **Monorepo Structure**: Shared TypeScript types between frontend and backend for end-to-end type safety.
+- **Performance Optimizations**: Monthly data filtering and advanced pagination significantly reduce dataset processing for UI rendering.
+- **Dedicated Credit Card System**: Separate system for credit card management with its own table, context, forms, and navigation.
+- **AI Financial Assistant**: Reformulated AI assistant using real user data (expenses, income, transfers) for personalized insights via native Google Gemini API integration.
+- **Notifications**: Consistent toast notification system for financial edits, settings, and confirmations.
+- **Dashboard Enhancements**: Credit card analysis, unpaid expenses tracker, biggest expense indicator, and period labels.
+- **Persistent Storage**: `localStorage` for filters, API keys, and AI chat history with cross-tab synchronization.
 
 ## External Dependencies
 
-### Core Dependencies
 - **@neondatabase/serverless**: PostgreSQL serverless connection
 - **@supabase/supabase-js**: Real-time data synchronization
 - **@tanstack/react-query**: Server state management
 - **drizzle-orm**: Type-safe database ORM
 - **bcryptjs**: Password hashing
 - **passport**: Authentication middleware
-
-### UI Dependencies
 - **@radix-ui/react-***: Accessible UI components
 - **tailwindcss**: Utility-first CSS framework
 - **class-variance-authority**: Component variant management
 - **cmdk**: Command palette component
-
-### Development Dependencies
-- **vite**: Build tool and development server
-- **typescript**: Type checking and compilation
+- **vite**: Build tool
+- **typescript**: Type checking
 - **tsx**: TypeScript execution for Node.js
-
-## Deployment Strategy
-
-### Development Environment
-- Vite development server for frontend hot reloading
-- tsx for running TypeScript backend with hot reloading
-- Replit integration with runtime error overlay
-
-### Production Build
-1. Frontend built with Vite to static assets
-2. Backend compiled with esbuild to single JavaScript file
-3. Assets served by Express with proper routing
-4. Database migrations applied via Drizzle Kit
-
-### Environment Configuration
-- Database URL configuration for PostgreSQL connection
-- Session secret for authentication security
-- Supabase credentials for real-time synchronization
-- AI service API keys for financial insights
-
-The application follows a monorepo structure with shared TypeScript types between frontend and backend, ensuring type safety across the entire application stack. The architecture supports both development and production deployments with proper error handling, logging, and monitoring capabilities.
-
-## Recent Changes (July 2025)
-
-### Migration and Performance Optimizations
-- ✅ Successfully migrated from Bolt to Replit environment
-- ✅ Maintained Supabase as primary database backend (user preference)
-- ✅ Fixed data loading to ensure ALL records from income/expenses tables are loaded
-- ✅ Implemented optimistic updates for better user responsiveness
-- ✅ Optimized Dashboard component with useMemo to prevent unnecessary recalculations
-- ✅ Reduced excessive logging in useFinanceCalculations hook
-- ✅ Corrected "due_date" field mapping to use "date" column consistently
-- ✅ Enhanced FinanceContext with intelligent caching and loading states
-
-### Latest Updates (July 19, 2025)
-- ✅ Enhanced CSV import with transfer support and upload blocking
-- ✅ Created PostgreSQL transfers table with proper indexes and constraints
-- ✅ Updated ImportCSV component to support expenses, income, and transfers
-- ✅ Implemented upload progress tracking with visual feedback
-- ✅ Added dialog blocking mechanism to prevent closure during data upload
-- ✅ Enhanced validation with transfer-specific rules (account validation, same-account prevention)
-- ✅ Added real-time progress updates during bulk data processing
-- ✅ **AI Interface Improvements**: Simplified FinancialAIChat to use only Gemini API
-- ✅ **Settings Streamlined**: Removed all AI providers except Gemini for cleaner configuration
-- ✅ **Enhanced UX**: Added quick question buttons and improved visual feedback
-- ✅ **Code Quality**: Fixed all syntax errors and function duplications in AI components
-- ✅ **Performance**: Optimized AI context building and response handling
-- ✅ **Browser Icon**: Created custom SVG favicon with financial theme for brand recognition
-- ✅ **Reload Prevention**: Implemented debouncing and duplicate prevention to eliminate involuntary app reloads
-- ✅ **Persistent Storage**: Added localStorage for filters, API keys, and AI chat history with cross-tab sync
-- ✅ **Expense Grouping**: Enhanced installment grouping with visual differentiation and consolidated display
-- ✅ **Custom Toast System**: Implemented beautiful notification system for API keys, actions and confirmations
-- ✅ **Enhanced UX**: Replaced browser alerts with styled toast notifications for better user experience
-- ✅ **Bolt.new Compatibility**: Removed all Neon/PostgreSQL dependencies for exclusive Supabase operation
-- ✅ **Server Simplification**: Converted to static file server since all database operations use Supabase client
-- ✅ **Netlify Ready**: Created netlify.toml, _headers, _redirects and deployment guide for seamless Netlify deployment
-- ✅ **JAMstack Architecture**: Converted to pure frontend application with Supabase backend for optimal Netlify performance
-- ✅ **Sticky Table Headers**: Implemented fixed headers in Expenses, Income, and Transfers tables for better UX during scrolling
-- ✅ **AI Error Handling**: Fixed undefined .toFixed() errors and replaced browser alerts with elegant toast notifications
-- ✅ **Compact Layout**: Integrated total cards into filter bar for Expenses and Income pages saving vertical space
-- ✅ **Dashboard Enhancements**: Added credit card analysis by month, unpaid expenses tracker, and biggest expense indicator
-- ✅ **Improved Metrics**: New dashboard layout with 7 key indicators including credit card spending visualization
-- ✅ **Period Labels**: Added time period references to all dashboard cards (current month, year, all periods)
-- ✅ **Credit Card Details**: Enhanced credit card analysis to show account names and amounts instead of transaction count
-- ✅ **Account Breakdown**: Credit card chart now displays spending by account with proper grouping and visual hierarchy
-- ✅ **Transfer Layout**: Updated Transfer tab to match Expenses and Income layout with fixed header and integrated total card
-- ✅ **Dashboard Enhancement**: Replaced "Unpaid Expenses" with "Future Income" indicator with proper green styling  
-- ✅ **Daily Summary Integration**: Enhanced Daily Account Summary with integrated cards in the filter bar area
-- ✅ **Credit Card Monthly Details**: Enhanced Dashboard to show individual credit card values separated by month with percentage breakdown
-- ✅ **Sticky Headers**: Implemented proper sticky table headers in Daily Account Summary that remain visible when scrolling
-- ✅ **Table Optimization**: Increased visible rows in all tables (Expenses, Income, Transfers, Daily Summary) with compact padding and dynamic heights
-- ✅ **Credit Card Analysis Fix**: Corrected Dashboard to use paymentMethod field instead of account for proper credit card categorization
-- ✅ **AI Error Handling**: Fixed undefined .toFixed() errors and replaced browser alerts with elegant toast notifications
-- ✅ **Daily Summary Header Fix**: Corrected sticky header positioning from top-32 to top-0 for proper table navigation
-- ✅ **Database Schema Fix**: Removed all dueDate references - using only date column to match Supabase schema
-- ✅ **Expense Update Fix**: Corrected updateExpense function to work with Supabase's actual column structure
-- ✅ **SISTEMA DE CARTÃO DE CRÉDITO SEPARADO (August 1, 2025)**: Implementação completa de sistema dedicado para cartões de crédito
-- ✅ **Nova Tabela Supabase**: Criada tabela "cartao" com estrutura idêntica às despesas para facilitar migração
-- ✅ **Arquitetura Separada**: CreditCardContext, CreditCardForm e CreditCardList independentes do sistema de despesas
-- ✅ **Navegação Dedicada**: Nova aba "Cartão de Crédito" na navegação principal
-- ✅ **Interface Consistente**: Layout similar às despesas com filtros mensais, paginação e notificações de sucesso
-- ✅ **Formulários Limpos**: Removido checkbox "Cartão de Crédito" das telas de Despesas e Receitas
-- ✅ **Parcelamento Suportado**: Sistema completo de parcelamento exclusivo para cartões de crédito
-- ✅ **MAJOR PERFORMANCE OPTIMIZATION (July 31, 2025)**: Implemented revolutionary performance improvements achieving 99% faster UI rendering
-- ✅ **Monthly Data Filtering**: Smart month-based filtering reduces dataset from 3436 to ~100 records per view (97% reduction)
-- ✅ **Advanced Pagination**: Process only 25 records per page instead of thousands (99% rendering improvement)
-- ✅ **Navigation Controls**: Month selector with previous/next navigation and page controls for seamless browsing
-- ✅ **Preserved Functionality**: All historical data still loaded for Daily Summary and financial analytics - zero feature loss
-- ✅ **Real Performance Gains**: From processing 3436 expense records to 25 per page with intelligent month navigation
-- ✅ **User Experience**: Instant page loads, smooth navigation, and responsive interface while maintaining data completeness
-- ✅ **AI FINANCEIRA REFORMULADA (July 31, 2025)**: Reconstrução completa do assistente de IA com integração real aos dados
-- ✅ **Análises Inteligentes**: IA agora usa dados reais (despesas, receitas, transferências) para análises personalizadas
-- ✅ **Contexto Financeiro**: Integração completa com saldos de contas, categorias top, gastos por cartão de crédito
-- ✅ **Perguntas Inteligentes**: Sugestões de perguntas baseadas nos dados reais do usuário (ex: categoria com mais gastos)
-- ✅ **API Gemini Nativa**: Implementação direta com Google Gemini API sem intermediários
-- ✅ **Histórico Persistente**: Armazenamento local das conversas com sincronização entre abas
-- ✅ **UX Melhorada**: Interface moderna com status da API, loading states e tratamento de erros elegante
-- ✅ **NOTIFICAÇÕES DE EDIÇÃO (July 31, 2025)**: Implementadas notificações de sucesso para todas as edições financeiras
-- ✅ **Feedback Visual**: Toast notifications aparecem ao editar despesas, receitas e transferências
-- ✅ **Consistência de UX**: Mesmo sistema de notificações usado nas configurações estendido para todos os formulários
-- ✅ **Mensagens Personalizadas**: Notificações específicas para cada tipo de operação (despesa/receita/transferência)
-- ✅ **CARTÕES SALDO CORRIGIDOS (July 31, 2025)**: Correção na visualização de saldos no Daily Account Summary
-- ✅ **Saldo Inicial**: Criado cartão dedicado para mostrar saldo inicial do período (primeiro dia)
-- ✅ **Saldo Final**: Cartão existente corrigido para exibir corretamente o saldo do último dia do mês
-- ✅ **Visual Diferenciado**: Saldo inicial em azul e saldo final em verde para melhor distinção
-- ✅ **FORMULÁRIO CARTÃO OTIMIZADO (August 1, 2025)**: Removido checkbox "Pago" do formulário de cartão de crédito
-- ✅ **Script SQL Supabase**: Criado script create_cartao_supabase.sql para criar tabela "cartao" diretamente no Supabase
-- ✅ **Interface Limpa**: Formulário agora foca apenas nos dados essenciais sem campo de status pago/pendente
+- **Google Gemini API**: For AI financial insights.

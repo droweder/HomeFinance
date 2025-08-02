@@ -96,6 +96,7 @@ const TransferForm: React.FC<TransferFormProps> = ({ transfer, onClose }) => {
         showSuccess('Transferência atualizada com sucesso!');
       } else {
         await addTransfer(transferData);
+        showSuccess('Transferência adicionada com sucesso!');
       }
 
       onClose();

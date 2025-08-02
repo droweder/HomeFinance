@@ -69,18 +69,61 @@ const CreditCardList: React.FC = () => {
     setEditingCreditCard(null);
     setShowForm(true);
   };
+
+  // Estado para filtros aplicados
+  const [appliedFilters, setAppliedFilters] = useState({
+    category: '',
+    account: '',
+    description: '',
+    location: '',
+    startDate: '',
+    endDate: '',
+    installmentGroup: '',
+    groupInstallments: false,
+    sortBy: [] as Array<{ column: string; direction: 'asc' | 'desc' }>
+  });
+
+  // Filter modal handlers
+  const handleOpenFilterModal = () => {
+    console.log('🔧 Abrindo modal de filtros de cartão de crédito.');
+    setTempFilters(appliedFilters); // Load current applied filters
+    setShowFilterModal(true);
+  };
+
+  const handleApplyFilters = () => {
+    console.log('✅ Aplicando filtros de cartão de crédito:', tempFilters);
+    setAppliedFilters(tempFilters); // Apply the filters
+    setShowFilterModal(false);
+  };
+
+  const handleCancelFilters = () => {
+    console.log('❌ Cancelando filtros de cartão de crédito');
+    setTempFilters(appliedFilters); // Reset to applied filters
+    setShowFilterModal(false);
+  };
   const [selectedMonth, setSelectedMonth] = useState<string>(() => {
     const now = new Date();
     return `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}`;
   });
 
-  // PERFORMANCE: First filter by selected month to reduce dataset
+  // PERFORMANCE: First filter by selected month OR date range from applied filters
   const monthFilteredCards = useMemo(() => {
+    // If there are date filters defined, use those instead of month filtering
+    if (appliedFilters.startDate || appliedFilters.endDate) {
+      return creditCards.filter(card => {
+        const cardDate = card.date;
+        if (appliedFilters.startDate && cardDate < appliedFilters.startDate) return false;
+        if (appliedFilters.endDate && cardDate > appliedFilters.endDate) return false;
+        return true;
+      });
+    }
+    
+    // Otherwise, use month filtering for performance
     return creditCards.filter(card => {
       const cardMonth = card.date.substring(0, 7); // YYYY-MM format
       return cardMonth === selectedMonth;
     });
-  }, [creditCards, selectedMonth]);
+  }, [creditCards, selectedMonth, appliedFilters.startDate, appliedFilters.endDate]);
 
   // Get available months for dropdown
   const availableMonths = useMemo(() => {
@@ -97,23 +140,40 @@ const CreditCardList: React.FC = () => {
     setSelectedMonth(newMonth);
   };
 
+  const handleSelectCard = (cardId: string) => {
+    const newSelected = new Set(selectedCards);
+    if (newSelected.has(cardId)) {
+      newSelected.delete(cardId);
+    } else {
+      newSelected.add(cardId);
+    }
+    setSelectedCards(newSelected);
+  };
+
+  const handleSelectAll = () => {
+    if (selectedCards.size === sortedCards.length) {
+      setSelectedCards(new Set());
+    } else {
+      setSelectedCards(new Set(sortedCards.map(card => card.id)));
+    }
+  };
+
   const filteredCards = useMemo(() => {
     return monthFilteredCards.filter(card => {
-      const matchesCategory = !tempFilters.category || card.category.toLowerCase().includes(tempFilters.category.toLowerCase());
-      const matchesAccount = !tempFilters.account || card.paymentMethod.toLowerCase().includes(tempFilters.account.toLowerCase());
-      const matchesDescription = !tempFilters.description || card.description.toLowerCase().includes(tempFilters.description.toLowerCase());
-      const matchesLocation = !tempFilters.location || (card.location && card.location.toLowerCase().includes(tempFilters.location.toLowerCase()));
+      const matchesCategory = !appliedFilters.category || card.category.toLowerCase().includes(appliedFilters.category.toLowerCase());
+      const matchesAccount = !appliedFilters.account || card.paymentMethod.toLowerCase().includes(appliedFilters.account.toLowerCase());
+      const matchesDescription = !appliedFilters.description || card.description.toLowerCase().includes(appliedFilters.description.toLowerCase());
+      const matchesLocation = !appliedFilters.location || (card.location && card.location.toLowerCase().includes(appliedFilters.location.toLowerCase()));
       
-      const matchesDateRange = (!tempFilters.startDate || card.date >= tempFilters.startDate) &&
-                               (!tempFilters.endDate || card.date <= tempFilters.endDate);
+      // Skip date filtering here since it's already done in monthFilteredCards when filters are active
 
-      return matchesCategory && matchesAccount && matchesDescription && matchesLocation && matchesDateRange;
+      return matchesCategory && matchesAccount && matchesDescription && matchesLocation;
     });
-  }, [monthFilteredCards, tempFilters]);
+  }, [monthFilteredCards, appliedFilters]);
 
   // Grouping logic for installments
   const groupedCards = useMemo(() => {
-    if (!tempFilters.groupInstallments) return filteredCards;
+    if (!appliedFilters.groupInstallments) return filteredCards;
 
     const grouped: CreditCard[] = [];
     const processedGroups = new Set<string>();
@@ -147,7 +207,7 @@ const CreditCardList: React.FC = () => {
     });
 
     return grouped;
-  }, [filteredCards, tempFilters.groupInstallments]);
+  }, [filteredCards, appliedFilters.groupInstallments]);
 
   // Calculate totals
   const totals = useMemo(() => {
@@ -157,25 +217,6 @@ const CreditCardList: React.FC = () => {
     
     return { total, paid, pending };
   }, [filteredCards]);
-
-  // Funções de seleção
-  const handleSelectCard = (cardId: string) => {
-    const newSelected = new Set(selectedCards);
-    if (newSelected.has(cardId)) {
-      newSelected.delete(cardId);
-    } else {
-      newSelected.add(cardId);
-    }
-    setSelectedCards(newSelected);
-  };
-
-  const handleSelectAll = () => {
-    if (selectedCards.size === sortedCards.length) {
-      setSelectedCards(new Set());
-    } else {
-      setSelectedCards(new Set(sortedCards.map(card => card.id)));
-    }
-  };
 
   const labels = {
     title: 'Cartão de Crédito',
@@ -242,53 +283,67 @@ const CreditCardList: React.FC = () => {
                 <p className="text-gray-600 dark:text-gray-400 mt-2">{labels.subtitle}</p>
               </div>
               <div className="flex items-center gap-3">
-                {/* Month Navigation */}
+                {/* Month Navigation or Period Display */}
                 <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
                   <Calendar className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => {
-                        const currentIndex = availableMonths.findIndex(month => month === selectedMonth);
-                        if (currentIndex < availableMonths.length - 1) {
-                          handleMonthChange(availableMonths[currentIndex + 1]);
-                        }
-                      }}
-                      disabled={availableMonths.findIndex(month => month === selectedMonth) >= availableMonths.length - 1}
-                      className="p-1 hover:bg-blue-100 dark:hover:bg-blue-800 rounded disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <ChevronLeft className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                    </button>
-                    
-                    <select 
-                      value={selectedMonth}
-                      onChange={(e) => handleMonthChange(e.target.value)}
-                      className="text-sm font-medium text-blue-700 dark:text-blue-300 bg-transparent border-none focus:outline-none"
-                    >
-                      {availableMonths.map(month => {
-                        const [year, monthNum] = month.split('-');
-                        const monthName = new Date(parseInt(year), parseInt(monthNum) - 1).toLocaleDateString('pt-BR', { year: 'numeric', month: 'long' });
-                        const recordCount = creditCards.filter(card => card.date.substring(0, 7) === month).length;
-                        return (
-                          <option key={month} value={month}>
-                            {monthName} ({recordCount})
-                          </option>
-                        );
-                      })}
-                    </select>
-                    
-                    <button
-                      onClick={() => {
-                        const currentIndex = availableMonths.findIndex(month => month === selectedMonth);
-                        if (currentIndex > 0) {
-                          handleMonthChange(availableMonths[currentIndex - 1]);
-                        }
-                      }}
-                      disabled={availableMonths.findIndex(month => month === selectedMonth) <= 0}
-                      className="p-1 hover:bg-blue-100 dark:hover:bg-blue-800 rounded disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <ChevronRight className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                    </button>
-                  </div>
+                  {appliedFilters.startDate || appliedFilters.endDate ? (
+                    // Show period info when filters are active
+                    <div className="text-sm font-medium text-blue-700 dark:text-blue-300">
+                      {appliedFilters.startDate && appliedFilters.endDate ? (
+                        `Período: ${new Date(appliedFilters.startDate).toLocaleDateString('pt-BR')} - ${new Date(appliedFilters.endDate).toLocaleDateString('pt-BR')} (${filteredCards.length} registros)`
+                      ) : appliedFilters.startDate ? (
+                        `Desde: ${new Date(appliedFilters.startDate).toLocaleDateString('pt-BR')} (${filteredCards.length} registros)`
+                      ) : (
+                        `Até: ${new Date(appliedFilters.endDate).toLocaleDateString('pt-BR')} (${filteredCards.length} registros)`
+                      )}
+                    </div>
+                  ) : (
+                    // Show month navigation when no period filters are active
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => {
+                          const currentIndex = availableMonths.findIndex(month => month === selectedMonth);
+                          if (currentIndex < availableMonths.length - 1) {
+                            handleMonthChange(availableMonths[currentIndex + 1]);
+                          }
+                        }}
+                        disabled={availableMonths.findIndex(month => month === selectedMonth) >= availableMonths.length - 1}
+                        className="p-1 hover:bg-blue-100 dark:hover:bg-blue-800 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <ChevronLeft className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                      </button>
+                      
+                      <select 
+                        value={selectedMonth}
+                        onChange={(e) => handleMonthChange(e.target.value)}
+                        className="text-sm font-medium text-blue-700 dark:text-blue-300 bg-transparent border-none focus:outline-none"
+                      >
+                        {availableMonths.map(month => {
+                          const [year, monthNum] = month.split('-');
+                          const monthName = new Date(parseInt(year), parseInt(monthNum) - 1).toLocaleDateString('pt-BR', { year: 'numeric', month: 'long' });
+                          const recordCount = creditCards.filter(card => card.date.substring(0, 7) === month).length;
+                          return (
+                            <option key={month} value={month}>
+                              {monthName} ({recordCount})
+                            </option>
+                          );
+                        })}
+                      </select>
+                      
+                      <button
+                        onClick={() => {
+                          const currentIndex = availableMonths.findIndex(month => month === selectedMonth);
+                          if (currentIndex > 0) {
+                            handleMonthChange(availableMonths[currentIndex - 1]);
+                          }
+                        }}
+                        disabled={availableMonths.findIndex(month => month === selectedMonth) <= 0}
+                        className="p-1 hover:bg-blue-100 dark:hover:bg-blue-800 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <ChevronRight className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 {/* Total integrado na barra superior */}
@@ -330,7 +385,7 @@ const CreditCardList: React.FC = () => {
                   </button>
                   
                   <button
-                    onClick={() => setShowFilterModal(true)}
+                    onClick={handleOpenFilterModal}
                     className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-2 shadow-sm"
                   >
                     <Filter className="w-4 h-4" />
@@ -351,10 +406,18 @@ const CreditCardList: React.FC = () => {
                 <thead className="bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600 sticky top-0 z-20">
                   <tr>
                     <th className="text-left py-3 px-4 font-medium text-gray-900 dark:text-white">
-                      {labels.date}
+                      <input
+                        type="checkbox"
+                        checked={selectedCards.size > 0 && selectedCards.size === sortedCards.length}
+                        onChange={handleSelectAll}
+                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
                     </th>
                     <th className="text-left py-3 px-4 font-medium text-gray-900 dark:text-white">
                       {labels.category}
+                    </th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-900 dark:text-white">
+                      {labels.location}
                     </th>
                     <th className="text-left py-3 px-4 font-medium text-gray-900 dark:text-white">
                       {labels.description}
@@ -366,10 +429,10 @@ const CreditCardList: React.FC = () => {
                       {labels.account}
                     </th>
                     <th className="text-left py-3 px-4 font-medium text-gray-900 dark:text-white">
-                      {labels.location}
+                      {labels.installments}
                     </th>
                     <th className="text-left py-3 px-4 font-medium text-gray-900 dark:text-white">
-                      {labels.installments}
+                      {labels.date}
                     </th>
                     <th className="text-right py-3 px-4 font-medium text-gray-900 dark:text-white">
                       {labels.actions}
@@ -392,7 +455,7 @@ const CreditCardList: React.FC = () => {
                       return [
                         // Card Group Header
                         <tr key={`header-${cardName}`} className="bg-blue-50 dark:bg-blue-900/20">
-                          <td colSpan={8} className="py-2 px-4 font-medium text-blue-900 dark:text-blue-100">
+                          <td colSpan={9} className="py-2 px-4 font-medium text-blue-900 dark:text-blue-100">
                             <div className="flex items-center gap-2">
                               <CreditCardIcon className="w-4 h-4" />
                               <span>{cardName}</span>
@@ -408,16 +471,21 @@ const CreditCardList: React.FC = () => {
                         // Card Records
                         ...cards.map((card: CreditCard) => (
                           <tr key={card.id} className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-                            <td className="py-3 px-4 text-gray-900 dark:text-white">
-                              <div className="flex items-center gap-2">
-                                <Calendar className="w-4 h-4 text-gray-400" />
-                                {formatDate(card.date)}
-                              </div>
+                            <td className="py-3 px-4">
+                              <input
+                                type="checkbox"
+                                checked={selectedCards.has(card.id)}
+                                onChange={() => handleSelectCard(card.id)}
+                                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                              />
                             </td>
                             <td className="py-3 px-4 text-gray-900 dark:text-white">
                               <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 dark:bg-purple-900/20 text-purple-800 dark:text-purple-300">
                                 {card.category}
                               </span>
+                            </td>
+                            <td className="py-3 px-4 text-gray-500 dark:text-gray-400">
+                              {card.location || '-'}
                             </td>
                             <td className="py-3 px-4 text-gray-900 dark:text-white">
                               <div className="max-w-xs truncate" title={card.description}>
@@ -451,9 +519,6 @@ const CreditCardList: React.FC = () => {
                               </span>
                             </td>
                             <td className="py-3 px-4 text-gray-500 dark:text-gray-400">
-                              {card.location || '-'}
-                            </td>
-                            <td className="py-3 px-4 text-gray-500 dark:text-gray-400">
                               {card.isInstallment ? (
                                 card.isGroupRepresentative ? (
                                   `${card.totalInstallments}x`
@@ -463,6 +528,12 @@ const CreditCardList: React.FC = () => {
                               ) : (
                                 '-'
                               )}
+                            </td>
+                            <td className="py-3 px-4 text-gray-900 dark:text-white">
+                              <div className="flex items-center gap-2">
+                                <Calendar className="w-4 h-4 text-gray-400" />
+                                {formatDate(card.date)}
+                              </div>
                             </td>
                             <td className="py-3 px-4">
                               <div className="flex items-center gap-2">
@@ -521,6 +592,118 @@ const CreditCardList: React.FC = () => {
         confirmText="Excluir"
         cancelText="Cancelar"
       />
+
+      {/* Filter Modal */}
+      {showFilterModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Filtros de Cartão</h2>
+              <button
+                onClick={handleCancelFilters}
+                className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Categoria
+                </label>
+                <select
+                  value={tempFilters.category}
+                  onChange={(e) => setTempFilters(prev => ({ ...prev, category: e.target.value }))}
+                  className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                >
+                  <option value="">Todas as Categorias</option>
+                  {/* Add category options here if needed */}
+                </select>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Cartão
+                </label>
+                <select
+                  value={tempFilters.account}
+                  onChange={(e) => setTempFilters(prev => ({ ...prev, account: e.target.value }))}
+                  className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                >
+                  <option value="">Todos os Cartões</option>
+                  {/* Add payment method options here if needed */}
+                </select>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Data Inicial
+                </label>
+                <input
+                  type="date"
+                  value={tempFilters.startDate}
+                  onChange={(e) => setTempFilters(prev => ({ ...prev, startDate: e.target.value }))}
+                  className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Data Final
+                </label>
+                <input
+                  type="date"
+                  value={tempFilters.endDate}
+                  onChange={(e) => setTempFilters(prev => ({ ...prev, endDate: e.target.value }))}
+                  className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Descrição
+                </label>
+                <input
+                  type="text"
+                  value={tempFilters.description}
+                  onChange={(e) => setTempFilters(prev => ({ ...prev, description: e.target.value }))}
+                  placeholder="Buscar na descrição..."
+                  className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Local
+                </label>
+                <input
+                  type="text"
+                  value={tempFilters.location}
+                  onChange={(e) => setTempFilters(prev => ({ ...prev, location: e.target.value }))}
+                  placeholder="Buscar no local..."
+                  className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                />
+              </div>
+            </div>
+            
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={handleCancelFilters}
+                className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleApplyFilters}
+                className="px-6 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Aplicar Filtros
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

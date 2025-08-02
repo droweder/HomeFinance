@@ -20,13 +20,24 @@ const IncomeList: React.FC = () => {
     return `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}`;
   });
 
-  // PERFORMANCE: First filter by selected month to reduce dataset
+  // PERFORMANCE: First filter by selected month OR date range from filters
   const monthFilteredIncome = useMemo(() => {
+    // If there are date filters defined, use those instead of month filtering
+    if (filters.income.startDate || filters.income.endDate) {
+      return income.filter(incomeItem => {
+        const incomeDate = incomeItem.date;
+        if (filters.income.startDate && incomeDate < filters.income.startDate) return false;
+        if (filters.income.endDate && incomeDate > filters.income.endDate) return false;
+        return true;
+      });
+    }
+    
+    // Otherwise, use month filtering for performance
     return income.filter(incomeItem => {
       const incomeMonth = incomeItem.date.substring(0, 7); // YYYY-MM format
       return incomeMonth === selectedMonth;
     });
-  }, [income, selectedMonth]);
+  }, [income, selectedMonth, filters.income.startDate, filters.income.endDate]);
 
   // Get available months for dropdown
   const availableMonths = useMemo(() => {
@@ -42,8 +53,7 @@ const IncomeList: React.FC = () => {
   const filteredIncome = monthFilteredIncome.filter(incomeItem => {
     const incomeFilters = filters.income;
     if (incomeFilters.source && incomeItem.source !== incomeFilters.source) return false;
-    if (incomeFilters.startDate && incomeItem.date < incomeFilters.startDate) return false;
-    if (incomeFilters.endDate && incomeItem.date > incomeFilters.endDate) return false;
+    // Skip date filtering here since it's already done in monthFilteredIncome
     if (incomeFilters.account && incomeItem.account !== incomeFilters.account) return false;
     if (incomeFilters.description && !incomeItem.notes?.toLowerCase().includes(incomeFilters.description.toLowerCase())) return false;
     if (incomeFilters.location && !incomeItem.location?.toLowerCase().includes(incomeFilters.location.toLowerCase())) return false;
@@ -239,53 +249,67 @@ const IncomeList: React.FC = () => {
               </div>
               
               <div className="flex items-center gap-3">
-                {/* Month Navigation */}
+                {/* Month Navigation or Period Display */}
                 <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
                   <Calendar className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => {
-                        const currentIndex = availableMonths.findIndex(month => month === selectedMonth);
-                        if (currentIndex < availableMonths.length - 1) {
-                          setSelectedMonth(availableMonths[currentIndex + 1]);
-                        }
-                      }}
-                      disabled={availableMonths.findIndex(month => month === selectedMonth) >= availableMonths.length - 1}
-                      className="p-1 hover:bg-blue-100 dark:hover:bg-blue-800 rounded disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <ChevronLeft className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                    </button>
-                    
-                    <select 
-                      value={selectedMonth}
-                      onChange={(e) => setSelectedMonth(e.target.value)}
-                      className="text-sm font-medium text-blue-700 dark:text-blue-300 bg-transparent border-none focus:outline-none"
-                    >
-                      {availableMonths.map(month => {
-                        const [year, monthNum] = month.split('-');
-                        const monthName = new Date(parseInt(year), parseInt(monthNum) - 1).toLocaleDateString('pt-BR', { year: 'numeric', month: 'long' });
-                        const monthCount = income.filter(inc => inc.date.substring(0, 7) === month).length;
-                        return (
-                          <option key={month} value={month}>
-                            {monthName} ({monthCount})
-                          </option>
-                        );
-                      })}
-                    </select>
-                    
-                    <button
-                      onClick={() => {
-                        const currentIndex = availableMonths.findIndex(month => month === selectedMonth);
-                        if (currentIndex > 0) {
-                          setSelectedMonth(availableMonths[currentIndex - 1]);
-                        }
-                      }}
-                      disabled={availableMonths.findIndex(month => month === selectedMonth) <= 0}
-                      className="p-1 hover:bg-blue-100 dark:hover:bg-blue-800 rounded disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <ChevronRight className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                    </button>
-                  </div>
+                  {filters.income.startDate || filters.income.endDate ? (
+                    // Show period info when filters are active
+                    <div className="text-sm font-medium text-blue-700 dark:text-blue-300">
+                      {filters.income.startDate && filters.income.endDate ? (
+                        `Período: ${new Date(filters.income.startDate).toLocaleDateString('pt-BR')} - ${new Date(filters.income.endDate).toLocaleDateString('pt-BR')} (${sortedIncome.length} registros)`
+                      ) : filters.income.startDate ? (
+                        `Desde: ${new Date(filters.income.startDate).toLocaleDateString('pt-BR')} (${sortedIncome.length} registros)`
+                      ) : (
+                        `Até: ${new Date(filters.income.endDate).toLocaleDateString('pt-BR')} (${sortedIncome.length} registros)`
+                      )}
+                    </div>
+                  ) : (
+                    // Show month navigation when no period filters are active
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => {
+                          const currentIndex = availableMonths.findIndex(month => month === selectedMonth);
+                          if (currentIndex < availableMonths.length - 1) {
+                            setSelectedMonth(availableMonths[currentIndex + 1]);
+                          }
+                        }}
+                        disabled={availableMonths.findIndex(month => month === selectedMonth) >= availableMonths.length - 1}
+                        className="p-1 hover:bg-blue-100 dark:hover:bg-blue-800 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <ChevronLeft className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                      </button>
+                      
+                      <select 
+                        value={selectedMonth}
+                        onChange={(e) => setSelectedMonth(e.target.value)}
+                        className="text-sm font-medium text-blue-700 dark:text-blue-300 bg-transparent border-none focus:outline-none"
+                      >
+                        {availableMonths.map(month => {
+                          const [year, monthNum] = month.split('-');
+                          const monthName = new Date(parseInt(year), parseInt(monthNum) - 1).toLocaleDateString('pt-BR', { year: 'numeric', month: 'long' });
+                          const monthCount = income.filter(inc => inc.date.substring(0, 7) === month).length;
+                          return (
+                            <option key={month} value={month}>
+                              {monthName} ({monthCount})
+                            </option>
+                          );
+                        })}
+                      </select>
+                      
+                      <button
+                        onClick={() => {
+                          const currentIndex = availableMonths.findIndex(month => month === selectedMonth);
+                          if (currentIndex > 0) {
+                            setSelectedMonth(availableMonths[currentIndex - 1]);
+                          }
+                        }}
+                        disabled={availableMonths.findIndex(month => month === selectedMonth) <= 0}
+                        className="p-1 hover:bg-blue-100 dark:hover:bg-blue-800 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <ChevronRight className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 {/* Total */}
