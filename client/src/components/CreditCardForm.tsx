@@ -5,7 +5,7 @@ import { useFinance } from '../context/FinanceContext';
 import { useAccounts } from '../context/AccountContext';
 import { useSettings } from '../context/SettingsContext';
 import { useToast } from './ui/toast';
-import type { CreditCard } from '../types';
+import type { CreditCard } from '../types/index';
 
 interface CreditCardFormProps {
   creditCard?: CreditCard | null;
@@ -46,9 +46,52 @@ const CreditCardForm: React.FC<CreditCardFormProps> = ({ creditCard, onClose, on
     location: '',
     isInstallment: false,
     totalInstallments: 1,
+    isRefund: false,
   });
 
   const [installmentDates, setInstallmentDates] = useState<string[]>([]);
+
+  // Função para adicionar extorno
+  const handleAddRefund = () => {
+    if (!creditCard) return;
+
+    // Fechar o modal atual
+    onClose();
+
+    // Esperar um pouco e abrir um novo formulário pré-preenchido como extorno
+    setTimeout(() => {
+      const refundData = {
+        date: formatDateForInput(creditCard.date),
+        category: creditCard.category,
+        amount: Math.abs(creditCard.amount).toString().replace('.', ','), // Valor positivo para mostrar no input
+        account: creditCard.paymentMethod,
+        description: `Extorno - ${creditCard.description}`,
+        location: creditCard.location || '',
+        isInstallment: false, // Extornos normalmente não são parcelados
+        totalInstallments: 1,
+        isRefund: true,
+      };
+
+      // Criar um novo cartão com os dados do extorno
+      const refundCard = {
+        ...creditCard,
+        id: '',
+        date: refundData.date,
+        description: refundData.description,
+        amount: -Math.abs(creditCard.amount), // Valor negativo
+        isRefund: true,
+        isInstallment: false,
+        installmentNumber: null,
+        totalInstallments: null,
+        installmentGroup: null,
+      };
+
+      // Disparar evento personalizado para abrir novo formulário
+      window.dispatchEvent(new CustomEvent('openRefundForm', { 
+        detail: { refundCard, refundData } 
+      }));
+    }, 100);
+  };
 
   useEffect(() => {
     if (creditCard) {
@@ -62,6 +105,7 @@ const CreditCardForm: React.FC<CreditCardFormProps> = ({ creditCard, onClose, on
         location: creditCard.location || '',
         isInstallment: creditCard.isInstallment || false,
         totalInstallments: creditCard.totalInstallments || 1,
+        isRefund: creditCard.isRefund || false,
       });
 
       if (creditCard.isInstallment && creditCard.date) {
@@ -123,14 +167,22 @@ const CreditCardForm: React.FC<CreditCardFormProps> = ({ creditCard, onClose, on
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const baseAmount = parseFloat(formData.amount.replace(',', '.'));
+    let baseAmount = parseFloat(formData.amount.replace(',', '.'));
     
-    if (isNaN(baseAmount) || baseAmount <= 0) {
+    if (isNaN(baseAmount) || baseAmount === 0) {
       alert('Por favor, insira um valor válido');
       return;
     }
 
-    console.log('💾 Salvando cartão de crédito:', { creditCard, formData, baseAmount });
+    // Se for extorno, tornar o valor negativo automaticamente
+    if (formData.isRefund) {
+      baseAmount = -Math.abs(baseAmount);
+    } else {
+      // Se não for extorno, garantir que seja positivo
+      baseAmount = Math.abs(baseAmount);
+    }
+
+    console.log('💾 Salvando cartão de crédito:', { creditCard, formData, baseAmount, isRefund: formData.isRefund });
 
     if (creditCard) {
       // Editando cartão de crédito existente
@@ -141,18 +193,19 @@ const CreditCardForm: React.FC<CreditCardFormProps> = ({ creditCard, onClose, on
         amount: baseAmount,
         paymentMethod: formData.account,
         location: formData.location,
-        // Preservar informações de parcelas se existirem
-        isInstallment: creditCard.isInstallment,
-        installmentNumber: creditCard.installmentNumber,
-        totalInstallments: creditCard.totalInstallments,
-        installmentGroup: creditCard.installmentGroup,
+        isRefund: formData.isRefund,
+        // Preservar informações de parcelas se existirem (mas extornos não são parcelados)
+        isInstallment: formData.isRefund ? false : creditCard.isInstallment,
+        installmentNumber: formData.isRefund ? null : creditCard.installmentNumber,
+        totalInstallments: formData.isRefund ? null : creditCard.totalInstallments,
+        installmentGroup: formData.isRefund ? null : creditCard.installmentGroup,
       };
 
       console.log('✏️ Atualizando cartão de crédito:', creditCardData);
       try {
         await updateCreditCard(creditCard.id, creditCardData);
         console.log('✅ Cartão de crédito atualizado com sucesso');
-        showSuccess('Cartão de crédito atualizado com sucesso!');
+        showSuccess(formData.isRefund ? 'Extorno atualizado com sucesso!' : 'Cartão de crédito atualizado com sucesso!');
         onSave?.();
         onClose();
       } catch (error: any) {
@@ -161,10 +214,10 @@ const CreditCardForm: React.FC<CreditCardFormProps> = ({ creditCard, onClose, on
       }
     } else {
       // Criando novo cartão de crédito
-      const installmentAmount = formData.isInstallment ? baseAmount / formData.totalInstallments : baseAmount;
+      const installmentAmount = formData.isInstallment && !formData.isRefund ? baseAmount / formData.totalInstallments : baseAmount;
 
-      if (formData.isInstallment) {
-        // Create multiple installments with clean descriptions
+      if (formData.isInstallment && !formData.isRefund) {
+        // Create multiple installments with clean descriptions (extornos não são parcelados)
         const installmentGroup = Date.now().toString();
         
         for (let i = 0; i < formData.totalInstallments; i++) {
@@ -179,13 +232,14 @@ const CreditCardForm: React.FC<CreditCardFormProps> = ({ creditCard, onClose, on
             installmentNumber: i + 1,
             totalInstallments: formData.totalInstallments,
             installmentGroup: installmentGroup,
+            isRefund: false,
           };
 
           console.log(`📝 Criando parcela ${i + 1}/${formData.totalInstallments}:`, creditCardData);
           addCreditCard(creditCardData);
         }
       } else {
-        // Single credit card expense
+        // Single credit card expense or refund
         const creditCardData = {
           date: formatDateForStorage(formData.date),
           category: formData.category,
@@ -194,6 +248,7 @@ const CreditCardForm: React.FC<CreditCardFormProps> = ({ creditCard, onClose, on
           paymentMethod: formData.account,
           location: formData.location,
           isInstallment: false,
+          isRefund: formData.isRefund,
         };
 
         console.log('📝 Criando cartão de crédito único:', creditCardData);
@@ -370,8 +425,22 @@ const CreditCardForm: React.FC<CreditCardFormProps> = ({ creditCard, onClose, on
             />
           </div>
 
-          {/* Parcelamento - apenas para novos cartões */}
-          {!creditCard && (
+          {/* Checkbox para marcar como extorno */}
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="refund"
+              checked={formData.isRefund}
+              onChange={(e) => setFormData({ ...formData, isRefund: e.target.checked, isInstallment: e.target.checked ? false : formData.isInstallment })}
+              className="rounded border-gray-300 text-green-600 focus:ring-green-500"
+            />
+            <label htmlFor="refund" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+              Marcar como extorno
+            </label>
+          </div>
+
+          {/* Parcelamento - apenas para novos cartões e se não for extorno */}
+          {!creditCard && !formData.isRefund && (
             <>
               <div className="flex items-center gap-2">
                 <input
@@ -452,6 +521,15 @@ const CreditCardForm: React.FC<CreditCardFormProps> = ({ creditCard, onClose, on
             >
               {labels.cancel}
             </button>
+            {creditCard && (
+              <button
+                type="button"
+                onClick={handleAddRefund}
+                className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+              >
+                Adicionar Extorno
+              </button>
+            )}
             <button
               type="submit"
               className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"

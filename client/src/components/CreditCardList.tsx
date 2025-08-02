@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { Plus, Edit2, Trash2, Calendar, CreditCard as CreditCardIcon, Filter, Search, X, Package, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useCreditCard } from '../context/CreditCardContext';
 import { useSettings } from '../context/SettingsContext';
-import { CreditCard } from '../types';
+import { CreditCard } from '../types/index';
 import CreditCardForm from './CreditCardForm';
 import ConfirmDialog from './ConfirmDialog';
 
@@ -361,7 +361,7 @@ const CreditCardList: React.FC = () => {
                 <tbody>
                   {/* Group by Credit Card */}
                   {(() => {
-                    const cardGroups = sortedCards.reduce((groups, card) => {
+                    const cardGroups = sortedCards.reduce((groups: Record<string, CreditCard[]>, card: CreditCard) => {
                       const cardName = card.paymentMethod;
                       if (!groups[cardName]) {
                         groups[cardName] = [];
@@ -370,7 +370,7 @@ const CreditCardList: React.FC = () => {
                       return groups;
                     }, {} as Record<string, CreditCard[]>);
 
-                    return Object.entries(cardGroups).map(([cardName, cards]) => {
+                    return (Object.entries(cardGroups) as [string, CreditCard[]][]).map(([cardName, cards]) => {
                       return [
                         // Card Group Header
                         <tr key={`header-${cardName}`} className="bg-blue-50 dark:bg-blue-900/20">
@@ -382,13 +382,13 @@ const CreditCardList: React.FC = () => {
                                 {cards.length} {cards.length === 1 ? 'registro' : 'registros'}
                               </span>
                               <span className="text-xs bg-blue-200 dark:bg-blue-800 px-2 py-1 rounded-full">
-                                {formatCurrency(cards.reduce((sum, card) => sum + card.amount, 0))}
+                                {formatCurrency(cards.reduce((sum: number, card: CreditCard) => sum + card.amount, 0))}
                               </span>
                             </div>
                           </td>
                         </tr>,
                         // Card Records
-                        ...cards.map((card) => (
+                        ...cards.map((card: CreditCard) => (
                           <tr key={card.id} className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
                             <td className="py-3 px-4 text-gray-900 dark:text-white">
                               <div className="flex items-center gap-2">
@@ -406,7 +406,7 @@ const CreditCardList: React.FC = () => {
                                 {card.description}
                               </div>
                             </td>
-                            <td className="py-3 px-4 text-right font-medium text-gray-900 dark:text-white">
+                            <td className={`py-3 px-4 text-right font-medium ${card.isRefund ? 'text-green-600 dark:text-green-400' : 'text-gray-900 dark:text-white'}`}>
                               {card.isGroupRepresentative ? (
                                 <div>
                                   <div className="text-purple-600 dark:text-purple-400">
@@ -417,7 +417,14 @@ const CreditCardList: React.FC = () => {
                                   </div>
                                 </div>
                               ) : (
-                                formatCurrency(card.amount)
+                                <div className="flex items-center justify-end gap-1">
+                                  {card.isRefund && (
+                                    <span className="text-xs bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-300 px-2 py-1 rounded-full">
+                                      Extorno
+                                    </span>
+                                  )}
+                                  {formatCurrency(card.amount)}
+                                </div>
                               )}
                             </td>
                             <td className="py-3 px-4 text-gray-900 dark:text-white">

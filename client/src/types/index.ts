@@ -183,6 +183,7 @@ export interface CreditCard {
   totalInstallments?: number;
   installmentGroup?: string;
   isCreditCard?: boolean;
+  isRefund?: boolean; // Campo para identificar extornos
   createdAt: string;
   // Propriedades para agrupamento de parcelas
   isGroupRepresentative?: boolean;

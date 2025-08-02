@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS public.cartao (
     installment_number INTEGER,
     total_installments INTEGER,
     installment_group TEXT,
+    is_refund BOOLEAN DEFAULT false,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
