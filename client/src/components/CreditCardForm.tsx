@@ -9,8 +9,10 @@ import type { CreditCard } from '../types/index';
 
 interface CreditCardFormProps {
   creditCard?: CreditCard | null;
+  refundData?: Partial<CreditCard> | null;
   onClose: () => void;
   onSave?: () => void;
+  onAddRefund?: (refundData: Partial<CreditCard>) => void;
 }
 
 const getCurrentDateForInput = () => {
@@ -30,7 +32,7 @@ const formatDateForStorage = (dateStr: string) => {
   return dateStr;
 };
 
-const CreditCardForm: React.FC<CreditCardFormProps> = ({ creditCard, onClose, onSave }) => {
+const CreditCardForm: React.FC<CreditCardFormProps> = ({ creditCard, refundData, onClose, onSave, onAddRefund }) => {
   const { addCreditCard, updateCreditCard } = useCreditCard();
   const { categories } = useFinance();
   const { accounts } = useAccounts();
@@ -53,44 +55,28 @@ const CreditCardForm: React.FC<CreditCardFormProps> = ({ creditCard, onClose, on
 
   // Função para adicionar extorno
   const handleAddRefund = () => {
-    if (!creditCard) return;
+    if (!creditCard || !onAddRefund) return;
+
+    // Criar dados do extorno baseados no cartão original
+    const refundData = {
+      date: creditCard.date,
+      category: creditCard.category,
+      description: `Extorno - ${creditCard.description}`,
+      amount: -Math.abs(creditCard.amount), // Valor negativo
+      paymentMethod: creditCard.paymentMethod,
+      location: creditCard.location,
+      isRefund: true,
+      isInstallment: false,
+      installmentNumber: undefined,
+      totalInstallments: undefined,
+      installmentGroup: undefined,
+    };
 
     // Fechar o modal atual
     onClose();
 
-    // Esperar um pouco e abrir um novo formulário pré-preenchido como extorno
-    setTimeout(() => {
-      const refundData = {
-        date: formatDateForInput(creditCard.date),
-        category: creditCard.category,
-        amount: Math.abs(creditCard.amount).toString().replace('.', ','), // Valor positivo para mostrar no input
-        account: creditCard.paymentMethod,
-        description: `Extorno - ${creditCard.description}`,
-        location: creditCard.location || '',
-        isInstallment: false, // Extornos normalmente não são parcelados
-        totalInstallments: 1,
-        isRefund: true,
-      };
-
-      // Criar um novo cartão com os dados do extorno
-      const refundCard = {
-        ...creditCard,
-        id: '',
-        date: refundData.date,
-        description: refundData.description,
-        amount: -Math.abs(creditCard.amount), // Valor negativo
-        isRefund: true,
-        isInstallment: false,
-        installmentNumber: null,
-        totalInstallments: null,
-        installmentGroup: null,
-      };
-
-      // Disparar evento personalizado para abrir novo formulário
-      window.dispatchEvent(new CustomEvent('openRefundForm', { 
-        detail: { refundCard, refundData } 
-      }));
-    }, 100);
+    // Chamar a função callback para abrir novo formulário
+    onAddRefund(refundData);
   };
 
   useEffect(() => {
@@ -111,8 +97,21 @@ const CreditCardForm: React.FC<CreditCardFormProps> = ({ creditCard, onClose, on
       if (creditCard.isInstallment && creditCard.date) {
         setInstallmentDates([formatDateForInput(creditCard.date)]);
       }
+    } else if (refundData) {
+      console.log('🔧 Carregando dados de extorno:', refundData);
+      setFormData({
+        date: formatDateForInput(refundData.date || getCurrentDateForInput()),
+        category: refundData.category || '',
+        amount: Math.abs(refundData.amount || 0).toString().replace('.', ','), // Mostrar valor positivo no input
+        account: refundData.paymentMethod || '',
+        description: refundData.description || '',
+        location: refundData.location || '',
+        isInstallment: false, // Extornos nunca são parcelados
+        totalInstallments: 1,
+        isRefund: true, // Marcar como extorno por padrão
+      });
     }
-  }, [creditCard]);
+  }, [creditCard, refundData]);
 
   const handleAmountChange = (value: string) => {
     // Remove tudo que não é número ou vírgula

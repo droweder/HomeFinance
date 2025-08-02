@@ -11,6 +11,7 @@ const CreditCardList: React.FC = () => {
   const { formatCurrency, formatDate, settings } = useSettings();
   const [showForm, setShowForm] = useState(false);
   const [editingCreditCard, setEditingCreditCard] = useState<CreditCard | null>(null);
+  const [refundData, setRefundData] = useState<Partial<CreditCard> | null>(null);
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [tempFilters, setTempFilters] = useState({
     category: '',
@@ -59,6 +60,14 @@ const CreditCardList: React.FC = () => {
   const handleCloseForm = () => {
     setShowForm(false);
     setEditingCreditCard(null);
+    setRefundData(null);
+  };
+
+  const handleAddRefund = (refundData: Partial<CreditCard>) => {
+    // Abrir formulário com dados do extorno pré-preenchidos
+    setRefundData(refundData);
+    setEditingCreditCard(null);
+    setShowForm(true);
   };
   const [selectedMonth, setSelectedMonth] = useState<string>(() => {
     const now = new Date();
@@ -486,8 +495,10 @@ const CreditCardList: React.FC = () => {
       {showForm && (
         <CreditCardForm
           creditCard={editingCreditCard}
+          refundData={refundData}
           onClose={handleCloseForm}
           onSave={() => {}}
+          onAddRefund={handleAddRefund}
         />
       )}
 
