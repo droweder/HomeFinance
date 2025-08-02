@@ -372,7 +372,7 @@ const Dashboard: React.FC = () => {
         <div className="mb-8">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Dashboard Financeiro</h1>
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Smart Home Finance</h1>
               <p className="text-gray-600 dark:text-gray-400 mt-2">Visão completa da sua situação financeira</p>
             </div>
             
@@ -479,51 +479,57 @@ const Dashboard: React.FC = () => {
             <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Análises Inteligentes</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-6">
               {/* Top 5 Categorias */}
-              <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
-                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4 flex items-center">
+              <div className="bg-white dark:bg-gray-800 rounded-xl p-6 lg:p-8 border border-gray-200 dark:border-gray-700 min-h-[400px]">
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-6 flex items-center">
                   <PieChart className="w-5 h-5 mr-2 text-blue-600" />
                   Top 5 Categorias do Mês
                 </h3>
-                <div className="space-y-3">
+                <div className="space-y-4">
                   {intelligentAnalysis.topCategories.map(([category, amount], index) => (
-                    <div key={category} className="flex items-center justify-between">
-                      <div className="flex items-center">
-                        <div className={`w-8 h-8 rounded-full bg-blue-${(index + 1) * 100} flex items-center justify-center text-white text-sm font-bold mr-3`}>
+                    <div key={category} className="flex items-center justify-between py-2">
+                      <div className="flex items-center min-w-0 flex-1 mr-4">
+                        <div className={`w-8 h-8 rounded-full bg-blue-${(index + 1) * 100} flex items-center justify-center text-white text-sm font-bold mr-3 flex-shrink-0`}>
                           {index + 1}
                         </div>
-                        <span className="text-gray-900 dark:text-white">{category}</span>
+                        <span className="text-gray-900 dark:text-white text-sm truncate" title={category}>
+                          {category}
+                        </span>
                       </div>
-                      <span className="font-semibold text-gray-900 dark:text-white">{formatCurrency(Number(amount))}</span>
+                      <span className="font-semibold text-gray-900 dark:text-white text-sm flex-shrink-0">
+                        {formatCurrency(Number(amount))}
+                      </span>
                     </div>
                   ))}
                 </div>
               </div>
 
               {/* Análise Multi-Mensal */}
-              <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
-                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4 flex items-center">
+              <div className="bg-white dark:bg-gray-800 rounded-xl p-6 lg:p-8 border border-gray-200 dark:border-gray-700 min-h-[400px]">
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-6 flex items-center">
                   <BarChart3 className="w-5 h-5 mr-2 text-purple-600" />
                   Evolução dos Últimos 6 Meses
                 </h3>
                 
                 {/* Gráfico de barras simples */}
-                <div className="space-y-2 mb-4">
+                <div className="space-y-3 mb-6">
                   {intelligentAnalysis.last6Months.map((month: any, index: number) => {
                     const maxValue = Math.max(...intelligentAnalysis.last6Months.map((m: any) => m.value));
                     const percentage = maxValue > 0 ? (month.value / maxValue) * 100 : 0;
                     
                     return (
-                      <div key={index} className="flex items-center">
-                        <div className="w-10 text-xs text-gray-600 dark:text-gray-400">{month.name}</div>
-                        <div className="flex-1 mx-2">
-                          <div className="bg-gray-200 dark:bg-gray-700 rounded-full h-3 relative">
+                      <div key={index} className="flex items-center py-1">
+                        <div className="w-12 text-xs text-gray-600 dark:text-gray-400 flex-shrink-0">
+                          {month.name}
+                        </div>
+                        <div className="flex-1 mx-3">
+                          <div className="bg-gray-200 dark:bg-gray-700 rounded-full h-4 relative">
                             <div 
-                              className={`h-3 rounded-full ${month.isCurrentMonth ? 'bg-blue-500' : 'bg-purple-500'}`}
+                              className={`h-4 rounded-full ${month.isCurrentMonth ? 'bg-blue-500' : 'bg-purple-500'}`}
                               style={{ width: `${percentage}%` }}
                             />
                           </div>
                         </div>
-                        <div className="w-16 text-xs text-gray-900 dark:text-white text-right">
+                        <div className="w-20 text-xs text-gray-900 dark:text-white text-right flex-shrink-0">
                           {formatCurrency(Number(month.value)).replace('R$', '')}
                         </div>
                       </div>
@@ -532,16 +538,16 @@ const Dashboard: React.FC = () => {
                 </div>
 
                 {/* Estatísticas */}
-                <div className="grid grid-cols-2 gap-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+                <div className="grid grid-cols-2 gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">
                   <div className="text-center">
                     <p className={`text-sm font-bold ${intelligentAnalysis.overallTrend >= 0 ? 'text-red-600' : 'text-green-600'}`}>
                       {intelligentAnalysis.overallTrend >= 0 ? '+' : ''}{intelligentAnalysis.overallTrend.toFixed(1)}%
                     </p>
-                    <p className="text-xs text-gray-600 dark:text-gray-400">Tendência</p>
+                    <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">Tendência</p>
                   </div>
                   <div className="text-center">
                     <p className="text-sm font-bold text-gray-900 dark:text-white">{formatCurrency(Number(intelligentAnalysis.avgLast6Months))}</p>
-                    <p className="text-xs text-gray-600 dark:text-gray-400">Média</p>
+                    <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">Média</p>
                   </div>
                 </div>
               </div>
