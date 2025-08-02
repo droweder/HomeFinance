@@ -235,23 +235,33 @@ const Dashboard: React.FC = () => {
 
     const isAboveAverage = financialOverview.totalMonthlySpending > monthlyAverageSpending;
 
-    // Parcelamentos ativos (considerando todos os lançamentos como pagos na data)
-    const activeInstallments = creditCards
+    // Parcelamentos ativos - detalhes completos
+    const activeInstallmentsDetails = creditCards
       .filter(cc => cc.isInstallment && new Date(cc.date) > now)
-      .length;
+      .reduce((acc, cc) => {
+        const key = `${cc.description}_${cc.installmentGroup || 'no-group'}`;
+        if (!acc[key]) {
+          acc[key] = {
+            description: cc.description,
+            totalAmount: 0,
+            remainingInstallments: 0,
+            monthlyAmount: cc.amount,
+            category: cc.category
+          };
+        }
+        acc[key].totalAmount += cc.amount;
+        acc[key].remainingInstallments += 1;
+        return acc;
+      }, {} as Record<string, any>);
 
-    // Transferências recentes (últimas 5)
-    const recentTransfers = transfers
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-      .slice(0, 5);
+    const activeInstallmentsList = Object.values(activeInstallmentsDetails).slice(0, 5);
 
     return {
       isAboveAverage,
       monthlyAverageSpending,
-      activeInstallments,
-      recentTransfers
+      activeInstallmentsList
     };
-  }, [expenses, creditCards, transfers, financialOverview.totalMonthlySpending]);
+  }, [expenses, creditCards, transfers, financialOverview.totalMonthlySpending, now]);
 
   // Componente Card reutilizável
   const StatCard: React.FC<{
@@ -464,7 +474,7 @@ const Dashboard: React.FC = () => {
                           </div>
                         </div>
                         <div className="w-16 text-xs text-gray-900 dark:text-white text-right">
-                          {formatCurrency(Number(month.value)).replace('R$', '')}
+                          {formatCurrency(month.value).replace('R$', '')}
                         </div>
                       </div>
                     );
@@ -509,17 +519,32 @@ const Dashboard: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Economia vs Pior Mês */}
+                {/* Parcelamentos Ativos */}
                 <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
                   <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4 flex items-center">
-                    <Target className="w-5 h-5 mr-2 text-blue-600" />
-                    Economia vs Pior Mês
+                    <Clock className="w-5 h-5 mr-2 text-orange-600" />
+                    Parcelamentos Ativos
                   </h3>
-                  <div className="text-center">
-                    <p className="text-2xl font-bold text-green-600">{formatCurrency(intelligentAnalysis.savingsVsWorstMonth)}</p>
-                    <p className="text-gray-600 dark:text-gray-400">
-                      {intelligentAnalysis.savingsVsWorstMonth > 0 ? 'economizados' : 'a mais que o recorde'}
-                    </p>
+                  <div className="space-y-3">
+                    {alertsAndTrends.activeInstallmentsList && alertsAndTrends.activeInstallmentsList.length > 0 ? alertsAndTrends.activeInstallmentsList.map((installment: any, index: number) => (
+                      <div key={index} className="border-l-4 border-orange-500 pl-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1">
+                            <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{installment.description}</p>
+                            <p className="text-xs text-gray-500">{installment.category}</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-sm font-semibold text-gray-900 dark:text-white">{formatCurrency(installment.monthlyAmount)}/mês</p>
+                            <p className="text-xs text-orange-600">{installment.remainingInstallments}x restantes</p>
+                          </div>
+                        </div>
+                        <div className="mt-1">
+                          <p className="text-xs text-gray-500">Total restante: {formatCurrency(installment.totalAmount)}</p>
+                        </div>
+                      </div>
+                    )) : (
+                      <p className="text-gray-500 dark:text-gray-400 text-center">Nenhum parcelamento ativo</p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -530,54 +555,15 @@ const Dashboard: React.FC = () => {
           <div>
             <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Alertas e Tendências</h2>
             <div className="space-y-6">
-              {/* Gastos Acima da Média */}
-              <div className={`rounded-xl p-6 border ${alertsAndTrends.isAboveAverage ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800' : 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800'}`}>
-                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4 flex items-center">
-                  <AlertCircle className={`w-5 h-5 mr-2 ${alertsAndTrends.isAboveAverage ? 'text-red-600' : 'text-green-600'}`} />
-                  {alertsAndTrends.isAboveAverage ? 'Gastos Acima da Média' : 'Gastos Dentro da Média'}
-                </h3>
-                <p className="text-gray-700 dark:text-gray-300">
-                  {alertsAndTrends.isAboveAverage
-                    ? `Seus gastos estão ${formatCurrency(financialOverview.totalMonthlySpending - alertsAndTrends.monthlyAverageSpending)} acima da média histórica.`
-                    : 'Seus gastos estão dentro da média histórica. Parabéns pelo controle!'}
-                </p>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
-                  Média histórica: {formatCurrency(alertsAndTrends.monthlyAverageSpending)}
-                </p>
-              </div>
-
-              {/* Parcelamentos Ativos */}
-              <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
-                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4 flex items-center">
-                  <Clock className="w-5 h-5 mr-2 text-blue-600" />
-                  Parcelamentos Ativos
-                </h3>
-                <div className="text-center">
-                  <p className="text-2xl font-bold text-gray-900 dark:text-white">{alertsAndTrends.activeInstallments}</p>
-                  <p className="text-gray-600 dark:text-gray-400">parcelas pendentes</p>
-                </div>
-              </div>
-
-              {/* Transferências Recentes */}
-              <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
-                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4 flex items-center">
-                  <ArrowUpDown className="w-5 h-5 mr-2 text-indigo-600" />
-                  Transferências Recentes
-                </h3>
-                <div className="space-y-3">
-                  {alertsAndTrends.recentTransfers.length > 0 ? alertsAndTrends.recentTransfers.map((transfer: any, index: number) => (
-                    <div key={index} className="flex items-center justify-between text-sm">
-                      <div>
-                        <p className="text-gray-900 dark:text-white">{transfer.fromAccount} → {transfer.toAccount}</p>
-                        <p className="text-gray-500">{new Date(transfer.date).toLocaleDateString('pt-BR')}</p>
-                      </div>
-                      <span className="font-semibold text-gray-900 dark:text-white">{formatCurrency(transfer.amount)}</span>
-                    </div>
-                  )) : (
-                    <p className="text-gray-500 dark:text-gray-400 text-center">Nenhuma transferência recente</p>
-                  )}
-                </div>
-              </div>
+              {/* Gastos vs Média Histórica */}
+              <StatCard
+                title={alertsAndTrends.isAboveAverage ? "Acima da Média" : "Abaixo da Média"}
+                value={formatCurrency(financialOverview.totalMonthlySpending)}
+                icon={alertsAndTrends.isAboveAverage ? <TrendingUp className="w-6 h-6" /> : <TrendingDown className="w-6 h-6" />}
+                color={alertsAndTrends.isAboveAverage ? "red" : "green"}
+                subtitle={`Média histórica: ${formatCurrency(alertsAndTrends.monthlyAverageSpending)}`}
+                trend={alertsAndTrends.isAboveAverage ? "up" : "down"}
+              />
             </div>
           </div>
         </div>
