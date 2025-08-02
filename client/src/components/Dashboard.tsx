@@ -44,11 +44,13 @@ const Dashboard: React.FC = () => {
       })
       .reduce((sum, inc) => sum + inc.amount, 0);
 
-    // Gastos do mês (despesas + cartões de crédito)
+    // Gastos do mês: despesas (exceto faturas de cartão) + cartões de crédito
     const monthlyExpenses = expenses
       .filter(exp => {
         const expenseDate = new Date(exp.date);
-        return expenseDate.getMonth() === currentMonth && expenseDate.getFullYear() === currentYear;
+        return expenseDate.getMonth() === currentMonth && 
+               expenseDate.getFullYear() === currentYear &&
+               exp.category !== 'Cartão de Crédito'; // Excluir faturas para evitar duplicidade
       })
       .reduce((sum, exp) => sum + exp.amount, 0);
 
@@ -72,9 +74,9 @@ const Dashboard: React.FC = () => {
 
   // 2. SEÇÃO: Cartões de Crédito
   const creditCardAnalysis = useMemo(() => {
-    // Faturas pendentes (todas não pagas)
+    // Faturas pendentes (futuras, baseado na data)
     const pendingInvoices = creditCards
-      .filter(cc => !cc.paid)
+      .filter(cc => new Date(cc.date) > now)
       .reduce((sum, cc) => sum + cc.amount, 0);
 
     // Próximas faturas (próximos 30 dias)
@@ -84,13 +86,13 @@ const Dashboard: React.FC = () => {
     const upcomingInvoices = creditCards
       .filter(cc => {
         const ccDate = new Date(cc.date);
-        return ccDate <= next30Days && ccDate >= now && !cc.paid;
+        return ccDate <= next30Days && ccDate >= now;
       })
       .reduce((sum, cc) => sum + cc.amount, 0);
 
-    // Maior fatura por cartão
+    // Maior fatura por cartão (baseado na data, não no status)
     const invoicesByCard = creditCards
-      .filter(cc => !cc.paid)
+      .filter(cc => new Date(cc.date) > now)
       .reduce((acc, cc) => {
         acc[cc.paymentMethod] = (acc[cc.paymentMethod] || 0) + cc.amount;
         return acc;
@@ -111,8 +113,9 @@ const Dashboard: React.FC = () => {
 
   // 3. SEÇÃO: Análises Inteligentes
   const intelligentAnalysis = useMemo(() => {
-    // Top 5 categorias do mês
-    const categorySpending = [...expenses, ...creditCards]
+    // Top 5 categorias do mês (despesas exceto faturas + cartões de crédito)
+    const filteredExpenses = expenses.filter(exp => exp.category !== 'Cartão de Crédito');
+    const categorySpending = [...filteredExpenses, ...creditCards]
       .filter(item => {
         const itemDate = new Date(item.date);
         return itemDate.getMonth() === currentMonth && itemDate.getFullYear() === currentYear;
@@ -126,16 +129,16 @@ const Dashboard: React.FC = () => {
       .sort(([,a], [,b]) => (b as number) - (a as number))
       .slice(0, 5);
 
-    // Conta mais utilizada
-    const accountUsage = [...expenses, ...income, ...transfers]
+    // Conta mais utilizada (apenas transações financeiras, não transferências)
+    const filteredExpensesForAccount = expenses.filter(exp => exp.category !== 'Cartão de Crédito');
+    const accountUsage = [...filteredExpensesForAccount, ...creditCards, ...income]
       .filter(item => {
         const itemDate = new Date(item.date);
         return itemDate.getMonth() === currentMonth && itemDate.getFullYear() === currentYear;
       })
       .reduce((acc, item) => {
         const account = 'paymentMethod' in item ? item.paymentMethod : 
-                       'account' in item ? item.account : 
-                       'fromAccount' in item ? item.fromAccount : '';
+                       'account' in item ? item.account : '';
         if (account) {
           acc[account] = (acc[account] || 0) + 1;
         }
@@ -149,12 +152,23 @@ const Dashboard: React.FC = () => {
     const previousMonth = currentMonth === 0 ? 11 : currentMonth - 1;
     const previousYear = currentMonth === 0 ? currentYear - 1 : currentYear;
 
-    const previousMonthSpending = [...expenses, ...creditCards]
-      .filter(item => {
-        const itemDate = new Date(item.date);
-        return itemDate.getMonth() === previousMonth && itemDate.getFullYear() === previousYear;
+    const previousMonthExpenses = expenses
+      .filter(exp => {
+        const expenseDate = new Date(exp.date);
+        return expenseDate.getMonth() === previousMonth && 
+               expenseDate.getFullYear() === previousYear &&
+               exp.category !== 'Cartão de Crédito';
       })
-      .reduce((sum, item) => sum + item.amount, 0);
+      .reduce((sum, exp) => sum + exp.amount, 0);
+
+    const previousMonthCreditCards = creditCards
+      .filter(cc => {
+        const ccDate = new Date(cc.date);
+        return ccDate.getMonth() === previousMonth && ccDate.getFullYear() === previousYear;
+      })
+      .reduce((sum, cc) => sum + cc.amount, 0);
+
+    const previousMonthSpending = previousMonthExpenses + previousMonthCreditCards;
 
     const spendingComparison = previousMonthSpending > 0 
       ? ((financialOverview.totalMonthlySpending - previousMonthSpending) / previousMonthSpending) * 100
@@ -172,14 +186,24 @@ const Dashboard: React.FC = () => {
 
   // 4. SEÇÃO: Alertas e Tendências
   const alertsAndTrends = useMemo(() => {
-    // Gastos acima da média histórica
-    const allMonthsSpending = [...expenses, ...creditCards]
-      .reduce((acc, item) => {
-        const itemDate = new Date(item.date);
+    // Gastos acima da média histórica (despesas exceto faturas + cartões)
+    const allMonthsSpending = {} as Record<string, number>;
+    
+    // Adicionar despesas (exceto faturas de cartão)
+    expenses
+      .filter(exp => exp.category !== 'Cartão de Crédito')
+      .forEach(exp => {
+        const itemDate = new Date(exp.date);
         const monthKey = `${itemDate.getFullYear()}-${itemDate.getMonth()}`;
-        acc[monthKey] = (acc[monthKey] || 0) + item.amount;
-        return acc;
-      }, {} as Record<string, number>);
+        allMonthsSpending[monthKey] = (allMonthsSpending[monthKey] || 0) + exp.amount;
+      });
+    
+    // Adicionar cartões de crédito
+    creditCards.forEach(cc => {
+      const itemDate = new Date(cc.date);
+      const monthKey = `${itemDate.getFullYear()}-${itemDate.getMonth()}`;
+      allMonthsSpending[monthKey] = (allMonthsSpending[monthKey] || 0) + cc.amount;
+    });
 
     const spendingValues = Object.values(allMonthsSpending) as number[];
     const monthlyAverageSpending = spendingValues.length > 0
@@ -188,9 +212,9 @@ const Dashboard: React.FC = () => {
 
     const isAboveAverage = financialOverview.totalMonthlySpending > monthlyAverageSpending;
 
-    // Parcelamentos ativos
+    // Parcelamentos ativos (considerando todos os lançamentos como pagos na data)
     const activeInstallments = creditCards
-      .filter(cc => cc.isInstallment && !cc.paid)
+      .filter(cc => cc.isInstallment && new Date(cc.date) > now)
       .length;
 
     // Transferências recentes (últimas 5)
