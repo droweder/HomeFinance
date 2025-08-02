@@ -15,10 +15,7 @@ const IncomeList: React.FC = () => {
   const [tempFilters, setTempFilters] = useState(filters.income);
   const [selectedIncome, setSelectedIncome] = useState<Set<string>>(new Set());
   const [confirmDeleteIncome, setConfirmDeleteIncome] = useState<Income | null>(null);
-  const [selectedMonth, setSelectedMonth] = useState<string>(() => {
-    const now = new Date();
-    return `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}`;
-  });
+  const [selectedMonth, setSelectedMonth] = useState<string>('');
 
   // PERFORMANCE: First filter by selected month OR date range from filters
   const monthFilteredIncome = useMemo(() => {
@@ -48,6 +45,13 @@ const IncomeList: React.FC = () => {
     });
     return Array.from(months).sort().reverse(); // Most recent first
   }, [income]);
+
+  // Initialize selectedMonth with the most recent month that has data
+  React.useEffect(() => {
+    if (!selectedMonth && availableMonths.length > 0) {
+      setSelectedMonth(availableMonths[0]);
+    }
+  }, [availableMonths, selectedMonth]);
 
   // PERFORMANCE: Monthly filtering reduces dataset - now filter the monthly data
   const filteredIncome = monthFilteredIncome.filter(incomeItem => {
