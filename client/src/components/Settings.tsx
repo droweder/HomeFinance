@@ -1,11 +1,13 @@
-import React, { useState } from 'react';
-import { Settings as SettingsIcon, Palette, Tag, CreditCard, Plus, Edit2, Trash2, Upload, Download, FileText, Wifi, WifiOff, CheckCircle, AlertCircle, Clock, Database, Bot, Eye, EyeOff, Key, Brain, Lightbulb, ChevronDown, ChevronUp } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Settings as SettingsIcon, Palette, Tag, CreditCard, Plus, Edit2, Trash2, Upload, Download, FileText, Wifi, WifiOff, CheckCircle, AlertCircle, Clock, Database, Bot, Eye, EyeOff, Key, Brain, Lightbulb, ChevronDown, ChevronUp, Package, User } from 'lucide-react';
 import { useSettings } from '../context/SettingsContext';
 import { useToast } from './ui/toast';
 import { useFinance } from '../context/FinanceContext';
 import { useAccounts } from '../context/AccountContext';
 import { useAuth } from '../context/AuthContext';
+import { useCreditCard } from '../context/CreditCardContext';
 import { useSupabaseSync } from '../hooks/useSupabaseSync';
+import { supabase } from '../lib/supabase';
 import { Category, Account } from '../types';
 import CategoryForm from './CategoryForm';
 import AccountForm from './AccountForm';
@@ -16,6 +18,7 @@ const Settings: React.FC = () => {
   const { categories, deleteCategory, expenses, income, transfers } = useFinance();
   const { accounts, deleteAccount } = useAccounts();
   const { currentUser } = useAuth();
+  const { syncAllInvoicesToExpenses } = useCreditCard();
   const { showApiKeySuccess, showSuccess, showError } = useToast();
   const { isOnline, syncStatus, lastSyncTime, connectionStatus, syncData } = useSupabaseSync();
   const [showCategoryForm, setShowCategoryForm] = useState(false);
@@ -28,6 +31,9 @@ const Settings: React.FC = () => {
   const [showGeminiKey, setShowGeminiKey] = useState(false);
   const [tempGeminiKey, setTempGeminiKey] = useState(settings.geminiApiKey || '');
   const [tempGeminiModel, setTempGeminiModel] = useState(settings.geminiModel || 'gemini-2.0-flash');
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [userProfile, setUserProfile] = useState<any>(null);
+  const [loadingProfile, setLoadingProfile] = useState(false);
 
   // Estados para controlar seções expandidas
   const [expandedSections, setExpandedSections] = useState<string[]>(['general']);
@@ -43,6 +49,58 @@ const Settings: React.FC = () => {
     { value: 'gemma-3-12b', label: 'Gemma 3 12B' },
     { value: 'gemma-3-1b', label: 'Gemma 3 1B' },
   ];
+
+  // Load user profile from Supabase auth.users
+  const loadUserProfile = async () => {
+    if (!currentUser) return;
+    
+    setLoadingProfile(true);
+    try {
+      const { data, error } = await supabase.auth.admin.getUserById(currentUser.id);
+      if (error) {
+        console.error('Erro ao carregar perfil do usuário:', error);
+        showError('Erro', 'Não foi possível carregar o perfil do usuário.');
+      } else {
+        setUserProfile(data.user);
+      }
+    } catch (error) {
+      // Try alternative method using RPC or regular user data
+      try {
+        const { data: userData, error: userError } = await supabase.auth.getUser();
+        if (!userError && userData.user) {
+          setUserProfile(userData.user);
+        } else {
+          console.error('Erro ao carregar dados do usuário:', userError);
+        }
+      } catch (fallbackError) {
+        console.error('Erro completo ao carregar perfil:', fallbackError);
+        showError('Erro', 'Não foi possível carregar o perfil do usuário.');
+      }
+    } finally {
+      setLoadingProfile(false);
+    }
+  };
+
+  // Sync all invoices to expenses
+  const handleSyncAllInvoices = async () => {
+    setIsSyncing(true);
+    try {
+      await syncAllInvoicesToExpenses();
+      showSuccess('Sincronização Concluída', 'Todas as faturas foram sincronizadas com a aba Despesas!');
+    } catch (error) {
+      console.error('Erro ao sincronizar faturas:', error);
+      showError('Erro', 'Ocorreu um erro ao sincronizar as faturas.');
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  // Load user profile on component mount
+  useEffect(() => {
+    if (currentUser) {
+      loadUserProfile();
+    }
+  }, [currentUser]);
 
   const toggleSection = (sectionId: string) => {
     setExpandedSections(prev => 
@@ -308,6 +366,20 @@ const Settings: React.FC = () => {
       description: 'Tema, sincronização e status de conexão'
     },
     {
+      id: 'profile',
+      title: 'Perfil do Usuário',
+      icon: User,
+      iconColor: 'bg-gray-100 dark:bg-gray-900 text-gray-600 dark:text-gray-400',
+      description: 'Informações da conta e dados pessoais'
+    },
+    {
+      id: 'sync',
+      title: 'Sincronização',
+      icon: Package,
+      iconColor: 'bg-cyan-100 dark:bg-cyan-900 text-cyan-600 dark:text-cyan-400',
+      description: 'Sincronizar faturas de cartão de crédito'
+    },
+    {
       id: 'data',
       title: 'Gerenciar Dados',
       icon: FileText,
@@ -546,6 +618,165 @@ const Settings: React.FC = () => {
     </div>
   );
 
+  const renderUserProfileSection = () => (
+    <div className="space-y-4">
+      {/* Status do carregamento */}
+      {loadingProfile ? (
+        <div className="flex items-center justify-center p-8">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          <span className="ml-3 text-gray-600 dark:text-gray-400">Carregando perfil...</span>
+        </div>
+      ) : userProfile ? (
+        <div className="space-y-4">
+          {/* Informações Básicas */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+              <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">ID do Usuário</h4>
+              <p className="text-xs text-gray-600 dark:text-gray-400 font-mono break-all">{userProfile.id}</p>
+            </div>
+            <div className="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+              <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">E-mail</h4>
+              <p className="text-sm text-gray-600 dark:text-gray-400">{userProfile.email || 'Não informado'}</p>
+              {userProfile.email_confirmed_at && (
+                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100 mt-1">
+                  <CheckCircle className="w-3 h-3 mr-1" />
+                  Confirmado
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Telefone */}
+          {userProfile.phone && (
+            <div className="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+              <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">Telefone</h4>
+              <p className="text-sm text-gray-600 dark:text-gray-400">{userProfile.phone}</p>
+              {userProfile.phone_confirmed_at && (
+                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100 mt-1">
+                  <CheckCircle className="w-3 h-3 mr-1" />
+                  Confirmado
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* Informações de Data */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+              <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">Conta Criada</h4>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                {userProfile.created_at ? new Date(userProfile.created_at).toLocaleDateString('pt-BR', {
+                  day: '2-digit',
+                  month: '2-digit',
+                  year: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit'
+                }) : 'Data não disponível'}
+              </p>
+            </div>
+            <div className="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+              <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">Último Login</h4>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                {userProfile.last_sign_in_at ? new Date(userProfile.last_sign_in_at).toLocaleDateString('pt-BR', {
+                  day: '2-digit',
+                  month: '2-digit',
+                  year: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit'
+                }) : 'Nunca logou'}
+              </p>
+            </div>
+          </div>
+
+          {/* Metadados Personalizados */}
+          {userProfile.raw_user_meta_data && Object.keys(userProfile.raw_user_meta_data).length > 0 && (
+            <div className="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+              <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">Metadados Personalizados</h4>
+              <pre className="text-xs text-gray-600 dark:text-gray-400 font-mono overflow-x-auto">
+                {JSON.stringify(userProfile.raw_user_meta_data, null, 2)}
+              </pre>
+            </div>
+          )}
+
+          {/* Botão para atualizar */}
+          <div className="flex justify-end">
+            <button
+              onClick={loadUserProfile}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+            >
+              Atualizar Perfil
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="text-center p-8">
+          <User className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+          <p className="text-gray-600 dark:text-gray-400 mb-4">Não foi possível carregar as informações do perfil.</p>
+          <button
+            onClick={loadUserProfile}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            Tentar Novamente
+          </button>
+        </div>
+      )}
+    </div>
+  );
+
+  const renderSyncSection = () => (
+    <div className="space-y-4">
+      {/* Descrição da funcionalidade */}
+      <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+        <div className="flex items-start gap-3">
+          <Package className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5" />
+          <div>
+            <h4 className="text-sm font-medium text-blue-900 dark:text-blue-200 mb-1">
+              Sincronização de Faturas
+            </h4>
+            <p className="text-xs text-blue-700 dark:text-blue-300">
+              Esta função agrupa todas as despesas de cartão de crédito por mês e método de pagamento, 
+              criando faturas automáticas na aba Despesas. Útil para organizar seus gastos de cartão.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Botão de sincronização */}
+      <div className="flex justify-center">
+        <button
+          onClick={handleSyncAllInvoices}
+          disabled={isSyncing}
+          className={`px-6 py-3 rounded-lg transition-colors flex items-center gap-3 font-medium ${
+            isSyncing 
+              ? 'bg-gray-400 cursor-not-allowed text-white' 
+              : 'bg-green-600 hover:bg-green-700 text-white shadow-sm'
+          }`}
+        >
+          <Package className="w-5 h-5" />
+          {isSyncing ? 'Sincronizando Faturas...' : 'Sincronizar Todas as Faturas'}
+        </button>
+      </div>
+
+      {/* Informações adicionais */}
+      <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
+        <div className="flex items-start gap-3">
+          <AlertCircle className="w-5 h-5 text-yellow-600 dark:text-yellow-400 mt-0.5" />
+          <div>
+            <h4 className="text-sm font-medium text-yellow-900 dark:text-yellow-200 mb-1">
+              Atenção
+            </h4>
+            <ul className="text-xs text-yellow-700 dark:text-yellow-300 space-y-1">
+              <li>• A sincronização pode demorar alguns segundos dependendo da quantidade de dados</li>
+              <li>• Faturas já existentes não serão duplicadas</li>
+              <li>• As faturas serão criadas com a categoria "Cartão de Crédito"</li>
+              <li>• O processo irá agrupar por cartão e mês automaticamente</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
   const renderDataSection = () => (
     <div className="space-y-4">
       <button
@@ -751,6 +982,8 @@ const Settings: React.FC = () => {
               {isExpanded && (
                 <div className="border-t border-gray-100 dark:border-gray-700 p-4 sm:p-6">
                   {section.id === 'general' && renderGeneralSection()}
+                  {section.id === 'profile' && renderUserProfileSection()}
+                  {section.id === 'sync' && renderSyncSection()}
                   {section.id === 'ai' && renderAISection()}
                   {section.id === 'data' && renderDataSection()}
                   {section.id === 'categories' && renderCategoriesSection()}
