@@ -327,22 +327,34 @@ const Dashboard: React.FC = () => {
     };
 
     return (
-      <div className={`rounded-xl p-6 border ${colorClasses[color]}`}>
-        <div className="flex items-center justify-between">
-          <div className="flex-1">
-            <p className="text-sm font-medium text-gray-600 dark:text-gray-400">{title}</p>
-            {subtitle && <p className="text-xs text-gray-500 mt-1">{subtitle}</p>}
-            <p className="text-2xl font-bold text-gray-900 dark:text-white mt-2">{value}</p>
+      <div className={`rounded-xl p-4 sm:p-6 border ${colorClasses[color]} min-h-[120px] flex flex-col justify-between`}>
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-gray-600 dark:text-gray-400 truncate" title={title}>
+              {title}
+            </p>
+            {subtitle && (
+              <p className="text-xs text-gray-500 mt-1 truncate" title={subtitle}>
+                {subtitle}
+              </p>
+            )}
           </div>
-          <div className={`p-3 rounded-lg ${colorClasses[color]}`}>
+          <div className={`p-2 sm:p-3 rounded-lg ${colorClasses[color]} flex-shrink-0`}>
             <div className={iconColorClasses[color]}>{icon}</div>
           </div>
         </div>
+        
+        <div className="mt-3">
+          <p className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white break-words" title={value}>
+            {value}
+          </p>
+        </div>
+
         {trend && (
-          <div className="mt-4 flex items-center">
-            {trend === 'up' && <TrendingUp className="w-4 h-4 text-green-500 mr-1" />}
-            {trend === 'down' && <TrendingDown className="w-4 h-4 text-red-500 mr-1" />}
-            <span className={`text-sm ${trend === 'up' ? 'text-green-600' : trend === 'down' ? 'text-red-600' : 'text-gray-600'}`}>
+          <div className="mt-3 flex items-center">
+            {trend === 'up' && <TrendingUp className="w-4 h-4 text-green-500 mr-1 flex-shrink-0" />}
+            {trend === 'down' && <TrendingDown className="w-4 h-4 text-red-500 mr-1 flex-shrink-0" />}
+            <span className={`text-sm ${trend === 'up' ? 'text-green-600' : trend === 'down' ? 'text-red-600' : 'text-gray-600'} truncate`}>
               {trend === 'up' ? 'Tendência positiva' : trend === 'down' ? 'Tendência negativa' : 'Estável'}
             </span>
           </div>
@@ -398,7 +410,7 @@ const Dashboard: React.FC = () => {
         {/* SEÇÃO 1: Visão Geral Financeira */}
         <div className="mb-8">
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Visão Geral Financeira</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
             <StatCard
               title="Saldo Total Disponível"
               subtitle={`Posição em ${currentMonthName}`}
@@ -436,7 +448,7 @@ const Dashboard: React.FC = () => {
         {/* SEÇÃO 2: Cartões de Crédito */}
         <div className="mb-8">
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Cartões de Crédito</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
             <StatCard
               title="Faturas Pendentes"
               subtitle="Total a pagar"
@@ -454,18 +466,18 @@ const Dashboard: React.FC = () => {
             <StatCard
               title="Maior Fatura"
               subtitle={creditCardAnalysis.largestInvoice.card}
-              value={formatCurrency(creditCardAnalysis.largestInvoice.amount)}
+              value={formatCurrency(Number(creditCardAnalysis.largestInvoice.amount) || 0)}
               icon={<AlertCircle className="w-6 h-6" />}
               color="red"
             />
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 lg:gap-8 mb-8">
           {/* SEÇÃO 3: Análises Inteligentes */}
           <div>
             <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Análises Inteligentes</h2>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-6">
               {/* Top 5 Categorias */}
               <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
                 <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4 flex items-center">
@@ -535,7 +547,7 @@ const Dashboard: React.FC = () => {
               </div>
 
               {/* Grid para os cards menores */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 lg:col-span-2">
+              <div className="grid grid-cols-1 gap-4 lg:gap-6 md:col-span-2">
                 {/* Maiores Transações */}
                 <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
                   <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4 flex items-center">
@@ -544,12 +556,18 @@ const Dashboard: React.FC = () => {
                   </h3>
                   <div className="space-y-3">
                     {intelligentAnalysis.biggestTransactions.length > 0 ? intelligentAnalysis.biggestTransactions.map((transaction: any, index: number) => (
-                      <div key={index} className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{transaction.description}</p>
-                          <p className="text-xs text-gray-500">{transaction.category}</p>
+                      <div key={index} className="flex items-start justify-between gap-3">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-gray-900 dark:text-white truncate" title={transaction.description}>
+                            {transaction.description}
+                          </p>
+                          <p className="text-xs text-gray-500 truncate" title={transaction.category}>
+                            {transaction.category}
+                          </p>
                         </div>
-                        <span className="font-semibold text-gray-900 dark:text-white ml-2">{formatCurrency(transaction.amount)}</span>
+                        <span className="font-semibold text-gray-900 dark:text-white flex-shrink-0 text-sm">
+                          {formatCurrency(transaction.amount)}
+                        </span>
                       </div>
                     )) : (
                       <p className="text-gray-500 dark:text-gray-400 text-center">Nenhuma transação este mês</p>
@@ -566,18 +584,28 @@ const Dashboard: React.FC = () => {
                   <div className="space-y-3">
                     {alertsAndTrends.activeInstallmentsList && alertsAndTrends.activeInstallmentsList.length > 0 ? alertsAndTrends.activeInstallmentsList.map((installment: any, index: number) => (
                       <div key={index} className="border-l-4 border-orange-500 pl-3">
-                        <div className="flex items-center justify-between">
-                          <div className="flex-1">
-                            <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{installment.description}</p>
-                            <p className="text-xs text-gray-500">{installment.category}</p>
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-gray-900 dark:text-white truncate" title={installment.description}>
+                              {installment.description}
+                            </p>
+                            <p className="text-xs text-gray-500 truncate" title={installment.category}>
+                              {installment.category}
+                            </p>
                           </div>
-                          <div className="text-right">
-                            <p className="text-sm font-semibold text-gray-900 dark:text-white">{formatCurrency(installment.monthlyAmount)}/mês</p>
-                            <p className="text-xs text-orange-600">{installment.remainingInstallments}x restantes</p>
+                          <div className="text-right flex-shrink-0">
+                            <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                              {formatCurrency(installment.monthlyAmount)}/mês
+                            </p>
+                            <p className="text-xs text-orange-600">
+                              {installment.remainingInstallments}x restantes
+                            </p>
                           </div>
                         </div>
-                        <div className="mt-1">
-                          <p className="text-xs text-gray-500">Total restante: {formatCurrency(installment.totalAmount)}</p>
+                        <div className="mt-2">
+                          <p className="text-xs text-gray-500">
+                            Total restante: {formatCurrency(installment.totalAmount)}
+                          </p>
                         </div>
                       </div>
                     )) : (
