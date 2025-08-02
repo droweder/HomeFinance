@@ -24,10 +24,7 @@ const DailyAccountSummary: React.FC = () => {
   const [tempFilters, setTempFilters] = useState(filters.dailySummary);
   const [modalSelectedMonth, setModalSelectedMonth] = useState<number>(0); // 0-indexed month
   const [modalSelectedYear, setModalSelectedYear] = useState<number>(new Date().getFullYear());
-  const [selectedMonth, setSelectedMonth] = useState<string>(() => {
-    const now = new Date();
-    return `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}`;
-  });
+  const [selectedMonth, setSelectedMonth] = useState<string>('');
   
   // Estado para o modal de extrato
   const [showExtractModal, setShowExtractModal] = useState(false);
@@ -62,16 +59,36 @@ const DailyAccountSummary: React.FC = () => {
     return Array.from(months).sort().reverse(); // Most recent first
   }, [expenses, income, transfers]);
 
+  // Initialize selectedMonth properly based on available data
+  React.useEffect(() => {
+    if (!selectedMonth && availableMonths.length > 0) {
+      // If no selectedMonth yet, use the first available month (most recent)
+      const initialMonth = availableMonths[0];
+      setSelectedMonth(initialMonth);
+      
+      // Update filters to match
+      const [year, monthNum] = initialMonth.split('-');
+      const startDate = new Date(parseInt(year), parseInt(monthNum) - 1, 1);
+      const endDate = new Date(parseInt(year), parseInt(monthNum), 0); // Last day of month
+      
+      updateFilters('dailySummary', {
+        startDate: startDate.toISOString().split('T')[0],
+        endDate: endDate.toISOString().split('T')[0],
+        visibleAccounts: filters.dailySummary.visibleAccounts,
+      });
+    }
+  }, [availableMonths, selectedMonth]);
+
   // Sync selectedMonth with filter startDate to ensure consistency
   React.useEffect(() => {
-    if (filters.dailySummary.startDate) {
+    if (filters.dailySummary.startDate && selectedMonth) {
       const filterDate = new Date(filters.dailySummary.startDate);
       const filterMonth = `${filterDate.getFullYear()}-${(filterDate.getMonth() + 1).toString().padStart(2, '0')}`;
-      if (filterMonth !== selectedMonth) {
+      if (filterMonth !== selectedMonth && availableMonths.includes(filterMonth)) {
         setSelectedMonth(filterMonth);
       }
     }
-  }, [filters.dailySummary.startDate, selectedMonth]);
+  }, [filters.dailySummary.startDate, selectedMonth, availableMonths]);
 
   // Update filters when month changes
   const handleMonthChange = (newMonth: string) => {
