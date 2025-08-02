@@ -1,4 +1,4 @@
-# Smart Home Finance
+# HomeFinance
 
 ## Overview
 This is a full-stack personal finance management application that enables users to track expenses, income, categories, and accounts. It includes features such as installment management, AI financial insights, CSV import/export, and real-time synchronization. The project aims to provide comprehensive financial tracking and analysis capabilities.

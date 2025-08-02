@@ -1,7 +1,7 @@
 {
-  "name": "Gestão Financeira Pessoal",
-  "short_name": "Finanças",
-  "description": "Sistema completo de gestão financeira pessoal",
+  "name": "HomeFinance",
+  "short_name": "HomeFinance",
+  "description": "Sistema completo de gestão financeira doméstica",
   "icons": [
     {
       "src": "/favicon.svg",
