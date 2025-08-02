@@ -97,16 +97,6 @@ const CreditCardList: React.FC = () => {
     setSelectedMonth(newMonth);
   };
 
-  const handleSelectCard = (cardId: string) => {
-    const newSelected = new Set(selectedCards);
-    if (newSelected.has(cardId)) {
-      newSelected.delete(cardId);
-    } else {
-      newSelected.add(cardId);
-    }
-    setSelectedCards(newSelected);
-  };
-
   const filteredCards = useMemo(() => {
     return monthFilteredCards.filter(card => {
       const matchesCategory = !tempFilters.category || card.category.toLowerCase().includes(tempFilters.category.toLowerCase());
@@ -167,6 +157,25 @@ const CreditCardList: React.FC = () => {
     
     return { total, paid, pending };
   }, [filteredCards]);
+
+  // Funções de seleção
+  const handleSelectCard = (cardId: string) => {
+    const newSelected = new Set(selectedCards);
+    if (newSelected.has(cardId)) {
+      newSelected.delete(cardId);
+    } else {
+      newSelected.add(cardId);
+    }
+    setSelectedCards(newSelected);
+  };
+
+  const handleSelectAll = () => {
+    if (selectedCards.size === sortedCards.length) {
+      setSelectedCards(new Set());
+    } else {
+      setSelectedCards(new Set(sortedCards.map(card => card.id)));
+    }
+  };
 
   const labels = {
     title: 'Cartão de Crédito',

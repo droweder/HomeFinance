@@ -3,7 +3,7 @@ import { Plus, Edit2, Trash2, Calendar, DollarSign, Filter, Search, X, ArrowRigh
 import { useFinance } from '../context/FinanceContext';
 import { useAccounts } from '../context/AccountContext';
 import { useSettings } from '../context/SettingsContext';
-import { Transfer } from '../types';
+import { Transfer } from '../types/index';
 import TransferForm from './TransferForm';
 import ConfirmDialog from './ConfirmDialog';
 
@@ -15,7 +15,15 @@ const TransferList: React.FC = () => {
   const [showForm, setShowForm] = useState(false);
   const [editingTransfer, setEditingTransfer] = useState<Transfer | null>(null);
   const [showFilterModal, setShowFilterModal] = useState(false);
-  const [tempFilters, setTempFilters] = useState(filters.transfers);
+  const [selectedTransfers, setSelectedTransfers] = useState<Set<string>>(new Set());
+  const [tempFilters, setTempFilters] = useState({
+    fromAccount: '',
+    toAccount: '',
+    description: '',
+    startDate: '',
+    endDate: '',
+    sortBy: []
+  });
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [transferToDelete, setTransferToDelete] = useState<string | null>(null);
   const [selectedMonth, setSelectedMonth] = useState<string>(() => {
