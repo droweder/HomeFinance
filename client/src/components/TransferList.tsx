@@ -87,6 +87,25 @@ const TransferList: React.FC = () => {
     return Array.from(months).sort().reverse(); // Most recent first
   }, [transfers]);
 
+  // Sync selectedMonth with available data - if current month has no data, use the most recent available
+  React.useEffect(() => {
+    if (availableMonths.length > 0) {
+      const now = new Date();
+      const currentMonth = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}`;
+      
+      // If current month has data, use it; otherwise use most recent month with data
+      if (availableMonths.includes(currentMonth)) {
+        if (selectedMonth !== currentMonth) {
+          setSelectedMonth(currentMonth);
+        }
+      } else {
+        // Use most recent month with data (first in the reversed array)
+        if (selectedMonth !== availableMonths[0]) {
+          setSelectedMonth(availableMonths[0]);
+        }
+      }
+    }
+  }, [availableMonths, selectedMonth]);
 
 
   // PERFORMANCE: Monthly filtering reduces dataset - now filter the monthly data
