@@ -208,12 +208,17 @@ const CreditCardList: React.FC = () => {
 
   // Calculate totals
   const totals = useMemo(() => {
-    const total = filteredCards.reduce((sum, card) => sum + card.amount, 0);
-    const paid = filteredCards.filter(card => card.paid).reduce((sum, card) => sum + card.amount, 0);
+    // Se há itens selecionados, calcular totais apenas dos selecionados
+    const cardsToCalculate = selectedCards.size > 0 
+      ? filteredCards.filter(card => selectedCards.has(card.id))
+      : filteredCards;
+    
+    const total = cardsToCalculate.reduce((sum, card) => sum + card.amount, 0);
+    const paid = cardsToCalculate.filter(card => card.paid).reduce((sum, card) => sum + card.amount, 0);
     const pending = total - paid;
     
-    return { total, paid, pending };
-  }, [filteredCards]);
+    return { total, paid, pending, count: cardsToCalculate.length };
+  }, [filteredCards, selectedCards]);
 
   const labels = {
     title: 'Cartão de Crédito',
@@ -347,13 +352,13 @@ const CreditCardList: React.FC = () => {
                 <div className="flex items-center gap-2 px-3 py-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
                   <div>
                     <span className="text-xs text-red-600 dark:text-red-400 font-medium">
-                      Total do Mês: 
+                      {selectedCards.size > 0 ? 'Total Selecionado: ' : 'Total do Mês: '}
                     </span>
                     <span className="text-sm font-bold text-red-700 dark:text-red-300">
                       {formatCurrency(totals.total)}
                     </span>
                     <span className="text-xs text-red-500 dark:text-red-400 ml-1">
-                      ({filteredCards.length} registros)
+                      ({selectedCards.size > 0 ? selectedCards.size : filteredCards.length} registros)
                     </span>
                   </div>
                 </div>

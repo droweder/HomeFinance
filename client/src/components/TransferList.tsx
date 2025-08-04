@@ -213,8 +213,17 @@ const TransferList: React.FC = () => {
     return account ? account.name : 'Conta não encontrada';
   };
 
-  // Calcular total transferido
-  const totalTransferred = sortedTransfers.reduce((sum, transfer) => sum + transfer.amount, 0);
+  // Calcular total transferido - apenas dos itens selecionados
+  const totalTransferred = useMemo(() => {
+    if (selectedTransfers.size === 0) {
+      // Se nenhum item selecionado, mostrar total geral
+      return sortedTransfers.reduce((sum, transfer) => sum + transfer.amount, 0);
+    }
+    // Se há itens selecionados, mostrar apenas total dos selecionados
+    return sortedTransfers
+      .filter(transfer => selectedTransfers.has(transfer.id))
+      .reduce((sum, transfer) => sum + transfer.amount, 0);
+  }, [sortedTransfers, selectedTransfers]);
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -295,10 +304,12 @@ const TransferList: React.FC = () => {
                 {/* Total */}
                 <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
                   <div>
-                    <span className="text-xs text-blue-600 dark:text-blue-400 font-medium">Total do Mês: </span>
+                    <span className="text-xs text-blue-600 dark:text-blue-400 font-medium">
+                      {selectedTransfers.size > 0 ? 'Total Selecionado: ' : 'Total do Mês: '}
+                    </span>
                     <span className="text-sm font-bold text-blue-700 dark:text-blue-300">{formatCurrency(totalTransferred)}</span>
                     <span className="text-xs text-blue-500 dark:text-blue-400 ml-1">
-                      ({sortedTransfers.length} registros)
+                      ({selectedTransfers.size > 0 ? selectedTransfers.size : sortedTransfers.length} registros)
                     </span>
                   </div>
                 </div>
