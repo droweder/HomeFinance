@@ -103,9 +103,16 @@ const CreditCardList: React.FC = () => {
     return `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}`;
   });
 
-  // PERFORMANCE: First filter by selected month OR date range from applied filters
-  const monthFilteredCards = useMemo(() => {
-    // If there are date filters defined, use those instead of month filtering
+  // Check if there are active filters (excluding date filters)
+  const hasActiveFilters = useMemo(() => {
+    const f = appliedFilters;
+    return !!(f.category || f.account || f.description || f.location || f.installmentGroup || 
+              (f.sortBy && f.sortBy.length > 0));
+  }, [appliedFilters]);
+
+  // PERFORMANCE: Filter data based on active filters
+  const baseFilteredCards = useMemo(() => {
+    // If there are date filters defined, use those
     if (appliedFilters.startDate || appliedFilters.endDate) {
       return creditCards.filter(card => {
         const cardDate = card.date;
@@ -115,22 +122,48 @@ const CreditCardList: React.FC = () => {
       });
     }
     
+    // If there are active filters, show all data (don't filter by month)
+    if (hasActiveFilters) {
+      return creditCards;
+    }
+    
     // Otherwise, use month filtering for performance
     return creditCards.filter(card => {
       const cardMonth = card.date.substring(0, 7); // YYYY-MM format
       return cardMonth === selectedMonth;
     });
-  }, [creditCards, selectedMonth, appliedFilters.startDate, appliedFilters.endDate]);
+  }, [creditCards, selectedMonth, appliedFilters.startDate, appliedFilters.endDate, hasActiveFilters]);
 
   // Get available months for dropdown
   const availableMonths = useMemo(() => {
     const months = new Set<string>();
-    creditCards.forEach(card => {
+    const dataToAnalyze = hasActiveFilters ? baseFilteredCards : creditCards;
+    
+    dataToAnalyze.forEach(card => {
       const month = card.date.substring(0, 7);
       months.add(month);
     });
     return Array.from(months).sort().reverse(); // Most recent first
-  }, [creditCards]);
+  }, [creditCards, baseFilteredCards, hasActiveFilters]);
+
+  // Generate period display for month selector when filters are active
+  const periodDisplay = useMemo(() => {
+    if (!hasActiveFilters || availableMonths.length === 0) {
+      return '';
+    }
+    
+    if (availableMonths.length === 1) {
+      const [year, month] = availableMonths[0].split('-');
+      const monthNames = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+      return `${monthNames[parseInt(month) - 1]} ${year}`;
+    }
+    
+    const newest = availableMonths[0].split('-');
+    const oldest = availableMonths[availableMonths.length - 1].split('-');
+    const monthNames = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+    
+    return `${monthNames[parseInt(oldest[1]) - 1]} ${oldest[0]} - ${monthNames[parseInt(newest[1]) - 1]} ${newest[0]}`;
+  }, [hasActiveFilters, availableMonths]);
 
   // Handle month changes with navigation
   const handleMonthChange = (newMonth: string) => {
@@ -156,17 +189,17 @@ const CreditCardList: React.FC = () => {
   };
 
   const filteredCards = useMemo(() => {
-    return monthFilteredCards.filter(card => {
+    return baseFilteredCards.filter(card => {
       const matchesCategory = !appliedFilters.category || card.category.toLowerCase().includes(appliedFilters.category.toLowerCase());
       const matchesAccount = !appliedFilters.account || card.paymentMethod.toLowerCase().includes(appliedFilters.account.toLowerCase());
       const matchesDescription = !appliedFilters.description || card.description.toLowerCase().includes(appliedFilters.description.toLowerCase());
       const matchesLocation = !appliedFilters.location || (card.location && card.location.toLowerCase().includes(appliedFilters.location.toLowerCase()));
       
-      // Skip date filtering here since it's already done in monthFilteredCards when filters are active
+      // Skip date filtering here since it's already done in baseFilteredCards when filters are active
 
       return matchesCategory && matchesAccount && matchesDescription && matchesLocation;
     });
-  }, [monthFilteredCards, appliedFilters]);
+  }, [baseFilteredCards, appliedFilters]);
 
   // Grouping logic for installments
   const groupedCards = useMemo(() => {
@@ -299,8 +332,13 @@ const CreditCardList: React.FC = () => {
                         `Até: ${new Date(appliedFilters.endDate).toLocaleDateString('pt-BR')} (${filteredCards.length} registros)`
                       )}
                     </div>
+                  ) : hasActiveFilters && periodDisplay ? (
+                    // Show period when other filters are active
+                    <div className="text-sm font-medium text-blue-700 dark:text-blue-300">
+                      {periodDisplay} ({filteredCards.length} registros)
+                    </div>
                   ) : (
-                    // Show month navigation when no period filters are active
+                    // Show month navigation when no filters are active
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => {

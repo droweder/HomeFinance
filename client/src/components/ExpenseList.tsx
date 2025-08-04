@@ -43,9 +43,16 @@ const ExpenseList: React.FC = () => {
     return `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}`;
   });
 
-  // PERFORMANCE: First filter by selected month OR date range from filters
-  const monthFilteredExpenses = useMemo(() => {
-    // If there are date filters defined, use those instead of month filtering
+  // Check if there are active filters (excluding date filters)
+  const hasActiveFilters = useMemo(() => {
+    const f = filters.expenses;
+    return !!(f.category || f.account || f.description || f.location || f.installmentGroup || 
+              f.isCreditCard !== 'all' || (f.sortBy && f.sortBy.length > 0));
+  }, [filters.expenses]);
+
+  // PERFORMANCE: Filter data based on active filters
+  const baseFilteredExpenses = useMemo(() => {
+    // If there are date filters defined, use those
     if (filters.expenses.startDate || filters.expenses.endDate) {
       return expenses.filter(expense => {
         const expenseDate = expense.date;
@@ -55,22 +62,48 @@ const ExpenseList: React.FC = () => {
       });
     }
     
+    // If there are active filters, show all data (don't filter by month)
+    if (hasActiveFilters) {
+      return expenses;
+    }
+    
     // Otherwise, use month filtering for performance
     return expenses.filter(expense => {
       const expenseMonth = expense.date.substring(0, 7); // YYYY-MM format
       return expenseMonth === selectedMonth;
     });
-  }, [expenses, selectedMonth, filters.expenses.startDate, filters.expenses.endDate]);
+  }, [expenses, selectedMonth, filters.expenses.startDate, filters.expenses.endDate, hasActiveFilters]);
 
   // Get available months for dropdown
   const availableMonths = useMemo(() => {
     const months = new Set<string>();
-    expenses.forEach(expense => {
+    const dataToAnalyze = hasActiveFilters ? baseFilteredExpenses : expenses;
+    
+    dataToAnalyze.forEach(expense => {
       const month = expense.date.substring(0, 7);
       months.add(month);
     });
     return Array.from(months).sort().reverse(); // Most recent first
-  }, [expenses]);
+  }, [expenses, baseFilteredExpenses, hasActiveFilters]);
+
+  // Generate period display for month selector when filters are active
+  const periodDisplay = useMemo(() => {
+    if (!hasActiveFilters || availableMonths.length === 0) {
+      return '';
+    }
+    
+    if (availableMonths.length === 1) {
+      const [year, month] = availableMonths[0].split('-');
+      const monthNames = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+      return `${monthNames[parseInt(month) - 1]} ${year}`;
+    }
+    
+    const newest = availableMonths[0].split('-');
+    const oldest = availableMonths[availableMonths.length - 1].split('-');
+    const monthNames = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+    
+    return `${monthNames[parseInt(oldest[1]) - 1]} ${oldest[0]} - ${monthNames[parseInt(newest[1]) - 1]} ${newest[0]}`;
+  }, [hasActiveFilters, availableMonths]);
 
   // Sync selectedMonth with available data only on initial load - allow manual changes after that
   const [hasInitialized, setHasInitialized] = React.useState(false);
@@ -94,10 +127,10 @@ const ExpenseList: React.FC = () => {
 
   // PERFORMANCE: Monthly filtering reduces dataset from 3436 to ~100 records
 
-  // PERFORMANCE: Work with smaller monthly dataset
+  // PERFORMANCE: Work with filtered dataset
   const groupedExpenses = useMemo(() => {
     if (!filters.expenses.groupInstallments) {
-      return monthFilteredExpenses.filter(expense => {
+      return baseFilteredExpenses.filter(expense => {
         const expenseFilters = filters.expenses;
         
         if (expenseFilters.category && expense.category !== expenseFilters.category) return false;
@@ -108,7 +141,7 @@ const ExpenseList: React.FC = () => {
           if (expenseFilters.isCreditCard === 'no' && isCreditCard) return false;
         }
         
-        // Skip date filtering here since it's already done in monthFilteredExpenses
+        // Skip date filtering here since it's already done in baseFilteredExpenses
         if (expenseFilters.description && !expense.description?.toLowerCase().includes(expenseFilters.description.toLowerCase())) return false;
         if (expenseFilters.location && !expense.location?.toLowerCase().includes(expenseFilters.location.toLowerCase())) return false;
         
@@ -116,8 +149,8 @@ const ExpenseList: React.FC = () => {
       });
     }
 
-    // Aplicar filtros básicos primeiro - já com filtro de mês
-    const basicFilteredExpenses = monthFilteredExpenses.filter(expense => {
+    // Aplicar filtros básicos primeiro - já com filtro base
+    const basicFilteredExpenses = baseFilteredExpenses.filter(expense => {
       const expenseFilters = filters.expenses;
       
       if (expenseFilters.category && expense.category !== expenseFilters.category) return false;
@@ -128,7 +161,7 @@ const ExpenseList: React.FC = () => {
         if (expenseFilters.isCreditCard === 'no' && isCreditCard) return false;
       }
       
-      // Skip date filtering here since it's already done in monthFilteredExpenses
+      // Skip date filtering here since it's already done in baseFilteredExpenses
       if (expenseFilters.description && !expense.description?.toLowerCase().includes(expenseFilters.description.toLowerCase())) return false;
       if (expenseFilters.location && !expense.location?.toLowerCase().includes(expenseFilters.location.toLowerCase())) return false;
       
@@ -177,7 +210,7 @@ const ExpenseList: React.FC = () => {
     });
 
     return [...standaloneExpenses, ...groupRepresentatives];
-  }, [monthFilteredExpenses, filters.expenses]);
+  }, [baseFilteredExpenses, filters.expenses]);
 
   const filteredExpenses = groupedExpenses;
 
@@ -393,7 +426,7 @@ const ExpenseList: React.FC = () => {
                 <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
                   <Calendar className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                   {filters.expenses.startDate || filters.expenses.endDate ? (
-                    // Show period info when filters are active
+                    // Show period info when date filters are active
                     <div className="text-sm font-medium text-blue-700 dark:text-blue-300">
                       {filters.expenses.startDate && filters.expenses.endDate ? (
                         `Período: ${new Date(filters.expenses.startDate).toLocaleDateString('pt-BR')} - ${new Date(filters.expenses.endDate).toLocaleDateString('pt-BR')} (${sortedExpenses.length} registros)`
@@ -402,6 +435,11 @@ const ExpenseList: React.FC = () => {
                       ) : (
                         `Até: ${new Date(filters.expenses.endDate).toLocaleDateString('pt-BR')} (${sortedExpenses.length} registros)`
                       )}
+                    </div>
+                  ) : hasActiveFilters && periodDisplay ? (
+                    // Show period when other filters are active
+                    <div className="text-sm font-medium text-blue-700 dark:text-blue-300">
+                      {periodDisplay} ({sortedExpenses.length} registros)
                     </div>
                   ) : (
                     // Show month navigation when no period filters are active
@@ -493,7 +531,7 @@ const ExpenseList: React.FC = () => {
                   >
                     <Filter className="w-4 h-4" />
                     Filtros
-                    {filteredExpenses.length < monthFilteredExpenses.length && (
+                    {filteredExpenses.length < baseFilteredExpenses.length && (
                       <span className="bg-gray-500 text-xs px-1.5 py-0.5 rounded-full">
                         {filteredExpenses.length}
                       </span>

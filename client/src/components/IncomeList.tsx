@@ -20,9 +20,15 @@ const IncomeList: React.FC = () => {
     return `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}`;
   });
 
-  // PERFORMANCE: First filter by selected month OR date range from filters
-  const monthFilteredIncome = useMemo(() => {
-    // If there are date filters defined, use those instead of month filtering
+  // Check if there are active filters (excluding date filters)
+  const hasActiveFilters = useMemo(() => {
+    const f = filters.income;
+    return !!(f.source || f.account || f.description || f.location || (f.sortBy && f.sortBy.length > 0));
+  }, [filters.income]);
+
+  // PERFORMANCE: Filter data based on active filters
+  const baseFilteredIncome = useMemo(() => {
+    // If there are date filters defined, use those
     if (filters.income.startDate || filters.income.endDate) {
       return income.filter(incomeItem => {
         const incomeDate = incomeItem.date;
@@ -32,22 +38,48 @@ const IncomeList: React.FC = () => {
       });
     }
     
+    // If there are active filters, show all data (don't filter by month)
+    if (hasActiveFilters) {
+      return income;
+    }
+    
     // Otherwise, use month filtering for performance
     return income.filter(incomeItem => {
       const incomeMonth = incomeItem.date.substring(0, 7); // YYYY-MM format
       return incomeMonth === selectedMonth;
     });
-  }, [income, selectedMonth, filters.income.startDate, filters.income.endDate]);
+  }, [income, selectedMonth, filters.income.startDate, filters.income.endDate, hasActiveFilters]);
 
   // Get available months for dropdown
   const availableMonths = useMemo(() => {
     const months = new Set<string>();
-    income.forEach(incomeItem => {
+    const dataToAnalyze = hasActiveFilters ? baseFilteredIncome : income;
+    
+    dataToAnalyze.forEach(incomeItem => {
       const month = incomeItem.date.substring(0, 7);
       months.add(month);
     });
     return Array.from(months).sort().reverse(); // Most recent first
-  }, [income]);
+  }, [income, baseFilteredIncome, hasActiveFilters]);
+
+  // Generate period display for month selector when filters are active
+  const periodDisplay = useMemo(() => {
+    if (!hasActiveFilters || availableMonths.length === 0) {
+      return '';
+    }
+    
+    if (availableMonths.length === 1) {
+      const [year, month] = availableMonths[0].split('-');
+      const monthNames = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+      return `${monthNames[parseInt(month) - 1]} ${year}`;
+    }
+    
+    const newest = availableMonths[0].split('-');
+    const oldest = availableMonths[availableMonths.length - 1].split('-');
+    const monthNames = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+    
+    return `${monthNames[parseInt(oldest[1]) - 1]} ${oldest[0]} - ${monthNames[parseInt(newest[1]) - 1]} ${newest[0]}`;
+  }, [hasActiveFilters, availableMonths]);
 
   // Sync selectedMonth with available data only on initial load - allow manual changes after that
   const [hasInitialized, setHasInitialized] = React.useState(false);
@@ -69,11 +101,11 @@ const IncomeList: React.FC = () => {
 
 
 
-  // PERFORMANCE: Monthly filtering reduces dataset - now filter the monthly data
-  const filteredIncome = monthFilteredIncome.filter(incomeItem => {
+  // PERFORMANCE: Filter the base data
+  const filteredIncome = baseFilteredIncome.filter(incomeItem => {
     const incomeFilters = filters.income;
     if (incomeFilters.source && incomeItem.source !== incomeFilters.source) return false;
-    // Skip date filtering here since it's already done in monthFilteredIncome
+    // Skip date filtering here since it's already done in baseFilteredIncome
     if (incomeFilters.account && incomeItem.account !== incomeFilters.account) return false;
     if (incomeFilters.description && !incomeItem.notes?.toLowerCase().includes(incomeFilters.description.toLowerCase())) return false;
     if (incomeFilters.location && !incomeItem.location?.toLowerCase().includes(incomeFilters.location.toLowerCase())) return false;
@@ -273,7 +305,7 @@ const IncomeList: React.FC = () => {
                 <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
                   <Calendar className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                   {filters.income.startDate || filters.income.endDate ? (
-                    // Show period info when filters are active
+                    // Show period info when date filters are active
                     <div className="text-sm font-medium text-blue-700 dark:text-blue-300">
                       {filters.income.startDate && filters.income.endDate ? (
                         `Período: ${new Date(filters.income.startDate).toLocaleDateString('pt-BR')} - ${new Date(filters.income.endDate).toLocaleDateString('pt-BR')} (${sortedIncome.length} registros)`
@@ -283,8 +315,13 @@ const IncomeList: React.FC = () => {
                         `Até: ${new Date(filters.income.endDate).toLocaleDateString('pt-BR')} (${sortedIncome.length} registros)`
                       )}
                     </div>
+                  ) : hasActiveFilters && periodDisplay ? (
+                    // Show period when other filters are active
+                    <div className="text-sm font-medium text-blue-700 dark:text-blue-300">
+                      {periodDisplay} ({sortedIncome.length} registros)
+                    </div>
                   ) : (
-                    // Show month navigation when no period filters are active
+                    // Show month navigation when no filters are active
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => {
@@ -307,7 +344,7 @@ const IncomeList: React.FC = () => {
                         {availableMonths.map(month => {
                           const [year, monthNum] = month.split('-');
                           const monthName = new Date(parseInt(year), parseInt(monthNum) - 1).toLocaleDateString('pt-BR', { year: 'numeric', month: 'long' });
-                          const monthCount = income.filter(inc => inc.date.substring(0, 7) === month).length;
+                          const monthCount = income.filter(item => item.date.substring(0, 7) === month).length;
                           return (
                             <option key={month} value={month}>
                               {monthName} ({monthCount})

@@ -58,9 +58,15 @@ const TransferList: React.FC = () => {
     document.body.removeChild(link);
   };
 
-  // PERFORMANCE: First filter by selected month OR date range from filters
-  const monthFilteredTransfers = useMemo(() => {
-    // If there are date filters defined, use those instead of month filtering
+  // Check if there are active filters (excluding date filters)
+  const hasActiveFilters = useMemo(() => {
+    const f = filters.transfers;
+    return !!(f.fromAccount || f.toAccount || f.description || (f.sortBy && f.sortBy.length > 0));
+  }, [filters.transfers]);
+
+  // PERFORMANCE: Filter data based on active filters
+  const baseFilteredTransfers = useMemo(() => {
+    // If there are date filters defined, use those
     if (filters.transfers.startDate || filters.transfers.endDate) {
       return transfers.filter(transfer => {
         const transferDate = transfer.date;
@@ -70,22 +76,48 @@ const TransferList: React.FC = () => {
       });
     }
     
+    // If there are active filters, show all data (don't filter by month)
+    if (hasActiveFilters) {
+      return transfers;
+    }
+    
     // Otherwise, use month filtering for performance
     return transfers.filter(transfer => {
       const transferMonth = transfer.date.substring(0, 7); // YYYY-MM format
       return transferMonth === selectedMonth;
     });
-  }, [transfers, selectedMonth, filters.transfers.startDate, filters.transfers.endDate]);
+  }, [transfers, selectedMonth, filters.transfers.startDate, filters.transfers.endDate, hasActiveFilters]);
 
   // Get available months for dropdown
   const availableMonths = useMemo(() => {
     const months = new Set<string>();
-    transfers.forEach(transfer => {
+    const dataToAnalyze = hasActiveFilters ? baseFilteredTransfers : transfers;
+    
+    dataToAnalyze.forEach(transfer => {
       const month = transfer.date.substring(0, 7);
       months.add(month);
     });
     return Array.from(months).sort().reverse(); // Most recent first
-  }, [transfers]);
+  }, [transfers, baseFilteredTransfers, hasActiveFilters]);
+
+  // Generate period display for month selector when filters are active
+  const periodDisplay = useMemo(() => {
+    if (!hasActiveFilters || availableMonths.length === 0) {
+      return '';
+    }
+    
+    if (availableMonths.length === 1) {
+      const [year, month] = availableMonths[0].split('-');
+      const monthNames = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+      return `${monthNames[parseInt(month) - 1]} ${year}`;
+    }
+    
+    const newest = availableMonths[0].split('-');
+    const oldest = availableMonths[availableMonths.length - 1].split('-');
+    const monthNames = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+    
+    return `${monthNames[parseInt(oldest[1]) - 1]} ${oldest[0]} - ${monthNames[parseInt(newest[1]) - 1]} ${newest[0]}`;
+  }, [hasActiveFilters, availableMonths]);
 
   // Sync selectedMonth with available data only on initial load - allow manual changes after that
   const [hasInitialized, setHasInitialized] = React.useState(false);
@@ -106,15 +138,15 @@ const TransferList: React.FC = () => {
   }, [availableMonths, hasInitialized]);
 
 
-  // PERFORMANCE: Monthly filtering reduces dataset - now filter the monthly data
-  const filteredTransfers = monthFilteredTransfers.filter(transfer => {
+  // PERFORMANCE: Filter the base data
+  const filteredTransfers = baseFilteredTransfers.filter(transfer => {
     const transferFilters = filters.transfers;
     
     if (transferFilters.fromAccount && transfer.fromAccount !== transferFilters.fromAccount) return false;
     if (transferFilters.toAccount && transfer.toAccount !== transferFilters.toAccount) return false;
     if (transferFilters.description && !transfer.description.toLowerCase().includes(transferFilters.description.toLowerCase())) return false;
     
-    // Skip date filtering here since it's already done in monthFilteredTransfers
+    // Skip date filtering here since it's already done in baseFilteredTransfers
     
     return true;
   });
@@ -250,8 +282,13 @@ const TransferList: React.FC = () => {
                         `Até: ${new Date(filters.transfers.endDate).toLocaleDateString('pt-BR')} (${sortedTransfers.length} registros)`
                       )}
                     </div>
+                  ) : hasActiveFilters && periodDisplay ? (
+                    // Show period when other filters are active
+                    <div className="text-sm font-medium text-purple-700 dark:text-purple-300">
+                      {periodDisplay} ({sortedTransfers.length} registros)
+                    </div>
                   ) : (
-                    // Show month navigation when no period filters are active
+                    // Show month navigation when no filters are active
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => {
@@ -328,7 +365,7 @@ const TransferList: React.FC = () => {
                   >
                     <Filter className="w-4 h-4" />
                     Filtros
-                    {filteredTransfers.length < monthFilteredTransfers.length && (
+                    {filteredTransfers.length < baseFilteredTransfers.length && (
                       <span className="bg-gray-500 text-xs px-1.5 py-0.5 rounded-full">
                         {filteredTransfers.length}
                       </span>
