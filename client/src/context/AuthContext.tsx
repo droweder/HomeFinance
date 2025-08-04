@@ -144,6 +144,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       await withAuthRetry(() => supabase.auth.signOut());
       setAuthError(null);
+      
+      // Clear localStorage data on logout
+      localStorage.removeItem('finance-app-active-tab');
+      localStorage.removeItem('finance-app-filters');
+      localStorage.removeItem('finance-app-settings');
+      
       console.log('👋 Logout realizado');
     } catch (error) {
       console.error('❌ Erro no logout:', error);
