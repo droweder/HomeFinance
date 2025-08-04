@@ -405,7 +405,7 @@ const IncomeList: React.FC = () => {
                   >
                     <Filter className="w-4 h-4" />
                     Filtros
-                    {filteredIncome.length < monthFilteredIncome.length && (
+                    {filteredIncome.length < baseFilteredIncome.length && (
                       <span className="bg-gray-500 text-xs px-1.5 py-0.5 rounded-full">
                         {filteredIncome.length}
                       </span>

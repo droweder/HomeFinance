@@ -32,7 +32,7 @@ interface NavigationProps {
 
 const Navigation: React.FC<NavigationProps> = ({ activeTab, onTabChange }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
-  const { currentUser, logout } = useAuth();
+  const { currentUser, logout, isLoggingOut } = useAuth();
   const { settings } = useSettings();
 
   const tabs = [
@@ -95,10 +95,22 @@ const Navigation: React.FC<NavigationProps> = ({ activeTab, onTabChange }) => {
             })}
             <button
               onClick={handleLogout}
-              className="flex items-center gap-2 px-3 py-2 rounded-lg transition-colors text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
+              disabled={isLoggingOut}
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors text-sm ${
+                isLoggingOut
+                  ? 'text-gray-400 dark:text-gray-600 cursor-not-allowed bg-gray-100 dark:bg-gray-800'
+                  : 'text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20'
+              }`}
             >
-              <LogOut className="w-4 h-4" />
-              {settings.language === 'pt-BR' ? 'Sair' : 'Logout'}
+              {isLoggingOut ? (
+                <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <LogOut className="w-4 h-4" />
+              )}
+              {isLoggingOut 
+                ? (settings.language === 'pt-BR' ? 'Saindo...' : 'Logging out...')
+                : (settings.language === 'pt-BR' ? 'Sair' : 'Logout')
+              }
             </button>
           </div>
 
@@ -135,10 +147,22 @@ const Navigation: React.FC<NavigationProps> = ({ activeTab, onTabChange }) => {
             })}
             <button
               onClick={handleLogout}
-              className="flex items-center gap-3 w-full px-4 py-3 text-left transition-colors text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
+              disabled={isLoggingOut}
+              className={`flex items-center gap-3 w-full px-4 py-3 text-left transition-colors ${
+                isLoggingOut
+                  ? 'text-gray-400 dark:text-gray-600 cursor-not-allowed bg-gray-100 dark:bg-gray-800'
+                  : 'text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20'
+              }`}
             >
-              <LogOut className="w-5 h-5" />
-              {settings.language === 'pt-BR' ? 'Sair' : 'Logout'}
+              {isLoggingOut ? (
+                <div className="w-5 h-5 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <LogOut className="w-5 h-5" />
+              )}
+              {isLoggingOut 
+                ? (settings.language === 'pt-BR' ? 'Saindo...' : 'Logging out...')
+                : (settings.language === 'pt-BR' ? 'Sair' : 'Logout')
+              }
             </button>
           </div>
         )}

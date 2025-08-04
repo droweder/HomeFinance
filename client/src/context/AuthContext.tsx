@@ -6,10 +6,11 @@ import { withAuthRetry } from '../utils/supabaseRetry';
 interface AuthContextType {
   currentUser: User | null;
   login: (email: string, password: string) => Promise<boolean>;
-  logout: () => void;
+  logout: () => Promise<void>;
   isAuthenticated: boolean;
   authToken: string | null;
   authError: string | null;
+  isLoggingOut: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -30,6 +31,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [authToken, setAuthToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
 
   // Check existing session on load
@@ -141,18 +143,33 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   const logout = async () => {
+    if (isLoggingOut) return; // Prevent multiple logout attempts
+    
     try {
-      await withAuthRetry(() => supabase.auth.signOut());
+      setIsLoggingOut(true);
       setAuthError(null);
+      console.log('🔐 Iniciando logout...');
       
-      // Clear localStorage data on logout
+      // Sign out from Supabase
+      await withAuthRetry(() => supabase.auth.signOut());
+      
+      // Clear user state immediately
+      setCurrentUser(null);
+      setAuthToken(null);
+      
+      // Clear localStorage data
       localStorage.removeItem('finance-app-active-tab');
       localStorage.removeItem('finance-app-filters');
       localStorage.removeItem('finance-app-settings');
+      localStorage.removeItem('finance-app-gemini-key');
+      localStorage.removeItem('finance-app-chat-history');
       
-      console.log('👋 Logout realizado');
+      console.log('👋 Logout realizado com sucesso');
     } catch (error) {
       console.error('❌ Erro no logout:', error);
+      setAuthError(`Erro no logout: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
+    } finally {
+      setIsLoggingOut(false);
     }
   };
 
@@ -190,6 +207,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         isAuthenticated: !!currentUser,
         authToken,
         authError,
+        isLoggingOut,
       }}
     >
       {children}
