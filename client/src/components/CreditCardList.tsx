@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { Plus, Edit2, Trash2, Calendar, CreditCard as CreditCardIcon, Filter, Search, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useCreditCard } from '../context/CreditCardContext';
 import { useSettings } from '../context/SettingsContext';
+import { useToast } from './ui/toast';
 import { CreditCard } from '../types/index';
 import CreditCardForm from './CreditCardForm';
 import ConfirmDialog from './ConfirmDialog';
@@ -9,6 +10,7 @@ import ConfirmDialog from './ConfirmDialog';
 const CreditCardList: React.FC = () => {
   const { creditCards, deleteCreditCard } = useCreditCard();
   const { formatCurrency, formatDate, settings } = useSettings();
+  const { showSuccess, showError } = useToast();
   const [showForm, setShowForm] = useState(false);
   const [editingCreditCard, setEditingCreditCard] = useState<CreditCard | null>(null);
   const [refundData, setRefundData] = useState<Partial<CreditCard> | null>(null);
@@ -33,8 +35,16 @@ const CreditCardList: React.FC = () => {
       try {
         await deleteCreditCard(confirmDeleteCard.id);
         setConfirmDeleteCard(null);
-      } catch (error) {
+        showSuccess(
+          'Lançamento removido', 
+          `O lançamento de "${confirmDeleteCard.description}" foi removido com sucesso.`
+        );
+      } catch (error: any) {
         console.error('Erro ao deletar cartão de crédito:', error);
+        showError(
+          'Erro ao remover lançamento', 
+          error.message || 'Ocorreu um erro inesperado ao remover o lançamento.'
+        );
       }
     }
   };

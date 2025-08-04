@@ -237,6 +237,11 @@ const CreditCardForm: React.FC<CreditCardFormProps> = ({ creditCard, refundData,
           console.log(`📝 Criando parcela ${i + 1}/${formData.totalInstallments}:`, creditCardData);
           addCreditCard(creditCardData);
         }
+        
+        showSuccess(
+          'Lançamentos parcelados criados!', 
+          `${formData.totalInstallments} parcelas de "${formData.description}" foram adicionadas com sucesso.`
+        );
       } else {
         // Single credit card expense or refund
         const creditCardData = {
@@ -252,6 +257,11 @@ const CreditCardForm: React.FC<CreditCardFormProps> = ({ creditCard, refundData,
 
         console.log('📝 Criando cartão de crédito único:', creditCardData);
         addCreditCard(creditCardData);
+        
+        showSuccess(
+          formData.isRefund ? 'Extorno adicionado!' : 'Lançamento adicionado!', 
+          `"${formData.description}" foi ${formData.isRefund ? 'registrado como extorno' : 'adicionado'} com sucesso.`
+        );
       }
     }
 
