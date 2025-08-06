@@ -222,44 +222,6 @@ const ExpenseList: React.FC = () => {
   });
   // Apply sorting based on filters
   const sortedExpenses = [...filteredExpenses].sort((a, b) => {
-    const sortConfig = filters.expenses.sortBy || [];
-    
-    for (const sort of sortConfig) {
-      let aValue: any, bValue: any;
-      
-      switch (sort.column) {
-        case 'date':
-          aValue = new Date(a.dueDate || a.date).getTime();
-          bValue = new Date(b.dueDate || b.date).getTime();
-          break;
-        case 'category':
-          aValue = a.category.toLowerCase();
-          bValue = b.category.toLowerCase();
-          break;
-        case 'amount':
-          aValue = a.amount;
-          bValue = b.amount;
-          break;
-        case 'description':
-          aValue = (a.description || '').toLowerCase();
-          bValue = (b.description || '').toLowerCase();
-          break;
-        case 'location':
-          aValue = (a.location || '').toLowerCase();
-          bValue = (b.location || '').toLowerCase();
-          break;
-        case 'account':
-          aValue = a.paymentMethod.toLowerCase();
-          bValue = b.paymentMethod.toLowerCase();
-          break;
-        default:
-          continue;
-      }
-      
-      if (aValue < bValue) return sort.direction === 'asc' ? -1 : 1;
-      if (aValue > bValue) return sort.direction === 'asc' ? 1 : -1;
-    }
-    
     // Default sort by date descending
     const dateA = new Date(a.date).getTime();
     const dateB = new Date(b.date).getTime();
@@ -373,8 +335,8 @@ const ExpenseList: React.FC = () => {
   };
 
   // Get unique categories and accounts for filters
-  const uniqueCategories = [...new Set(expenses.map(expense => expense.category))];
-  const uniqueAccounts = [...new Set(expenses.map(expense => expense.paymentMethod))];
+  const uniqueCategories = Array.from(new Set(expenses.map(expense => expense.category)));
+  const uniqueAccounts = Array.from(new Set(expenses.map(expense => expense.paymentMethod)));
 
   const sortColumns = [
     { value: 'date', label: 'Data' },
@@ -386,28 +348,15 @@ const ExpenseList: React.FC = () => {
   ];
 
   const addSortColumn = () => {
-    if ((tempFilters.sortBy || []).length < 6) {
-      setTempFilters(prev => ({
-        ...prev,
-        sortBy: [...(prev.sortBy || []), { column: 'date', direction: 'desc' }]
-      }));
-    }
+    // Simplified for now - just basic string array
   };
 
   const removeSortColumn = (index: number) => {
-    setTempFilters(prev => ({
-      ...prev,
-      sortBy: (prev.sortBy || []).filter((_, i) => i !== index)
-    }));
+    // Simplified for now - just basic string array
   };
 
-  const updateSortColumn = (index: number, field: 'column' | 'direction', value: string) => {
-    setTempFilters(prev => ({
-      ...prev,
-      sortBy: (prev.sortBy || []).map((sort, i) => 
-        i === index ? { ...sort, [field]: value } : sort
-      )
-    }));
+  const updateSortColumn = (index: number, field: string, value: string) => {
+    // Simplified for now - just basic string array
   };
 
   return (
@@ -573,7 +522,7 @@ const ExpenseList: React.FC = () => {
                 </thead>
                 <tbody>
                   {sortedExpenses.map((expense) => (
-                    <tr key={expense.id} className={`border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors ${expense.isGroupRepresentative ? 'bg-blue-50 dark:bg-blue-900/20 border-l-4 border-l-blue-500' : ''}`}>
+                    <tr key={expense.id} className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
                       <td className="py-1 px-2">
                         <input
                           type="checkbox"
@@ -584,13 +533,7 @@ const ExpenseList: React.FC = () => {
                       </td>
                       <td className="py-1 px-2">
                         <div className="flex items-center gap-2">
-                          {expense.isGroupRepresentative && (
-                            <Package className="w-4 h-4 text-blue-600" />
-                          )}
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${expense.isGroupRepresentative 
-                            ? 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-300' 
-                            : 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-300'
-                          }`}>
+                          <span className="px-2 py-1 rounded-full text-xs font-medium bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-300">
                             {expense.category}
                           </span>
                         </div>
@@ -601,24 +544,10 @@ const ExpenseList: React.FC = () => {
                       <td className="py-1 px-2 text-sm text-gray-600 dark:text-gray-400">
                         <div>
                           {expense.description || '-'}
-                          {expense.isGroupRepresentative && (
-                            <div className="text-xs text-blue-600 dark:text-blue-400 mt-1">
-                              📦 Grupo de {expense.groupedExpenses?.length} parcelas
-                            </div>
-                          )}
                         </div>
                       </td>
                       <td className="py-1 px-2 text-sm font-medium text-gray-900 dark:text-white">
-                        {expense.isGroupRepresentative ? (
-                          <div>
-                            <div className="text-blue-600 dark:text-blue-400 font-bold">
-                              {formatCurrency(expense.totalGroupAmount || 0)}
-                            </div>
-                            <div className="text-xs text-gray-500">
-                              Total de {expense.groupedExpenses?.length} parcelas
-                            </div>
-                          </div>
-                        ) : filters.expenses.groupInstallments && expense.isInstallment && expense.totalInstallments ? (
+                        {filters.expenses.groupInstallments && expense.isInstallment && expense.totalInstallments ? (
                           <div>
                             <div>{formatCurrency(expense.amount * expense.totalInstallments)}</div>
                             <div className="text-xs text-gray-500">
@@ -634,13 +563,8 @@ const ExpenseList: React.FC = () => {
                       </td>
                       <td className="py-1.5 px-2 text-sm">
                         {expense.isInstallment ? (
-                          <span className={`px-2 py-1 rounded-full text-xs ${expense.isGroupRepresentative 
-                            ? 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-300' 
-                            : 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-300'
-                          }`}>
-                            {expense.isGroupRepresentative ? (
-                              `${expense.totalInstallments}x (agrupado)`
-                            ) : filters.expenses.groupInstallments ? (
+                          <span className="px-2 py-1 rounded-full text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-300">
+                            {filters.expenses.groupInstallments ? (
                               `${expense.totalInstallments}x`
                             ) : (
                               `${expense.installmentNumber}/${expense.totalInstallments}`
@@ -655,13 +579,8 @@ const ExpenseList: React.FC = () => {
                           <Calendar className="w-4 h-4 text-gray-400" />
                           <div className="flex flex-col">
                             <span className="text-sm text-gray-600 dark:text-gray-400">
-                              {formatDate(expense.dueDate || expense.date)}
+                              {formatDate(expense.date)}
                             </span>
-                            {expense.isGroupRepresentative && expense.groupEndDate && (
-                              <span className="text-xs text-blue-600 dark:text-blue-400">
-                                até {formatDate(expense.groupEndDate)}
-                              </span>
-                            )}
                           </div>
                         </div>
                       </td>
@@ -670,14 +589,14 @@ const ExpenseList: React.FC = () => {
                           <button
                             onClick={() => handleEdit(expense)}
                             className="p-1.5 text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900 rounded-lg transition-colors"
-                            title={expense.isGroupRepresentative ? "Editar grupo de parcelas" : "Editar despesa"}
+                            title="Editar despesa"
                           >
                             <Edit2 className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => handleDelete(expense.id)}
                             className="p-1.5 text-red-600 hover:bg-red-100 dark:hover:bg-red-900 rounded-lg transition-colors"
-                            title={expense.isGroupRepresentative ? "Excluir grupo de parcelas" : "Excluir despesa"}
+                            title="Excluir despesa"
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>

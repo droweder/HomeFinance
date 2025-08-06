@@ -113,48 +113,39 @@ export interface FilterState {
   expenses: {
     category: string;
     account: string;
-    description?: string;
-    location?: string;
+    description: string;
+    location: string;
     startDate: string;
     endDate: string;
-    installmentGroup?: string;
-    groupInstallments?: boolean;
-    isCreditCard?: string; // 'all' | 'yes' | 'no'
-    sortBy?: Array<{
-      column: string;
-      direction: 'asc' | 'desc';
-    }>;
+    installmentGroup: string;
+    groupInstallments: boolean;
+    isCreditCard: string; // 'all' | 'yes' | 'no'
+    sortBy: string[];
   };
   income: {
     source: string;
     account: string;
-    description?: string;
-    location?: string;
+    description: string;
+    location: string;
     startDate: string;
     endDate: string;
-    groupRecurring?: boolean;
-    sortBy?: Array<{
-      column: string;
-      direction: 'asc' | 'desc';
-    }>;
+    groupRecurring: boolean;
+    sortBy: string[];
   };
   dailySummary: {
     startDate: string;
     endDate: string;
     visibleAccounts: string[];
-    sortBy?: string;
-    sortDirection?: 'asc' | 'desc';
+    sortBy: string;
+    sortDirection: 'asc' | 'desc';
   };
   transfers: {
     fromAccount: string;
     toAccount: string;
-    description?: string;
+    description: string;
     startDate: string;
     endDate: string;
-    sortBy?: Array<{
-      column: string;
-      direction: 'asc' | 'desc';
-    }>;
+    sortBy: string[];
   };
 }
 
