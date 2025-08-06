@@ -705,7 +705,26 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
 
     try {
       const updateData: any = {};
-      if (updatedExpense.date !== undefined) updateData.date = updatedExpense.date;
+      
+      // Validação e logging específico para data
+      if (updatedExpense.date !== undefined) {
+        console.log('📅 Validando data para update:', updatedExpense.date);
+        
+        // Validar formato da data
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(updatedExpense.date)) {
+          throw new Error(`Formato de data inválido: ${updatedExpense.date}. Esperado: YYYY-MM-DD`);
+        }
+        
+        // Validar se é uma data válida
+        const dateObj = new Date(updatedExpense.date);
+        if (isNaN(dateObj.getTime())) {
+          throw new Error(`Data inválida: ${updatedExpense.date}`);
+        }
+        
+        updateData.date = updatedExpense.date;
+        console.log('✅ Data validada com sucesso:', updatedExpense.date);
+      }
+      
       if (updatedExpense.category !== undefined) updateData.category = updatedExpense.category;
       if (updatedExpense.description !== undefined) updateData.description = updatedExpense.description;
       if (updatedExpense.amount !== undefined) updateData.amount = updatedExpense.amount;

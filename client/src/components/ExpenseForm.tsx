@@ -99,8 +99,12 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ expense, onClose, onSave }) =
 
     if (expense) {
       // Editando despesa existente
+      console.log('📅 Data original do formulário:', formData.date);
+      const formattedDate = formatDateForStorage(formData.date);
+      console.log('📅 Data formatada para armazenamento:', formattedDate);
+      
       const expenseData = {
-        date: formatDateForStorage(formData.date),
+        date: formattedDate,
         category: formData.category,
         description: formData.description,
         amount: baseAmount, // Usar o valor total para edição

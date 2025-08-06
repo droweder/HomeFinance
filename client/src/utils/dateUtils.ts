@@ -14,7 +14,25 @@ export const getCurrentDateForInput = (): string => {
  * @param date - Date string in any format
  */
 export const formatDateForInput = (date: string): string => {
-  return new Date(date).toISOString().split('T')[0];
+  try {
+    if (!date) return getCurrentDateForInput();
+    
+    // Se já está no formato YYYY-MM-DD, retorna como está
+    if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      return date;
+    }
+    
+    const dateObj = new Date(date);
+    if (isNaN(dateObj.getTime())) {
+      console.warn('Data inválida fornecida:', date);
+      return getCurrentDateForInput();
+    }
+    
+    return dateObj.toISOString().split('T')[0];
+  } catch (error) {
+    console.error('Erro ao formatar data para input:', error, date);
+    return getCurrentDateForInput();
+  }
 };
 
 /**
@@ -22,5 +40,27 @@ export const formatDateForInput = (date: string): string => {
  * @param date - Date string from HTML date input
  */
 export const formatDateForStorage = (date: string): string => {
-  return date; // HTML date inputs already return YYYY-MM-DD format
+  try {
+    if (!date) {
+      console.warn('Data vazia fornecida para armazenamento');
+      return getCurrentDateForInput();
+    }
+    
+    // Se já está no formato correto, retorna como está
+    if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      return date;
+    }
+    
+    // Tenta converter para o formato correto
+    const dateObj = new Date(date);
+    if (isNaN(dateObj.getTime())) {
+      console.warn('Data inválida fornecida para armazenamento:', date);
+      return getCurrentDateForInput();
+    }
+    
+    return dateObj.toISOString().split('T')[0];
+  } catch (error) {
+    console.error('Erro ao formatar data para armazenamento:', error, date);
+    return getCurrentDateForInput();
+  }
 };
