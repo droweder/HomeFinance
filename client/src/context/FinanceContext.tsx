@@ -692,6 +692,9 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
     }
 
     console.log('🔄 Iniciando atualização de despesa:', { id, updatedExpense });
+    console.log('🔄 Usuario atual:', currentUser);
+    console.log('🔄 Despesas atuais:', expenses.length);
+    console.log('🔄 Despesa a ser atualizada encontrada:', expenses.find(e => e.id === id));
 
     // Optimistic update - update UI immediately
     const previousExpenses = [...expenses];
@@ -717,14 +720,19 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
       if (updatedExpense.installmentGroup !== undefined) updateData.installment_group = updatedExpense.installmentGroup;
 
       console.log('📤 Dados preparados para atualização no Supabase:', updateData);
+      console.log('📤 ID da despesa:', id);
+      console.log('📤 ID do usuário:', currentUser.id);
 
-      const { error } = await withSupabaseRetry(() =>
+      const { error, data } = await withSupabaseRetry(() =>
         supabase
           .from('expenses')
           .update(updateData)
           .eq('id', id)
           .eq('user_id', currentUser.id)
+          .select()
       );
+
+      console.log('📤 Resposta do Supabase:', { error, data });
 
       if (error) {
         console.error('❌ Error syncing expense update:', error);

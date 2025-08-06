@@ -114,7 +114,10 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ expense, onClose, onSave }) =
       };
 
       console.log('✏️ Atualizando despesa:', expenseData);
+      console.log('✏️ ID da despesa:', expense.id);
+      console.log('✏️ Contexto completo da despesa original:', expense);
       try {
+        console.log('🔄 Chamando updateExpense...');
         await updateExpense(expense.id, expenseData);
         console.log('✅ Despesa atualizada com sucesso');
         showSuccess('Despesa atualizada com sucesso!');
@@ -122,6 +125,8 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ expense, onClose, onSave }) =
         onClose();
       } catch (error: any) {
         console.error('❌ Erro ao atualizar despesa:', error);
+        console.error('❌ Stack trace:', error.stack);
+        console.error('❌ Mensagem completa:', error.message);
         alert(`Erro ao atualizar despesa: ${error.message || 'Erro desconhecido'}`);
       }
     } else {
