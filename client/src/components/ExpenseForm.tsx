@@ -34,36 +34,71 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ expense, onClose, onSave }) =
   useEffect(() => {
     if (expense) {
       console.log('🔧 Carregando despesa para edição:', expense);
-      setFormData({
-        date: formatDateForInput(expense.date),
-        category: expense.category,
-        amount: expense.amount.toString().replace('.', ','),
-        account: expense.paymentMethod,
-        description: expense.description,
-        location: expense.location || '',
-        isInstallment: expense.isInstallment || false,
-        totalInstallments: expense.totalInstallments || 1,
-      });
+      
+      try {
+        const formattedDate = formatDateForInput(expense.date);
+        console.log('📅 Data formatada para input:', formattedDate);
+        
+        setFormData({
+          date: formattedDate,
+          category: expense.category,
+          amount: expense.amount.toString().replace('.', ','),
+          account: expense.paymentMethod,
+          description: expense.description,
+          location: expense.location || '',
+          isInstallment: expense.isInstallment || false,
+          totalInstallments: expense.totalInstallments || 1,
+        });
 
-      if (expense.isInstallment && expense.date) {
-        setInstallmentDates([formatDateForInput(expense.date)]);
+        if (expense.isInstallment && expense.date) {
+          setInstallmentDates([formattedDate]);
+        }
+      } catch (error) {
+        console.error('Erro ao carregar despesa para edição:', error);
+        // Se houver erro, usar valores padrão
+        setFormData({
+          date: getCurrentDateForInput(),
+          category: expense.category,
+          amount: expense.amount.toString().replace('.', ','),
+          account: expense.paymentMethod,
+          description: expense.description,
+          location: expense.location || '',
+          isInstallment: expense.isInstallment || false,
+          totalInstallments: expense.totalInstallments || 1,
+        });
       }
     }
   }, [expense]);
 
   useEffect(() => {
-    if (formData.isInstallment) {
-      // Generate dates maintaining the same day of month
-      const dates = [];
-      const baseDate = new Date(formData.date);
-      
-      for (let i = 0; i < formData.totalInstallments; i++) {
-        const installmentDate = new Date(baseDate);
-        installmentDate.setMonth(baseDate.getMonth() + i);
-        dates.push(installmentDate.toISOString().split('T')[0]);
+    if (formData.isInstallment && formData.date) {
+      try {
+        // Generate dates maintaining the same day of month
+        const dates = [];
+        const baseDate = new Date(formData.date);
+        
+        // Verificar se a data base é válida
+        if (isNaN(baseDate.getTime())) {
+          console.warn('Data base inválida para parcelas:', formData.date);
+          setInstallmentDates([]);
+          return;
+        }
+        
+        for (let i = 0; i < formData.totalInstallments; i++) {
+          const installmentDate = new Date(baseDate);
+          installmentDate.setMonth(baseDate.getMonth() + i);
+          
+          // Verificar se a data da parcela é válida
+          if (!isNaN(installmentDate.getTime())) {
+            dates.push(installmentDate.toISOString().split('T')[0]);
+          }
+        }
+        
+        setInstallmentDates(dates);
+      } catch (error) {
+        console.error('Erro ao gerar datas de parcelas:', error);
+        setInstallmentDates([]);
       }
-      
-      setInstallmentDates(dates);
     } else {
       setInstallmentDates([]);
     }
