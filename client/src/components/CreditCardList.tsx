@@ -432,7 +432,7 @@ const CreditCardList: React.FC = () => {
               <table className="w-full">
                 <thead className="bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600 sticky top-0 z-20">
                   <tr>
-                    <th className="text-left py-3 px-4 font-medium text-gray-900 dark:text-white">
+                    <th className="text-left py-1.5 px-2 font-medium text-gray-900 dark:text-white text-sm">
                       <input
                         type="checkbox"
                         checked={selectedCards.size > 0 && selectedCards.size === sortedCards.length}
@@ -440,28 +440,28 @@ const CreditCardList: React.FC = () => {
                         className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                       />
                     </th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-900 dark:text-white">
+                    <th className="text-left py-1.5 px-2 font-medium text-gray-900 dark:text-white text-sm">
                       {labels.category}
                     </th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-900 dark:text-white">
+                    <th className="text-left py-1.5 px-2 font-medium text-gray-900 dark:text-white text-sm">
                       {labels.location}
                     </th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-900 dark:text-white">
+                    <th className="text-left py-1.5 px-2 font-medium text-gray-900 dark:text-white text-sm">
                       {labels.description}
                     </th>
-                    <th className="text-right py-3 px-4 font-medium text-gray-900 dark:text-white">
+                    <th className="text-left py-1.5 px-2 font-medium text-gray-900 dark:text-white text-sm">
                       {labels.amount}
                     </th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-900 dark:text-white">
+                    <th className="text-left py-1.5 px-2 font-medium text-gray-900 dark:text-white text-sm">
                       {labels.account}
                     </th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-900 dark:text-white">
+                    <th className="text-left py-1.5 px-2 font-medium text-gray-900 dark:text-white text-sm">
                       {labels.installments}
                     </th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-900 dark:text-white">
+                    <th className="text-left py-1.5 px-2 font-medium text-gray-900 dark:text-white text-sm">
                       {labels.date}
                     </th>
-                    <th className="text-right py-3 px-4 font-medium text-gray-900 dark:text-white">
+                    <th className="text-left py-1.5 px-2 font-medium text-gray-900 dark:text-white text-sm">
                       {labels.actions}
                     </th>
                   </tr>
@@ -498,7 +498,7 @@ const CreditCardList: React.FC = () => {
                         // Card Records
                         ...cards.map((card: CreditCard) => (
                           <tr key={card.id} className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-                            <td className="py-3 px-4">
+                            <td className="py-1 px-2">
                               <input
                                 type="checkbox"
                                 checked={selectedCards.has(card.id)}
@@ -506,20 +506,20 @@ const CreditCardList: React.FC = () => {
                                 className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                               />
                             </td>
-                            <td className="py-3 px-4 text-gray-900 dark:text-white">
+                            <td className="py-1 px-2">
                               <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 dark:bg-purple-900/20 text-purple-800 dark:text-purple-300">
                                 {card.category}
                               </span>
                             </td>
-                            <td className="py-3 px-4 text-gray-500 dark:text-gray-400">
+                            <td className="py-1 px-2 text-sm text-gray-600 dark:text-gray-400">
                               {card.location || '-'}
                             </td>
-                            <td className="py-3 px-4 text-gray-900 dark:text-white">
+                            <td className="py-1 px-2 text-sm text-gray-600 dark:text-gray-400">
                               <div className="max-w-xs truncate" title={card.description}>
                                 {card.description}
                               </div>
                             </td>
-                            <td className={`py-3 px-4 text-right font-medium ${card.isRefund ? 'text-green-600 dark:text-green-400' : 'text-gray-900 dark:text-white'}`}>
+                            <td className={`py-1 px-2 text-sm font-medium text-right ${card.isRefund ? 'text-green-600 dark:text-green-400' : 'text-gray-900 dark:text-white'}`}>
                               {card.isGroupRepresentative ? (
                                 <div>
                                   <div className="text-purple-600 dark:text-purple-400">
@@ -540,12 +540,12 @@ const CreditCardList: React.FC = () => {
                                 </div>
                               )}
                             </td>
-                            <td className="py-3 px-4 text-gray-900 dark:text-white">
+                            <td className="py-1.5 px-2 text-sm text-gray-600 dark:text-gray-400">
                               <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300">
                                 {card.paymentMethod}
                               </span>
                             </td>
-                            <td className="py-3 px-4 text-gray-500 dark:text-gray-400">
+                            <td className="py-1.5 px-2 text-sm text-gray-600 dark:text-gray-400">
                               {card.isInstallment ? (
                                 card.isGroupRepresentative ? (
                                   `${card.totalInstallments}x`
@@ -556,13 +556,13 @@ const CreditCardList: React.FC = () => {
                                 '-'
                               )}
                             </td>
-                            <td className="py-3 px-4 text-gray-900 dark:text-white">
+                            <td className="py-1.5 px-2 text-sm text-gray-600 dark:text-gray-400">
                               <div className="flex items-center gap-2">
                                 <Calendar className="w-4 h-4 text-gray-400" />
                                 {formatDate(card.date)}
                               </div>
                             </td>
-                            <td className="py-3 px-4">
+                            <td className="py-1.5 px-2">
                               <div className="flex items-center gap-2">
                                 <button
                                   onClick={() => handleEditCard(card)}
