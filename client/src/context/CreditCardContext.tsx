@@ -541,7 +541,6 @@ export const CreditCardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
             if (!updateError) {
               console.log(`✅ Updated: ${invoiceDescription} - R$ ${finalTotal.toFixed(2)}`);
-              processed++;
             }
           } else if (finalTotal > 0) {
             // Create new invoice only if there's a positive balance
@@ -561,7 +560,6 @@ export const CreditCardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
             if (!insertError) {
               console.log(`✅ Created: ${invoiceDescription} - R$ ${finalTotal.toFixed(2)}`);
-              processed++;
             }
           }
         } catch (error) {
@@ -569,7 +567,7 @@ export const CreditCardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         }
       }
 
-      console.log(`🎉 Bulk sync completed! Processed ${processed} invoices from ${creditCards.length} credit card records`);
+      console.log(`🎉 Bulk sync completed!`);
       
     } catch (error) {
       console.error('Error in bulk sync:', error);
