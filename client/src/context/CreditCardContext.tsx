@@ -12,7 +12,7 @@ interface CreditCardContextType {
   updateCreditCardAdvance: (id: string, updates: Partial<CreditCardAdvance>) => Promise<void>;
   deleteCreditCard: (id: string) => Promise<void>;
   deleteCreditCardAdvance: (id: string) => Promise<void>;
-  syncInvoiceToExpenses: (paymentMethod: string, targetDate: string) => Promise<void>;
+  syncInvoiceToExpenses: (paymentMethod: string, targetDate: string, currentAdvances?: CreditCardAdvance[]) => Promise<void>;
   syncAllInvoicesToExpenses: () => Promise<void>;
   loading: boolean;
 }
@@ -252,7 +252,7 @@ export const CreditCardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   };
 
   // Function to sync credit card totals to expenses as invoices
-  const syncInvoiceToExpenses = async (paymentMethod: string, targetDate: string) => {
+  const syncInvoiceToExpenses = async (paymentMethod: string, targetDate: string, currentAdvances: CreditCardAdvance[] = creditCardAdvances) => {
     if (!user) return;
 
     try {
@@ -605,11 +605,12 @@ export const CreditCardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         remaining_amount: parseFloat(data.remaining_amount),
       };
 
-      setCreditCardAdvances(prev => [newAdvance, ...prev]);
+      const newAdvances = [newAdvance, ...creditCardAdvances];
+      setCreditCardAdvances(newAdvances);
       console.log('Context: ✅ Credit card advance added to state');
 
       console.log("Context: Calling syncInvoiceToExpenses...");
-      await syncInvoiceToExpenses(newAdvance.payment_method, newAdvance.date);
+      await syncInvoiceToExpenses(newAdvance.payment_method, newAdvance.date, newAdvances);
       console.log("Context: syncInvoiceToExpenses finished.");
     } catch (error) {
       console.error('Context: Erro ao adicionar antecipação de cartão de crédito:', error);
@@ -670,10 +671,11 @@ export const CreditCardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         throw error;
       }
 
-      setCreditCardAdvances(prev => prev.filter(adv => adv.id !== id));
+      const newAdvances = creditCardAdvances.filter(adv => adv.id !== id);
+      setCreditCardAdvances(newAdvances);
 
       // After deleting, we need to resync the invoice of the month the advance belonged to.
-      await syncInvoiceToExpenses(advanceToDelete.payment_method, advanceToDelete.date);
+      await syncInvoiceToExpenses(advanceToDelete.payment_method, advanceToDelete.date, newAdvances);
 
     } catch (error) {
       console.error('Error deleting credit card advance:', error);
