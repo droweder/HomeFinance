@@ -62,7 +62,7 @@ export function CreditCardAdvanceForm({ onSuccess }: CreditCardAdvanceFormProps)
 
     await addCreditCardAdvance(advanceData);
     form.reset();
-    // Keep the selected card so the user can see the new advance in the list
+    onSuccess();
   }
 
   return (

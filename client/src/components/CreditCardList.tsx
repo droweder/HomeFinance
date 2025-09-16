@@ -619,15 +619,28 @@ const CreditCardList: React.FC = () => {
       )}
 
       {showAdvanceForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 w-full max-w-md">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-semibold">Adicionar Antecipação</h2>
-              <button onClick={() => setShowAdvanceForm(false)} className="p-2">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-lg transform transition-all">
+            <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
+              <div className="flex items-center gap-3">
+                <div className="bg-blue-100 dark:bg-blue-900/50 p-2 rounded-lg">
+                  <CreditCardIcon className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900 dark:text-white">Adicionar Antecipação de Fatura</h2>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Registre um pagamento antecipado para um cartão.</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowAdvanceForm(false)}
+                className="p-2 rounded-full text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <CreditCardAdvanceForm onSuccess={() => setShowAdvanceForm(false)} />
+            <div className="p-6">
+              <CreditCardAdvanceForm onSuccess={() => setShowAdvanceForm(false)} />
+            </div>
           </div>
         </div>
       )}
