@@ -12,21 +12,26 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useFinance } from '@/context/FinanceContext';
+import { useCreditCard } from '@/context/CreditCardContext';
+import { useAuth } from '@/context/AuthContext';
 import { creditCardAdvancesApi } from '@/lib/api';
 import { insertCreditCardAdvanceSchema } from '@shared/schema';
 import type { CreditCardAdvance } from '@shared/schema';
 
-const formSchema = insertCreditCardAdvanceSchema.omit({ user_id: true });
+const formSchema = insertCreditCardAdvanceSchema.omit({ user_id: true, id: true });
 
 interface CreditCardAdvanceFormProps {
   onSuccess: () => void;
 }
 
 export function CreditCardAdvanceForm({ onSuccess }: CreditCardAdvanceFormProps) {
-  const { creditCards, user } = useFinance();
+  const { creditCards, creditCardAdvances, addCreditCardAdvance } = useCreditCard();
+  const { currentUser: user } = useAuth();
   const [selectedCard, setSelectedCard] = useState<string | null>(null);
-  const [advances, setAdvances] = useState<CreditCardAdvance[]>([]);
+
+  const advances = selectedCard
+    ? creditCardAdvances.filter((adv) => adv.payment_method === selectedCard)
+    : [];
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -38,15 +43,17 @@ export function CreditCardAdvanceForm({ onSuccess }: CreditCardAdvanceFormProps)
     },
   });
 
-  useEffect(() => {
-    if (selectedCard) {
-      creditCardAdvancesApi.getAll(selectedCard).then(setAdvances);
-    }
-  }, [selectedCard]);
-
   async function onSubmit(values: z.infer<typeof formSchema>) {
     if (!user) return;
-    await creditCardAdvancesApi.create({ ...values, user_id: user.id });
+
+    const advanceData = {
+      ...values,
+      user_id: user.id,
+      remaining_amount: values.amount, // Set remaining amount to the full amount on creation
+    };
+
+    await addCreditCardAdvance(advanceData);
+    form.reset();
     onSuccess();
   }
 
