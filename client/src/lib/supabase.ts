@@ -196,6 +196,32 @@ export interface Database {
           user_id?: string;
         };
       };
+      credit_card_advances: {
+        Row: {
+          id: string;
+          user_id: string;
+          payment_method: string;
+          amount: number;
+          date: string;
+          remaining_amount: number;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          payment_method: string;
+          amount: number;
+          date: string;
+          remaining_amount: number;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          payment_method?: string;
+          amount?: number;
+          date?: string;
+          remaining_amount?: number;
+        };
+      };
     };
   };
 }

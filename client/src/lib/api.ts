@@ -179,3 +179,34 @@ export async function callChatModel(message: string): Promise<{ reply: string }>
 // **FIM DA ALTERAÇÃO**
 
 export { ApiError };
+
+// Credit Card Advances API
+import { supabase } from './supabase';
+import type { InsertCreditCardAdvance, CreditCardAdvance } from '@shared/schema';
+
+export const creditCardAdvancesApi = {
+  async getAll(cardId: string): Promise<CreditCardAdvance[]> {
+    const { data, error } = await supabase
+      .from('credit_card_advances')
+      .select('*')
+      .eq('payment_method', cardId);
+
+    if (error) {
+      throw new Error(error.message);
+    }
+    return data;
+  },
+
+  async create(advance: InsertCreditCardAdvance): Promise<CreditCardAdvance> {
+    const { data, error } = await supabase
+      .from('credit_card_advances')
+      .insert(advance)
+      .select()
+      .single();
+
+    if (error) {
+      throw new Error(error.message);
+    }
+    return data;
+  },
+};

@@ -1,11 +1,13 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { CreditCard } from '../types';
+import { CreditCard, CreditCardAdvance } from '../types';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthContext';
 
 interface CreditCardContextType {
   creditCards: CreditCard[];
+  creditCardAdvances: CreditCardAdvance[];
   addCreditCard: (creditCard: Omit<CreditCard, 'id' | 'createdAt'>) => Promise<void>;
+  addCreditCardAdvance: (advance: Omit<CreditCardAdvance, 'id'>) => Promise<void>;
   updateCreditCard: (id: string, creditCard: Partial<CreditCard>) => Promise<void>;
   deleteCreditCard: (id: string) => Promise<void>;
   syncInvoiceToExpenses: (paymentMethod: string, targetDate: string) => Promise<void>;
@@ -25,6 +27,7 @@ export const useCreditCard = () => {
 
 export const CreditCardProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [creditCards, setCreditCards] = useState<CreditCard[]>([]);
+  const [creditCardAdvances, setCreditCardAdvances] = useState<CreditCardAdvance[]>([]);
   const [loading, setLoading] = useState(true);
   const { currentUser: user } = useAuth();
 
@@ -79,8 +82,30 @@ export const CreditCardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
       console.log(`✅ ALL Credit Cards loaded: ${allCreditCards.length}`);
       setCreditCards(allCreditCards);
+
+      // Load credit card advances
+      const { data: advancesData, error: advancesError } = await supabase
+        .from('credit_card_advances')
+        .select('*')
+        .eq('user_id', user.id);
+
+      if (advancesError) {
+        console.error('Erro ao carregar antecipações de cartão de crédito:', advancesError);
+      } else {
+        const formattedAdvances = advancesData.map(adv => ({
+          id: adv.id,
+          user_id: adv.user_id,
+          payment_method: adv.payment_method,
+          amount: parseFloat(adv.amount),
+          date: adv.date,
+          remaining_amount: parseFloat(adv.remaining_amount),
+        }));
+        setCreditCardAdvances(formattedAdvances);
+        console.log(`✅ ALL Credit Card Advances loaded: ${formattedAdvances.length}`);
+      }
+
     } catch (error) {
-      console.error('Erro ao carregar cartões de crédito:', error);
+      console.error('Erro ao carregar dados do cartão de crédito:', error);
     } finally {
       setLoading(false);
     }
@@ -501,11 +526,42 @@ export const CreditCardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     }
   };
 
+  const addCreditCardAdvance = async (advanceData: Omit<CreditCardAdvance, 'id'>) => {
+    if (!user) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('credit_card_advances')
+        .insert([{ ...advanceData, user_id: user.id }])
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      const newAdvance: CreditCardAdvance = {
+        id: data.id,
+        user_id: data.user_id,
+        payment_method: data.payment_method,
+        amount: parseFloat(data.amount),
+        date: data.date,
+        remaining_amount: parseFloat(data.remaining_amount),
+      };
+
+      setCreditCardAdvances(prev => [newAdvance, ...prev]);
+      console.log('✅ Credit card advance added');
+    } catch (error) {
+      console.error('Erro ao adicionar antecipação de cartão de crédito:', error);
+      throw error;
+    }
+  };
+
   return (
     <CreditCardContext.Provider
       value={{
         creditCards,
+        creditCardAdvances,
         addCreditCard,
+        addCreditCardAdvance,
         updateCreditCard,
         deleteCreditCard,
         syncInvoiceToExpenses,
