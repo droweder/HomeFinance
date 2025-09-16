@@ -2,16 +2,6 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { useCreditCard } from '@/context/CreditCardContext';
 import { useAuth } from '@/context/AuthContext';
 import { useSettings } from '@/context/SettingsContext';
@@ -57,7 +47,7 @@ export function CreditCardAdvanceForm({ isOpen, onClose }: CreditCardAdvanceForm
       remaining_amount: 0,
     },
   });
-  const { formState: { errors, isSubmitting }, reset } = form;
+  const { register, handleSubmit, formState: { errors, isSubmitting }, reset, setValue, watch } = form;
 
   useEffect(() => {
     if (!isOpen) {
@@ -108,63 +98,72 @@ export function CreditCardAdvanceForm({ isOpen, onClose }: CreditCardAdvanceForm
           </button>
         </div>
 
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="md:col-span-2">
-              <Label htmlFor="payment_method">Cartão de Crédito <span className="text-red-500">*</span></Label>
-              <Select
-                onValueChange={(value) => {
-                  setSelectedCard(value);
-                  form.setValue('payment_method', value, { shouldValidate: true });
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Cartão de Crédito <span className="text-red-500">*</span>
+              </label>
+              <select
+                {...register("payment_method")}
+                onChange={(e) => {
+                  setSelectedCard(e.target.value);
+                  setValue('payment_method', e.target.value, { shouldValidate: true });
                 }}
-                value={form.watch('payment_method')}
+                className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
               >
-                <SelectTrigger className="w-full mt-1">
-                  <SelectValue placeholder="Selecione um cartão" />
-                </SelectTrigger>
-                <SelectContent>
-                  {uniqueCreditCards.map((card) => (
-                    <SelectItem key={card.id} value={card.id}>
-                      {card.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                <option value="">Selecione um cartão</option>
+                {uniqueCreditCards.map((card) => (
+                  <option key={card.id} value={card.id}>
+                    {card.name}
+                  </option>
+                ))}
+              </select>
               {errors.payment_method && <p className="text-sm text-red-500 mt-1">{errors.payment_method.message}</p>}
             </div>
 
             <div>
-              <Label htmlFor="amount">Valor <span className="text-red-500">*</span></Label>
-              <Input
-                id="amount"
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Valor <span className="text-red-500">*</span>
+              </label>
+              <input
                 type="number"
                 step="0.01"
-                className="mt-1"
                 placeholder="0,00"
-                {...form.register('amount', { valueAsNumber: true })}
+                {...register('amount', { valueAsNumber: true })}
+                className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
               />
               {errors.amount && <p className="text-sm text-red-500 mt-1">{errors.amount.message}</p>}
             </div>
 
             <div>
-              <Label htmlFor="date">Data <span className="text-red-500">*</span></Label>
-              <Input id="date" type="date" className="mt-1" {...form.register('date')} />
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Data <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="date"
+                {...register('date')}
+                className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+              />
               {errors.date && <p className="text-sm text-red-500 mt-1">{errors.date.message}</p>}
             </div>
           </div>
 
           <div className="flex gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
-            <Button
+            <button
               type="button"
               onClick={onClose}
-              variant="outline"
-              className="flex-1"
+              className="flex-1 px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
             >
               Cancelar
-            </Button>
-            <Button type="submit" disabled={isSubmitting} className="flex-1">
+            </button>
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="flex-1 px-4 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+            >
               {isSubmitting ? "Salvando..." : "Adicionar Antecipação"}
-            </Button>
+            </button>
           </div>
         </form>
 
