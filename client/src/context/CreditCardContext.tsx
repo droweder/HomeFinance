@@ -12,7 +12,6 @@ interface CreditCardContextType {
   updateCreditCardAdvance: (id: string, updates: Partial<CreditCardAdvance>) => Promise<void>;
   deleteCreditCard: (id: string) => Promise<void>;
   deleteCreditCardAdvance: (id: string) => Promise<void>;
-  syncInvoiceToExpenses: (paymentMethod: string, targetDate: string, currentAdvances?: CreditCardAdvance[]) => Promise<void>;
   syncAllInvoicesToExpenses: () => Promise<void>;
   loading: boolean;
 }
@@ -161,8 +160,8 @@ export const CreditCardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
       setCreditCards(prev => [newCreditCard, ...prev]);
       
-      // Sync invoice after adding
-      await syncInvoiceToExpenses(newCreditCard.paymentMethod, newCreditCard.date);
+      // Sync all invoices to ensure data integrity
+      await syncAllInvoicesToExpenses();
       
       console.log('✅ Credit card added');
     } catch (error) {
@@ -202,16 +201,8 @@ export const CreditCardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         cc.id === id ? { ...cc, ...updates } : cc
       ));
 
-      // Sync invoice after updating
-      const updatedCard = creditCards.find(cc => cc.id === id);
-      if (updatedCard) {
-        await syncInvoiceToExpenses(updates.paymentMethod || updatedCard.paymentMethod, updates.date || updatedCard.date);
-        
-        // If payment method changed, also sync the old method
-        if (updates.paymentMethod && updates.paymentMethod !== updatedCard.paymentMethod) {
-          await syncInvoiceToExpenses(updatedCard.paymentMethod, updatedCard.date);
-        }
-      }
+      // Sync all invoices to ensure data integrity
+      await syncAllInvoicesToExpenses();
 
       console.log('✅ Credit card updated');
     } catch (error) {
@@ -239,172 +230,13 @@ export const CreditCardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
       setCreditCards(prev => prev.filter(cc => cc.id !== id));
       
-      // Sync invoice after deletion
-      if (cardToDelete) {
-        await syncInvoiceToExpenses(cardToDelete.paymentMethod, cardToDelete.date);
-      }
+      // Sync all invoices to ensure data integrity
+      await syncAllInvoicesToExpenses();
       
       console.log('✅ Credit card deleted');
     } catch (error) {
       console.error('Erro ao deletar cartão de crédito:', error);
       throw error;
-    }
-  };
-
-  // Function to sync credit card totals to expenses as invoices
-  const syncInvoiceToExpenses = async (paymentMethod: string, targetDate: string, currentAdvances: CreditCardAdvance[] = creditCardAdvances) => {
-    if (!user) return;
-
-    try {
-      const date = new Date(targetDate + 'T00:00:00');
-      const year = date.getFullYear();
-      const month = date.getMonth() + 1;
-      const monthKey = `${year}-${month.toString().padStart(2, '0')}`;
-      
-      console.log(`💳 Syncing invoice for ${paymentMethod} - ${monthKey}`);
-
-      const monthCards = creditCards.filter(cc => {
-        const ccDate = new Date(cc.date + 'T00:00:00');
-        const ccMonthKey = `${ccDate.getFullYear()}-${(ccDate.getMonth() + 1).toString().padStart(2, '0')}`;
-        return cc.paymentMethod === paymentMethod && ccMonthKey === monthKey;
-      });
-
-      let invoiceBalance = monthCards.reduce((sum, cc) => sum + cc.amount, 0);
-
-      if (invoiceBalance <= 0) {
-        console.log('No invoice balance to sync.');
-      } else {
-        const applicableAdvances = creditCardAdvances
-          .filter(adv => adv.payment_method === paymentMethod && adv.remaining_amount > 0)
-          .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-
-        for (const advance of applicableAdvances) {
-          if (invoiceBalance <= 0) break;
-
-          const amountToUse = Math.min(invoiceBalance, advance.remaining_amount);
-
-          const newRemainingAmount = advance.remaining_amount - amountToUse;
-          invoiceBalance -= amountToUse;
-
-          await updateCreditCardAdvance(advance.id, { remaining_amount: newRemainingAmount });
-        }
-      }
-
-      const finalInvoiceAmount = invoiceBalance;
-      
-      // Get month name in Portuguese
-      const monthNames = [
-        'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
-        'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
-      ];
-      const monthName = monthNames[month - 1];
-
-      // Define invoice description and category
-      const invoiceDescription = `Fatura ${paymentMethod} - ${monthName}/${year}`;
-      const invoiceCategory = 'Cartão de Crédito';
-
-      // Check if invoice already exists (try both old and new formats)
-      const oldInvoiceDescription = `Fatura ${paymentMethod} - ${monthKey}`;
-      
-      let existingInvoices: any[] = [];
-      let searchError: any = null;
-
-      // First try to find with new format
-      const { data: newFormatInvoices, error: newError } = await supabase
-        .from('expenses')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('description', invoiceDescription)
-        .limit(1);
-
-      if (newError) {
-        console.error('Error searching for new format invoice:', newError);
-        return;
-      }
-
-      if (newFormatInvoices && newFormatInvoices.length > 0) {
-        existingInvoices = newFormatInvoices;
-      } else {
-        // If not found, try old format
-        const { data: oldFormatInvoices, error: oldError } = await supabase
-          .from('expenses')
-          .select('*')
-          .eq('user_id', user.id)
-          .eq('description', oldInvoiceDescription)
-          .limit(1);
-
-        if (oldError) {
-          console.error('Error searching for old format invoice:', oldError);
-          return;
-        }
-
-        if (oldFormatInvoices && oldFormatInvoices.length > 0) {
-          existingInvoices = oldFormatInvoices;
-        }
-      }
-
-      if (finalInvoiceAmount > 0) {
-        // Use the same payment method and an average date from the card transactions
-        const representativeCard = monthCards[Math.floor(monthCards.length / 2)]; // Get middle card as representative
-        const invoicePaymentMethod = representativeCard?.paymentMethod || paymentMethod;
-        const invoiceDate = representativeCard?.date || new Date(year, month, 0).toISOString().split('T')[0];
-
-        if (existingInvoices && existingInvoices.length > 0) {
-          // Update existing invoice with new format
-          const { error: updateError } = await supabase
-            .from('expenses')
-            .update({
-              amount: finalInvoiceAmount,
-              date: invoiceDate,
-              payment_method: invoicePaymentMethod,
-              description: invoiceDescription, // Update to new format
-            })
-            .eq('id', existingInvoices[0].id);
-
-          if (updateError) {
-            console.error('Error updating invoice:', updateError);
-          } else {
-            console.log(`✅ Updated invoice: ${invoiceDescription} - R$ ${finalInvoiceAmount.toFixed(2)}`);
-          }
-        } else {
-          // Create new invoice
-          const { error: insertError } = await supabase
-            .from('expenses')
-            .insert([{
-              date: invoiceDate,
-              category: invoiceCategory,
-              description: invoiceDescription,
-              amount: finalInvoiceAmount,
-              payment_method: invoicePaymentMethod,
-              location: 'Fatura Automática',
-              is_credit_card: false, // This is the invoice, not the individual purchase
-              paid: false, // Invoice starts as unpaid
-              user_id: user.id,
-            }]);
-
-          if (insertError) {
-            console.error('Error creating invoice:', insertError);
-          } else {
-            console.log(`✅ Created invoice: ${invoiceDescription} - R$ ${finalInvoiceAmount.toFixed(2)}`);
-          }
-        }
-      } else {
-        // If total is 0, delete existing invoice if it exists
-        if (existingInvoices && existingInvoices.length > 0) {
-          const { error: deleteError } = await supabase
-            .from('expenses')
-            .delete()
-            .eq('id', existingInvoices[0].id);
-
-          if (deleteError) {
-            console.error('Error deleting empty invoice:', deleteError);
-          } else {
-            console.log(`✅ Deleted empty invoice: ${invoiceDescription}`);
-          }
-        }
-      }
-    } catch (error) {
-      console.error('Error syncing invoice to expenses:', error);
     }
   };
 
@@ -437,7 +269,7 @@ export const CreditCardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       // Process each invoice period in chronological order.
       for (const period of invoicePeriods) {
         const [paymentMethod, monthKey] = period.split('|');
-        
+
         const monthCards = creditCards.filter(cc => {
           const ccDate = new Date(cc.date + 'T00:00:00');
           const ccMonthKey = `${ccDate.getFullYear()}-${(ccDate.getMonth() + 1).toString().padStart(2, '0')}`;
@@ -609,9 +441,9 @@ export const CreditCardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       setCreditCardAdvances(newAdvances);
       console.log('Context: ✅ Credit card advance added to state');
 
-      console.log("Context: Calling syncInvoiceToExpenses...");
-      await syncInvoiceToExpenses(newAdvance.payment_method, newAdvance.date, newAdvances);
-      console.log("Context: syncInvoiceToExpenses finished.");
+      console.log("Context: Calling syncAllInvoicesToExpenses after adding advance...");
+      await syncAllInvoicesToExpenses();
+      console.log("Context: syncAllInvoicesToExpenses finished.");
     } catch (error) {
       console.error('Context: Erro ao adicionar antecipação de cartão de crédito:', error);
       throw error;
@@ -674,8 +506,8 @@ export const CreditCardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       const newAdvances = creditCardAdvances.filter(adv => adv.id !== id);
       setCreditCardAdvances(newAdvances);
 
-      // After deleting, we need to resync the invoice of the month the advance belonged to.
-      await syncInvoiceToExpenses(advanceToDelete.payment_method, advanceToDelete.date, newAdvances);
+      // After deleting, we need to resync all invoices to ensure correctness.
+      await syncAllInvoicesToExpenses();
 
     } catch (error) {
       console.error('Error deleting credit card advance:', error);
@@ -694,7 +526,6 @@ export const CreditCardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         updateCreditCardAdvance,
         deleteCreditCard,
         deleteCreditCardAdvance,
-        syncInvoiceToExpenses,
         syncAllInvoicesToExpenses,
         loading,
       }}
