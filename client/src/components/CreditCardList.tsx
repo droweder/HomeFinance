@@ -6,12 +6,14 @@ import { useToast } from './ui/toast';
 import { CreditCard } from '../types/index';
 import CreditCardForm from './CreditCardForm';
 import ConfirmDialog from './ConfirmDialog';
+import { CreditCardAdvanceForm } from './CreditCardAdvanceForm';
 
 const CreditCardList: React.FC = () => {
   const { creditCards, deleteCreditCard } = useCreditCard();
   const { formatCurrency, formatDate, settings } = useSettings();
   const { showSuccess, showError } = useToast();
   const [showForm, setShowForm] = useState(false);
+  const [showAdvanceForm, setShowAdvanceForm] = useState(false);
   const [editingCreditCard, setEditingCreditCard] = useState<CreditCard | null>(null);
   const [refundData, setRefundData] = useState<Partial<CreditCard> | null>(null);
   const [showFilterModal, setShowFilterModal] = useState(false);
@@ -412,6 +414,13 @@ const CreditCardList: React.FC = () => {
                   </button>
                   
                   <button
+                    onClick={() => setShowAdvanceForm(true)}
+                    className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2 shadow-sm"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Adicionar Antecipação
+                  </button>
+                  <button
                     onClick={handleOpenFilterModal}
                     className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-2 shadow-sm"
                   >
@@ -607,6 +616,20 @@ const CreditCardList: React.FC = () => {
           onSave={() => {}}
           onAddRefund={handleAddRefund}
         />
+      )}
+
+      {showAdvanceForm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 w-full max-w-md">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold">Adicionar Antecipação</h2>
+              <button onClick={() => setShowAdvanceForm(false)} className="p-2">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <CreditCardAdvanceForm onSuccess={() => setShowAdvanceForm(false)} />
+          </div>
+        </div>
       )}
 
       <ConfirmDialog

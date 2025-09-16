@@ -130,3 +130,23 @@ export const insertTransferSchema = z.object({
   description: z.string().optional(),
   user_id: z.string(),
 });
+
+// New schema for credit_card_advances
+export interface CreditCardAdvance {
+  id: string;
+  user_id: string;
+  payment_method: string;
+  amount: number;
+  date: string;
+  remaining_amount: number;
+}
+
+export type InsertCreditCardAdvance = Omit<CreditCardAdvance, 'id'>;
+
+export const insertCreditCardAdvanceSchema = z.object({
+  user_id: z.string(),
+  payment_method: z.string(),
+  amount: z.number(),
+  date: z.string(),
+  remaining_amount: z.number(),
+});
