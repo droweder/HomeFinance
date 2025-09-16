@@ -415,35 +415,56 @@ export const CreditCardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     try {
       console.log('🔄 Starting bulk sync of ALL credit card invoices...');
       
-      // Group all credit cards by payment method and month
-      const invoiceGroups: Record<string, number> = {};
-      
-      creditCards.forEach(cc => {
+      // Get all advances with a remaining balance, sorted by date.
+      // Make a mutable copy to track remaining amounts during this bulk operation.
+      let availableAdvances = creditCardAdvances
+        .filter(adv => adv.remaining_amount > 0)
+        .map(adv => ({ ...adv })) // Create shallow copies
+        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+      // Get all unique invoice periods (paymentMethod + month) and sort them chronologically.
+      const invoicePeriods = [...new Set(creditCards.map(cc => {
         const date = new Date(cc.date + 'T00:00:00');
-        const monthKey = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
-        const groupKey = `${cc.paymentMethod}|${monthKey}`;
-        
-        if (!invoiceGroups[groupKey]) {
-          invoiceGroups[groupKey] = 0;
-        }
-        invoiceGroups[groupKey] += cc.amount;
+        return `${cc.paymentMethod}|${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
+      }))].sort((a, b) => {
+        const dateA = new Date(a.split('|')[1]);
+        const dateB = new Date(b.split('|')[1]);
+        return dateA.getTime() - dateB.getTime();
       });
 
-      console.log(`💳 Found ${Object.keys(invoiceGroups).length} invoice groups to sync`);
+      console.log(`💳 Found ${invoicePeriods.length} unique invoice periods to sync.`);
 
-      // Process each invoice group
-      let processed = 0;
-      for (const [groupKey, total] of Object.entries(invoiceGroups)) {
-        const [paymentMethod, monthKey] = groupKey.split('|');
+      // Process each invoice period in chronological order.
+      for (const period of invoicePeriods) {
+        const [paymentMethod, monthKey] = period.split('|');
         
-        // Also calculate advances for this group
-        const groupAdvances = creditCardAdvances.filter(adv => {
-          const advDate = new Date(adv.date + 'T00:00:00');
-          const advMonthKey = `${advDate.getFullYear()}-${(advDate.getMonth() + 1).toString().padStart(2, '0')}`;
-          return adv.payment_method === paymentMethod && advMonthKey === monthKey;
+        const monthCards = creditCards.filter(cc => {
+          const ccDate = new Date(cc.date + 'T00:00:00');
+          const ccMonthKey = `${ccDate.getFullYear()}-${(ccDate.getMonth() + 1).toString().padStart(2, '0')}`;
+          return cc.paymentMethod === paymentMethod && ccMonthKey === monthKey;
         });
-        const advancesTotal = groupAdvances.reduce((sum, adv) => sum + adv.amount, 0);
-        const finalTotal = total - advancesTotal;
+
+        let invoiceBalance = monthCards.reduce((sum, cc) => sum + cc.amount, 0);
+
+        if (invoiceBalance > 0) {
+          // Find advances applicable to this payment method
+          for (const advance of availableAdvances) {
+            if (advance.payment_method === paymentMethod && advance.remaining_amount > 0) {
+              if (invoiceBalance <= 0) break;
+
+              const amountToUse = Math.min(invoiceBalance, advance.remaining_amount);
+
+              // Update balances in our local, mutable copy
+              advance.remaining_amount -= amountToUse;
+              invoiceBalance -= amountToUse;
+
+              // Persist the change to the database
+              await updateCreditCardAdvance(advance.id, { remaining_amount: advance.remaining_amount });
+            }
+          }
+        }
+
+        const finalTotal = invoiceBalance;
 
         // Get month name in Portuguese
         const [year, month] = monthKey.split('-');
