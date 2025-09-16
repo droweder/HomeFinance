@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -17,6 +17,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useSettings } from '@/context/SettingsContext';
 import { useToast } from '@/components/ui/toast';
 import { insertCreditCardAdvanceSchema } from '@shared/schema';
+import { X, CreditCard as CreditCardIcon } from 'lucide-react';
 
 // Stricter validation schema
 const formSchema = insertCreditCardAdvanceSchema.omit({ user_id: true, id: true }).extend({
@@ -25,10 +26,11 @@ const formSchema = insertCreditCardAdvanceSchema.omit({ user_id: true, id: true 
 });
 
 interface CreditCardAdvanceFormProps {
-  onSuccess: () => void;
+  isOpen: boolean;
+  onClose: () => void;
 }
 
-export function CreditCardAdvanceForm({ onSuccess }: CreditCardAdvanceFormProps) {
+export function CreditCardAdvanceForm({ isOpen, onClose }: CreditCardAdvanceFormProps) {
   const { creditCards, creditCardAdvances, addCreditCardAdvance } = useCreditCard();
   const { currentUser: user } = useAuth();
   const { formatCurrency, formatDate } = useSettings();
@@ -55,7 +57,19 @@ export function CreditCardAdvanceForm({ onSuccess }: CreditCardAdvanceFormProps)
       remaining_amount: 0,
     },
   });
-  const { formState: { errors, isSubmitting } } = form;
+  const { formState: { errors, isSubmitting }, reset } = form;
+
+  useEffect(() => {
+    if (!isOpen) {
+      reset({
+        amount: 0,
+        date: new Date().toISOString().split('T')[0],
+        payment_method: '',
+        remaining_amount: 0,
+      });
+      setSelectedCard(null);
+    }
+  }, [isOpen, reset]);
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     if (!user) {
@@ -70,104 +84,129 @@ export function CreditCardAdvanceForm({ onSuccess }: CreditCardAdvanceFormProps)
       };
       await addCreditCardAdvance(advanceData);
       showSuccess("Antecipação Adicionada", `${formatCurrency(values.amount)} adicionado para o cartão ${values.payment_method}.`);
-      onSuccess(); // Close modal on success
+      onClose();
     } catch (error) {
       console.error("Failed to add credit card advance:", error);
-      showError("Erro ao Salvar", "Ocorreu um erro inesperado. Verifique o console para mais detalhes.");
+      showError("Erro ao Salvar", "Ocorreu um erro inesperado ao salvar a antecipação.");
     }
   }
 
+  if (!isOpen) return null;
+
   return (
-    <div className="flex flex-col space-y-6">
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-        {/* Card Selection */}
-        <div>
-          <Label htmlFor="payment_method">Cartão de Crédito</Label>
-          <Select
-            onValueChange={(value) => {
-              setSelectedCard(value);
-              form.setValue('payment_method', value, { shouldValidate: true });
-            }}
-            value={form.watch('payment_method')}
+    <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+      <div className="bg-white dark:bg-gray-800 rounded-xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div className="sticky top-0 bg-white dark:bg-gray-800 pb-4 z-10 flex items-center justify-between mb-6">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+            Adicionar Antecipação de Fatura
+          </h2>
+          <button
+            onClick={onClose}
+            className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
           >
-            <SelectTrigger className="mt-1">
-              <SelectValue placeholder="Selecione um cartão" />
-            </SelectTrigger>
-            <SelectContent>
-              {uniqueCreditCards.map((card) => (
-                <SelectItem key={card.id} value={card.id}>
-                  {card.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {errors.payment_method && <p className="text-sm text-red-500 mt-1">{errors.payment_method.message}</p>}
+            <X className="w-5 h-5" />
+          </button>
         </div>
 
-        {/* Amount and Date */}
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <Label htmlFor="amount">Valor</Label>
-            <Input
-              id="amount"
-              type="number"
-              step="0.01"
-              className="mt-1"
-              {...form.register('amount', { valueAsNumber: true })}
-            />
-            {errors.amount && <p className="text-sm text-red-500 mt-1">{errors.amount.message}</p>}
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="md:col-span-2">
+              <Label htmlFor="payment_method">Cartão de Crédito <span className="text-red-500">*</span></Label>
+              <Select
+                onValueChange={(value) => {
+                  setSelectedCard(value);
+                  form.setValue('payment_method', value, { shouldValidate: true });
+                }}
+                value={form.watch('payment_method')}
+              >
+                <SelectTrigger className="w-full mt-1">
+                  <SelectValue placeholder="Selecione um cartão" />
+                </SelectTrigger>
+                <SelectContent>
+                  {uniqueCreditCards.map((card) => (
+                    <SelectItem key={card.id} value={card.id}>
+                      {card.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {errors.payment_method && <p className="text-sm text-red-500 mt-1">{errors.payment_method.message}</p>}
+            </div>
+
+            <div>
+              <Label htmlFor="amount">Valor <span className="text-red-500">*</span></Label>
+              <Input
+                id="amount"
+                type="number"
+                step="0.01"
+                className="mt-1"
+                placeholder="0,00"
+                {...form.register('amount', { valueAsNumber: true })}
+              />
+              {errors.amount && <p className="text-sm text-red-500 mt-1">{errors.amount.message}</p>}
+            </div>
+
+            <div>
+              <Label htmlFor="date">Data <span className="text-red-500">*</span></Label>
+              <Input id="date" type="date" className="mt-1" {...form.register('date')} />
+              {errors.date && <p className="text-sm text-red-500 mt-1">{errors.date.message}</p>}
+            </div>
           </div>
-          <div>
-            <Label htmlFor="date">Data</Label>
-            <Input id="date" type="date" className="mt-1" {...form.register('date')} />
-            {errors.date && <p className="text-sm text-red-500 mt-1">{errors.date.message}</p>}
+
+          <div className="flex gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+            <Button
+              type="button"
+              onClick={onClose}
+              variant="outline"
+              className="flex-1"
+            >
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={isSubmitting} className="flex-1">
+              {isSubmitting ? "Salvando..." : "Adicionar Antecipação"}
+            </Button>
           </div>
-        </div>
+        </form>
 
-        {/* Submit Button */}
-        <div className="flex justify-end pt-2">
-          <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? "Salvando..." : "Adicionar Antecipação"}
-          </Button>
-        </div>
-      </form>
-
-      {/* Existing Advances Table */}
-      {selectedCard && (
-        <div className="space-y-2 pt-4 border-t">
-          <h3 className="text-md font-semibold">Antecipações Existentes em <span className="text-blue-600">{selectedCard}</span></h3>
-          <div className="max-h-48 overflow-y-auto rounded-md border">
-            <table className="w-full text-sm">
-              <thead className="sticky top-0 bg-gray-50 dark:bg-gray-700">
-                <tr>
-                  <th className="py-2 px-4 text-left font-medium">Data</th>
-                  <th className="py-2 px-4 text-right font-medium">Valor Original</th>
-                  <th className="py-2 px-4 text-right font-medium">Saldo Remanescente</th>
-                </tr>
-              </thead>
-              <tbody>
-                {advances.length > 0 ? (
-                  advances.map((advance) => (
-                    <tr key={advance.id} className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
-                      <td className="py-2 px-4">{formatDate(advance.date)}</td>
-                      <td className="py-2 px-4 text-right">{formatCurrency(advance.amount)}</td>
-                      <td className="py-2 px-4 text-right font-semibold text-green-600">
-                        {formatCurrency(advance.remaining_amount)}
+        {selectedCard && (
+          <div className="mt-8 space-y-2 pt-4 border-t">
+            <h3 className="text-md font-semibold flex items-center gap-2">
+              <CreditCardIcon className="w-5 h-5 text-gray-500" />
+              Antecipações em <span className="text-blue-600">{selectedCard}</span>
+            </h3>
+            <div className="max-h-48 overflow-y-auto rounded-md border">
+              <table className="w-full text-sm">
+                <thead className="sticky top-0 bg-gray-50 dark:bg-gray-700">
+                  <tr>
+                    <th className="py-2 px-4 text-left font-medium">Data</th>
+                    <th className="py-2 px-4 text-right font-medium">Valor Original</th>
+                    <th className="py-2 px-4 text-right font-medium">Saldo Remanescente</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {advances.length > 0 ? (
+                    advances.map((advance) => (
+                      <tr key={advance.id} className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
+                        <td className="py-2 px-4">{formatDate(advance.date)}</td>
+                        <td className="py-2 px-4 text-right">{formatCurrency(advance.amount)}</td>
+                        <td className="py-2 px-4 text-right font-semibold text-green-600">
+                          {formatCurrency(advance.remaining_amount)}
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={3} className="py-4 px-4 text-center text-gray-500">
+                        Nenhuma antecipação encontrada.
                       </td>
                     </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={3} className="py-4 px-4 text-center text-gray-500">
-                      Nenhuma antecipação encontrada.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }

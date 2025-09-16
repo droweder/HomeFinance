@@ -7,8 +7,6 @@ import { CreditCard } from '../types/index';
 import CreditCardForm from './CreditCardForm';
 import ConfirmDialog from './ConfirmDialog';
 import { CreditCardAdvanceForm } from './CreditCardAdvanceForm';
-import Modal from './Modal';
-
 const CreditCardList: React.FC = () => {
   const { creditCards, deleteCreditCard } = useCreditCard();
   const { formatCurrency, formatDate, settings } = useSettings();
@@ -619,15 +617,10 @@ const CreditCardList: React.FC = () => {
         />
       )}
 
-      {showAdvanceForm && (
-        <Modal
-          isOpen={showAdvanceForm}
-          onClose={() => setShowAdvanceForm(false)}
-          title="Adicionar Antecipação de Fatura"
-        >
-          <CreditCardAdvanceForm onSuccess={() => setShowAdvanceForm(false)} />
-        </Modal>
-      )}
+      <CreditCardAdvanceForm
+        isOpen={showAdvanceForm}
+        onClose={() => setShowAdvanceForm(false)}
+      />
 
       <ConfirmDialog
         isOpen={!!confirmDeleteCard}
