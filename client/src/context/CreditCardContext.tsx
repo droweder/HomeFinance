@@ -269,8 +269,19 @@ export const CreditCardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         return cc.paymentMethod === paymentMethod && ccMonthKey === monthKey;
       });
 
-      // Calculate total and get representative data
+      // Calculate total for the month
       const monthTotal = monthCards.reduce((sum, cc) => sum + cc.amount, 0);
+
+      // Get all advances for this payment method in this month
+      const monthAdvances = creditCardAdvances.filter(adv => {
+        const advDate = new Date(adv.date + 'T00:00:00');
+        const advMonthKey = `${advDate.getFullYear()}-${(advDate.getMonth() + 1).toString().padStart(2, '0')}`;
+        return adv.payment_method === paymentMethod && advMonthKey === monthKey;
+      });
+
+      const advancesTotal = monthAdvances.reduce((sum, adv) => sum + adv.amount, 0);
+
+      const finalInvoiceAmount = monthTotal - advancesTotal;
       
       // Get month name in Portuguese
       const monthNames = [
@@ -323,7 +334,7 @@ export const CreditCardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         }
       }
 
-      if (monthTotal > 0) {
+      if (finalInvoiceAmount > 0) {
         // Use the same payment method and an average date from the card transactions
         const representativeCard = monthCards[Math.floor(monthCards.length / 2)]; // Get middle card as representative
         const invoicePaymentMethod = representativeCard?.paymentMethod || paymentMethod;
@@ -334,7 +345,7 @@ export const CreditCardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           const { error: updateError } = await supabase
             .from('expenses')
             .update({
-              amount: monthTotal,
+              amount: finalInvoiceAmount,
               date: invoiceDate,
               payment_method: invoicePaymentMethod,
               description: invoiceDescription, // Update to new format
@@ -344,7 +355,7 @@ export const CreditCardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           if (updateError) {
             console.error('Error updating invoice:', updateError);
           } else {
-            console.log(`✅ Updated invoice: ${invoiceDescription} - R$ ${monthTotal.toFixed(2)}`);
+            console.log(`✅ Updated invoice: ${invoiceDescription} - R$ ${finalInvoiceAmount.toFixed(2)}`);
           }
         } else {
           // Create new invoice
@@ -354,7 +365,7 @@ export const CreditCardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
               date: invoiceDate,
               category: invoiceCategory,
               description: invoiceDescription,
-              amount: monthTotal,
+              amount: finalInvoiceAmount,
               payment_method: invoicePaymentMethod,
               location: 'Fatura Automática',
               is_credit_card: false, // This is the invoice, not the individual purchase
@@ -365,7 +376,7 @@ export const CreditCardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           if (insertError) {
             console.error('Error creating invoice:', insertError);
           } else {
-            console.log(`✅ Created invoice: ${invoiceDescription} - R$ ${monthTotal.toFixed(2)}`);
+            console.log(`✅ Created invoice: ${invoiceDescription} - R$ ${finalInvoiceAmount.toFixed(2)}`);
           }
         }
       } else {
@@ -549,6 +560,9 @@ export const CreditCardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
       setCreditCardAdvances(prev => [newAdvance, ...prev]);
       console.log('✅ Credit card advance added');
+
+      // Sync invoice after adding advance
+      await syncInvoiceToExpenses(newAdvance.payment_method, newAdvance.date);
     } catch (error) {
       console.error('Erro ao adicionar antecipação de cartão de crédito:', error);
       throw error;
