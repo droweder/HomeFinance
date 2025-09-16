@@ -16,8 +16,13 @@ import { useCreditCard } from '@/context/CreditCardContext';
 import { useAuth } from '@/context/AuthContext';
 import { insertCreditCardAdvanceSchema } from '@shared/schema';
 import { useSettings } from '@/context/SettingsContext';
+import { useToast } from '@/components/ui/toast';
+import { ZodError } from 'zod';
 
-const formSchema = insertCreditCardAdvanceSchema.omit({ user_id: true, id: true });
+const formSchema = insertCreditCardAdvanceSchema.omit({ user_id: true, id: true }).extend({
+  payment_method: z.string().min(1, { message: "Por favor, selecione um cartão." }),
+  amount: z.number().gt(0, { message: "O valor deve ser maior que zero." }),
+});
 
 interface CreditCardAdvanceFormProps {
   onSuccess: () => void;
@@ -27,6 +32,7 @@ export function CreditCardAdvanceForm({ onSuccess }: CreditCardAdvanceFormProps)
   const { creditCards, creditCardAdvances, addCreditCardAdvance } = useCreditCard();
   const { currentUser: user } = useAuth();
   const { formatCurrency, formatDate } = useSettings();
+  const { showSuccess, showError } = useToast();
   const [selectedCard, setSelectedCard] = useState<string | null>(null);
 
   // Get a unique list of credit card names (payment methods)
@@ -51,18 +57,35 @@ export function CreditCardAdvanceForm({ onSuccess }: CreditCardAdvanceFormProps)
     },
   });
 
+  const { formState: { errors } } = form;
+
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    if (!user) return;
+    if (!user) {
+      showError("Erro de Autenticação", "Usuário não encontrado.");
+      return;
+    }
 
-    const advanceData = {
-      ...values,
-      user_id: user.id,
-      remaining_amount: values.amount,
-    };
+    try {
+      const advanceData = {
+        ...values,
+        user_id: user.id,
+        remaining_amount: values.amount,
+      };
 
-    await addCreditCardAdvance(advanceData);
-    form.reset();
-    onSuccess();
+      await addCreditCardAdvance(advanceData);
+      showSuccess("Antecipação Adicionada", "O valor foi registrado com sucesso.");
+      form.reset();
+      onSuccess();
+    } catch (error) {
+      console.error("Failed to add credit card advance:", error);
+      if (error instanceof ZodError) {
+        showError("Erro de Validação", error.errors.map(e => e.message).join('\n'));
+      } else if (error instanceof Error) {
+        showError("Erro ao Salvar", error.message);
+      } else {
+        showError("Erro Desconhecido", "Ocorreu um erro inesperado. Tente novamente.");
+      }
+    }
   }
 
   return (
@@ -91,6 +114,7 @@ export function CreditCardAdvanceForm({ onSuccess }: CreditCardAdvanceFormProps)
                 ))}
               </SelectContent>
             </Select>
+            {errors.payment_method && <p className="text-sm text-red-500 mt-1">{errors.payment_method.message}</p>}
           </div>
 
           <div>
@@ -102,17 +126,19 @@ export function CreditCardAdvanceForm({ onSuccess }: CreditCardAdvanceFormProps)
               className="mt-1"
               {...form.register('amount', { valueAsNumber: true })}
             />
+            {errors.amount && <p className="text-sm text-red-500 mt-1">{errors.amount.message}</p>}
           </div>
 
           <div>
             <Label htmlFor="date" className="text-sm font-medium text-gray-700 dark:text-gray-300">Data</Label>
             <Input id="date" type="date" className="mt-1" {...form.register('date')} />
+            {errors.date && <p className="text-sm text-red-500 mt-1">{errors.date.message}</p>}
           </div>
         </div>
 
         <div className="flex justify-end">
-          <Button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white">
-            Adicionar Antecipação
+          <Button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white" disabled={form.formState.isSubmitting}>
+            {form.formState.isSubmitting ? "Salvando..." : "Adicionar Antecipação"}
           </Button>
         </div>
       </form>
