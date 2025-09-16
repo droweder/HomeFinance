@@ -60,24 +60,30 @@ export function CreditCardAdvanceForm({ onSuccess }: CreditCardAdvanceFormProps)
   const { formState: { errors } } = form;
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
+    console.log("onSubmit triggered");
     if (!user) {
+      console.error("Submit failed: User not authenticated.");
       showError("Erro de Autenticação", "Usuário não encontrado.");
       return;
     }
 
+    console.log("Form values:", values);
     try {
       const advanceData = {
         ...values,
         user_id: user.id,
         remaining_amount: values.amount,
       };
+      console.log("Calling addCreditCardAdvance with:", advanceData);
 
       await addCreditCardAdvance(advanceData);
+
+      console.log("addCreditCardAdvance succeeded.");
       showSuccess("Antecipação Adicionada", "O valor foi registrado com sucesso.");
       form.reset();
       onSuccess();
     } catch (error) {
-      console.error("Failed to add credit card advance:", error);
+      console.error("Caught error in onSubmit:", error);
       if (error instanceof ZodError) {
         showError("Erro de Validação", error.errors.map(e => e.message).join('\n'));
       } else if (error instanceof Error) {
