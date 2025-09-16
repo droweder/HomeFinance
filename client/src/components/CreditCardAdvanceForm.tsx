@@ -6,8 +6,9 @@ import { useCreditCard } from '@/context/CreditCardContext';
 import { useAuth } from '@/context/AuthContext';
 import { useSettings } from '@/context/SettingsContext';
 import { useToast } from '@/components/ui/toast';
-import { insertCreditCardAdvanceSchema } from '@shared/schema';
-import { X, CreditCard as CreditCardIcon } from 'lucide-react';
+import { insertCreditCardAdvanceSchema, CreditCardAdvance } from '@shared/schema';
+import { X, CreditCard as CreditCardIcon, Trash2 } from 'lucide-react';
+import ConfirmDialog from './ConfirmDialog';
 
 // Stricter validation schema
 const formSchema = insertCreditCardAdvanceSchema.omit({ user_id: true, id: true }).extend({
@@ -21,11 +22,24 @@ interface CreditCardAdvanceFormProps {
 }
 
 export function CreditCardAdvanceForm({ isOpen, onClose }: CreditCardAdvanceFormProps) {
-  const { creditCards, creditCardAdvances, addCreditCardAdvance } = useCreditCard();
+  const { creditCards, creditCardAdvances, addCreditCardAdvance, deleteCreditCardAdvance } = useCreditCard();
   const { currentUser: user } = useAuth();
   const { formatCurrency, formatDate } = useSettings();
   const { showSuccess, showError } = useToast();
   const [selectedCard, setSelectedCard] = useState<string | null>(null);
+  const [advanceToDelete, setAdvanceToDelete] = useState<CreditCardAdvance | null>(null);
+
+  const handleDelete = async () => {
+    if (!advanceToDelete) return;
+    try {
+      await deleteCreditCardAdvance(advanceToDelete.id);
+      showSuccess("Antecipação Excluída", "O registro foi removido com sucesso.");
+      setAdvanceToDelete(null);
+    } catch (error) {
+      showError("Erro ao Excluir", "Ocorreu um erro inesperado ao excluir a antecipação.");
+      console.error(error);
+    }
+  };
 
   const uniqueCreditCards = useMemo(() => {
     const cardNames = new Set(creditCards.map(card => card.paymentMethod));
@@ -180,6 +194,7 @@ export function CreditCardAdvanceForm({ isOpen, onClose }: CreditCardAdvanceForm
                     <th className="py-2 px-4 text-left font-medium">Data</th>
                     <th className="py-2 px-4 text-right font-medium">Valor Original</th>
                     <th className="py-2 px-4 text-right font-medium">Saldo Remanescente</th>
+                    <th className="py-2 px-4 text-center font-medium">Ações</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -191,11 +206,21 @@ export function CreditCardAdvanceForm({ isOpen, onClose }: CreditCardAdvanceForm
                         <td className="py-2 px-4 text-right font-semibold text-green-600">
                           {formatCurrency(advance.remaining_amount)}
                         </td>
+                        <td className="py-2 px-4 text-center">
+                          <button
+                            type="button"
+                            onClick={() => setAdvanceToDelete(advance)}
+                            className="p-1.5 text-red-600 hover:bg-red-100 dark:hover:bg-red-900 rounded-lg transition-colors"
+                            title="Excluir antecipação"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </td>
                       </tr>
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={3} className="py-4 px-4 text-center text-gray-500">
+                      <td colSpan={4} className="py-4 px-4 text-center text-gray-500">
                         Nenhuma antecipação encontrada.
                       </td>
                     </tr>
@@ -205,6 +230,15 @@ export function CreditCardAdvanceForm({ isOpen, onClose }: CreditCardAdvanceForm
             </div>
           </div>
         )}
+
+        <ConfirmDialog
+          isOpen={!!advanceToDelete}
+          onClose={() => setAdvanceToDelete(null)}
+          onConfirm={handleDelete}
+          title="Confirmar Exclusão"
+          message={`Tem certeza que deseja excluir esta antecipação de ${formatCurrency(advanceToDelete?.amount || 0)}? Esta ação não pode ser desfeita.`}
+          type="danger"
+        />
       </div>
     </div>
   );

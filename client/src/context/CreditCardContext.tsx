@@ -11,6 +11,7 @@ interface CreditCardContextType {
   updateCreditCard: (id: string, creditCard: Partial<CreditCard>) => Promise<void>;
   updateCreditCardAdvance: (id: string, updates: Partial<CreditCardAdvance>) => Promise<void>;
   deleteCreditCard: (id: string) => Promise<void>;
+  deleteCreditCardAdvance: (id: string) => Promise<void>;
   syncInvoiceToExpenses: (paymentMethod: string, targetDate: string) => Promise<void>;
   syncAllInvoicesToExpenses: () => Promise<void>;
   loading: boolean;
@@ -629,6 +630,38 @@ export const CreditCardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     }
   };
 
+  const deleteCreditCardAdvance = async (id: string) => {
+    if (!user) {
+      throw new Error("User not authenticated.");
+    }
+
+    const advanceToDelete = creditCardAdvances.find(adv => adv.id === id);
+    if (!advanceToDelete) {
+      throw new Error("Advance not found.");
+    }
+
+    try {
+      const { error } = await supabase
+        .from('credit_card_advances')
+        .delete()
+        .eq('id', id)
+        .eq('user_id', user.id);
+
+      if (error) {
+        throw error;
+      }
+
+      setCreditCardAdvances(prev => prev.filter(adv => adv.id !== id));
+
+      // After deleting, we need to resync the invoice of the month the advance belonged to.
+      await syncInvoiceToExpenses(advanceToDelete.payment_method, advanceToDelete.date);
+
+    } catch (error) {
+      console.error('Error deleting credit card advance:', error);
+      throw error;
+    }
+  };
+
   return (
     <CreditCardContext.Provider
       value={{
@@ -639,6 +672,7 @@ export const CreditCardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         updateCreditCard,
         updateCreditCardAdvance,
         deleteCreditCard,
+        deleteCreditCardAdvance,
         syncInvoiceToExpenses,
         syncAllInvoicesToExpenses,
         loading,
