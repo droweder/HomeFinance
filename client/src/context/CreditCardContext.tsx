@@ -315,7 +315,6 @@ export const CreditCardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         const monthName = monthNames[parseInt(month) - 1];
         
         const trimmedPaymentMethod = paymentMethod.trim();
-        const monthName = monthNames[parseInt(month) - 1];
 
         // This is the new canonical format requested by the user.
         const desc_canonical_user_format = `Fatura ${trimmedPaymentMethod} - ${monthName}/${year}`;
