@@ -440,16 +440,18 @@ export const CreditCardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         expense_id: insertedAdvance.expense_id,
       };
 
-      setCreditCardAdvances(prev => {
-        if (prev.some(adv => adv.id === newAdvance.id)) {
-          return prev;
-        }
-        return [newAdvance, ...prev];
-      });
+      // Manually calculate the next state for the advances array.
+      const nextAdvances = creditCardAdvances.some(adv => adv.id === newAdvance.id)
+        ? creditCardAdvances
+        : [newAdvance, ...creditCardAdvances];
+
+      // Set the state with the new array.
+      setCreditCardAdvances(nextAdvances);
       console.log('Context: ✅ Credit card advance added to state');
 
       console.log("Context: Calling syncAllInvoicesToExpenses after adding advance...");
-      await syncAllInvoicesToExpenses();
+      // Pass the new array directly to the sync function to avoid stale state issues.
+      await syncAllInvoicesToExpenses(nextAdvances);
       console.log("Context: syncAllInvoicesToExpenses finished.");
     } catch (error) {
       console.error('Context: Erro ao adicionar antecipação de cartão de crédito:', error);
