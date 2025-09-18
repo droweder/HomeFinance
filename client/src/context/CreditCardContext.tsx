@@ -421,7 +421,7 @@ export const CreditCardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       const expenseForAdvance = {
         date: advanceData.date,
         category: 'Adiantamento',
-        description: `Adiantamento de Fatura ${advanceData.payment_method}`,
+        description: `Adiantamento Fatura ${advanceData.payment_method} - ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(advanceData.amount)} em ${new Date(advanceData.date + 'T00:00:00').toLocaleDateString('pt-BR')}`,
         amount: advanceData.amount,
         paymentMethod: advanceData.payment_method,
         paid: true,
@@ -528,6 +528,26 @@ export const CreditCardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       // If the advance had a linked expense, delete it
       if (advanceToDelete.expense_id) {
         await deleteExpenseFromFinance(advanceToDelete.expense_id);
+      } else {
+        // Fallback for old advances without a linked expense_id
+        console.warn(`Advance ${advanceToDelete.id} has no linked expense. Attempting to find and delete manually.`);
+        const { data: legacyExpense, error: findError } = await supabase
+          .from('expenses')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('category', 'Adiantamento')
+          .eq('amount', advanceToDelete.amount)
+          .eq('date', advanceToDelete.date)
+          .eq('payment_method', advanceToDelete.payment_method)
+          .limit(1)
+          .single();
+
+        if (findError) {
+          console.error("Error trying to find legacy advance expense:", findError);
+        } else if (legacyExpense) {
+          console.log(`Found legacy advance expense ${legacyExpense.id} to delete.`);
+          await deleteExpenseFromFinance(legacyExpense.id);
+        }
       }
 
       const newAdvances = creditCardAdvances.filter(adv => adv.id !== id);
