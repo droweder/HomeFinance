@@ -313,34 +313,48 @@ export const CreditCardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         const invoiceDescription = `Fatura ${paymentMethod.trim()} - Venc. ${day}/${month}/${year}`;
         
         try {
-          // Clean up ALL existing expenses for this invoice to prevent duplicates.
-          const { data: allExistingInvoices, error: searchError } = await supabase
+          // Check if an expense for this invoice already exists.
+          const { data: existingInvoices, error: searchError } = await supabase
             .from('expenses')
-            .select('id')
+            .select('*')
             .eq('user_id', user.id)
-            .eq('description', invoiceDescription);
+            .eq('description', invoiceDescription)
+            .limit(1);
 
           if (searchError) {
-            console.error(`Error searching for duplicates for ${invoiceDescription}:`, searchError);
-            continue; // Skip this invoice if we can't check for duplicates
+            console.error(`Error searching for invoice ${invoiceDescription}:`, searchError);
+            continue;
           }
 
-          if (allExistingInvoices && allExistingInvoices.length > 0) {
-            console.log(`🧹 Found ${allExistingInvoices.length} duplicate(s) for ${invoiceDescription}. Cleaning up...`);
-            for (const invoice of allExistingInvoices) {
-              await deleteExpenseFromFinance(invoice.id);
+          const groupCards = creditCards.filter(cc => cc.paymentMethod === paymentMethod && cc.date === invoiceDateStr);
+          const representativeCard = groupCards[Math.floor(groupCards.length / 2)];
+          const invoicePaymentMethod = representativeCard?.paymentMethod || paymentMethod;
+
+          if (existingInvoices && existingInvoices.length > 0) {
+            const existingInvoiceId = existingInvoices[0].id;
+            if (finalTotal <= 0) {
+              // Invoice is paid off, delete the expense.
+              await deleteExpenseFromFinance(existingInvoiceId);
+              console.log(`✅ Deleted zero-balance invoice: ${invoiceDescription}`);
+            } else {
+              // Invoice exists, update its amount.
+              const { error: updateError } = await supabase
+                .from('expenses')
+                .update({
+                  amount: finalTotal,
+                  date: invoiceDateStr,
+                  payment_method: invoicePaymentMethod,
+                })
+                .eq('id', existingInvoiceId);
+
+              if (updateError) {
+                console.error(`Error updating invoice ${invoiceDescription}:`, updateError);
+              } else {
+                console.log(`✅ Updated invoice: ${invoiceDescription} - R$ ${finalTotal.toFixed(2)}`);
+              }
             }
-            console.log(`✅ Cleanup complete for ${invoiceDescription}.`);
-          }
-
-          // After cleanup, only create a new expense if the final total is positive.
-          if (finalTotal > 0) {
-            const groupCards = creditCards.filter(cc => {
-              return cc.paymentMethod === paymentMethod && cc.date === invoiceDateStr;
-            });
-            const representativeCard = groupCards[Math.floor(groupCards.length / 2)];
-            const invoicePaymentMethod = representativeCard?.paymentMethod || paymentMethod;
-
+          } else if (finalTotal > 0) {
+            // No existing invoice, create a new one.
             await addExpense({
               date: invoiceDateStr,
               category: 'Cartão de Crédito',
@@ -351,9 +365,7 @@ export const CreditCardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
               isCreditCard: false,
               paid: false,
             });
-            console.log(`✅ Created new invoice expense: ${invoiceDescription} - R$ ${finalTotal.toFixed(2)}`);
-          } else {
-            console.log(`ℹ️ Invoice ${invoiceDescription} has zero or negative balance. Skipping creation.`);
+            console.log(`✅ Created new invoice: ${invoiceDescription} - R$ ${finalTotal.toFixed(2)}`);
           }
         } catch (error) {
           console.error(`Error processing invoice ${invoiceDescription}:`, error);
