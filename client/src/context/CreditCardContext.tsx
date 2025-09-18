@@ -243,15 +243,19 @@ export const CreditCardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   };
 
   // Function to sync ALL existing credit card records to expenses as invoices
-  const syncAllInvoicesToExpenses = async () => {
+  const syncAllInvoicesToExpenses = async (currentAdvances?: CreditCardAdvance[]) => {
     if (!user) return;
 
     try {
       console.log('🔄 Starting bulk sync of ALL credit card invoices...');
       
+      // Use the provided advance list if available, otherwise use state.
+      // This is crucial for operations like deletion where the state might not be updated yet.
+      const advancesToUse = currentAdvances || creditCardAdvances;
+
       // Get all advances with a remaining balance, sorted by date.
       // Make a mutable copy to track remaining amounts during this bulk operation.
-      let availableAdvances = creditCardAdvances
+      let availableAdvances = advancesToUse
         .filter(adv => adv.remaining_amount > 0)
         .map(adv => ({ ...adv })) // Create shallow copies
         .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
@@ -530,7 +534,8 @@ export const CreditCardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       setCreditCardAdvances(newAdvances);
 
       // After deleting, we need to resync all invoices to ensure correctness.
-      await syncAllInvoicesToExpenses();
+      // Pass the updated list directly to avoid using stale state.
+      await syncAllInvoicesToExpenses(newAdvances);
 
     } catch (error) {
       console.error('Error deleting credit card advance:', error);
