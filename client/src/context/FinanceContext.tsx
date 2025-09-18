@@ -14,7 +14,7 @@ interface FinanceContextType {
   categories: Category[];
   transfers: Transfer[];
   filters: FilterState;
-  addExpense: (expense: Omit<Expense, 'id' | 'createdAt'>) => void;
+  addExpense: (expense: Omit<Expense, 'id' | 'createdAt'>) => Promise<Expense>;
   addIncome: (income: Omit<Income, 'id' | 'createdAt'>) => void;
   addCategory: (category: Omit<Category, 'id' | 'createdAt'>) => void;
   addTransfer: (transfer: Omit<Transfer, 'id' | 'createdAt' | 'userId'>) => void;
@@ -507,7 +507,7 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
     };
   }, [currentUserId, dataLoadingDisabled]); // Include dataLoadingDisabled in dependencies
 
-  const addExpense = async (expense: Omit<Expense, 'id' | 'createdAt'>) => {
+  const addExpense = async (expense: Omit<Expense, 'id' | 'createdAt'>): Promise<Expense> => {
     if (!currentUser) {
       console.error('❌ User not authenticated');
       throw new Error('User not authenticated');
@@ -578,6 +578,7 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
 
       setExpenses(prev => prev.map(exp => exp.id === tempId ? confirmedExpense : exp));
       console.log('✅ Expense synced successfully:', confirmedExpense.id);
+      return confirmedExpense;
     } catch (error) {
       console.error('❌ Error adding expense:', error);
       throw error;

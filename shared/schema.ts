@@ -139,6 +139,7 @@ export interface CreditCardAdvance {
   amount: number;
   date: string;
   remaining_amount: number;
+  expense_id?: string;
 }
 
 export type InsertCreditCardAdvance = Omit<CreditCardAdvance, 'id'>;
@@ -149,4 +150,5 @@ export const insertCreditCardAdvanceSchema = z.object({
   amount: z.number(),
   date: z.string(),
   remaining_amount: z.number(),
+  expense_id: z.string().optional(),
 });

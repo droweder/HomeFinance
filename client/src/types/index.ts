@@ -22,6 +22,16 @@ export interface Expense {
   groupEndDate?: string;
 }
 
+export interface CreditCardAdvance {
+  id: string;
+  user_id: string;
+  payment_method: string;
+  amount: number;
+  date: string;
+  remaining_amount: number;
+  expense_id?: string;
+}
+
 export interface CreditCard {
   id: string;
   date: string; // Stored in YYYY-MM-DD format
