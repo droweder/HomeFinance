@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { CreditCard, CreditCardAdvance } from '../types';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthContext';
+import { useFinance } from './FinanceContext';
 
 interface CreditCardContextType {
   creditCards: CreditCard[];
@@ -31,6 +32,7 @@ export const CreditCardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [creditCardAdvances, setCreditCardAdvances] = useState<CreditCardAdvance[]>([]);
   const [loading, setLoading] = useState(true);
   const { currentUser: user } = useAuth();
+  const { addExpense, deleteExpense: deleteExpenseFromFinance } = useFinance();
 
   const loadCreditCards = async () => {
     if (!user) return;
@@ -360,19 +362,26 @@ export const CreditCardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           const invoiceDate = representativeCard?.date || new Date(parseInt(year), parseInt(month), 0).toISOString().split('T')[0];
 
           if (existingInvoices && existingInvoices.length > 0) {
-            // Update existing invoice with new format
-            const { error: updateError } = await supabase
-              .from('expenses')
-              .update({
-                amount: finalTotal,
-                date: invoiceDate,
-                payment_method: invoicePaymentMethod,
-                description: invoiceDescription, // Update to new format
-              })
-              .eq('id', existingInvoices[0].id);
+            const existingInvoiceId = existingInvoices[0].id;
+            if (finalTotal <= 0) {
+              // If the final total is zero or less, delete the invoice expense
+              await deleteExpenseFromFinance(existingInvoiceId);
+              console.log(`✅ Deleted invoice with zero balance: ${invoiceDescription}`);
+            } else {
+              // Otherwise, update the existing invoice
+              const { error: updateError } = await supabase
+                .from('expenses')
+                .update({
+                  amount: finalTotal,
+                  date: invoiceDate,
+                  payment_method: invoicePaymentMethod,
+                  description: invoiceDescription, // Update to new format
+                })
+                .eq('id', existingInvoiceId);
 
-            if (!updateError) {
-              console.log(`✅ Updated: ${invoiceDescription} - R$ ${finalTotal.toFixed(2)}`);
+              if (!updateError) {
+                console.log(`✅ Updated: ${invoiceDescription} - R$ ${finalTotal.toFixed(2)}`);
+              }
             }
           } else if (finalTotal > 0) {
             // Create new invoice only if there's a positive balance
@@ -428,13 +437,40 @@ export const CreditCardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         throw error;
       }
 
+      const expenseForAdvance = {
+        date: advanceData.date,
+        category: 'Adiantamento',
+        description: `Adiantamento de Fatura ${advanceData.payment_method}`,
+        amount: advanceData.amount,
+        paymentMethod: advanceData.payment_method,
+        paid: true,
+        isCreditCard: false,
+      };
+
+      // Add the expense and get the created record
+      const newExpense = await addExpense(expenseForAdvance);
+
+      const { data: insertedAdvance, error: insertAdvanceError } = await supabase
+        .from('credit_card_advances')
+        .insert([{ ...advanceData, user_id: user.id, expense_id: newExpense.id }])
+        .select()
+        .single();
+
+      if (insertAdvanceError) {
+        console.error("Context: Supabase insert error:", insertAdvanceError);
+        // Rollback the expense creation
+        await deleteExpenseFromFinance(newExpense.id);
+        throw insertAdvanceError;
+      }
+
       const newAdvance: CreditCardAdvance = {
-        id: data.id,
-        user_id: data.user_id,
-        payment_method: data.payment_method,
-        amount: parseFloat(data.amount),
-        date: data.date,
-        remaining_amount: parseFloat(data.remaining_amount),
+        id: insertedAdvance.id,
+        user_id: insertedAdvance.user_id,
+        payment_method: insertedAdvance.payment_method,
+        amount: parseFloat(insertedAdvance.amount),
+        date: insertedAdvance.date,
+        remaining_amount: parseFloat(insertedAdvance.remaining_amount),
+        expense_id: insertedAdvance.expense_id,
       };
 
       const newAdvances = [newAdvance, ...creditCardAdvances];
@@ -493,6 +529,7 @@ export const CreditCardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     }
 
     try {
+      // First, delete the advance from the database
       const { error } = await supabase
         .from('credit_card_advances')
         .delete()
@@ -501,6 +538,11 @@ export const CreditCardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
       if (error) {
         throw error;
+      }
+
+      // If the advance had a linked expense, delete it
+      if (advanceToDelete.expense_id) {
+        await deleteExpenseFromFinance(advanceToDelete.expense_id);
       }
 
       const newAdvances = creditCardAdvances.filter(adv => adv.id !== id);
