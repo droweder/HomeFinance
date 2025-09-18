@@ -256,10 +256,9 @@ export const CreditCardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         .map(adv => ({ ...adv })) // Create shallow copies
         .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-      // Get all unique invoice periods (paymentMethod + month) and sort them chronologically.
+      // Get all unique invoices (paymentMethod + paymentDate) and sort them chronologically.
       const invoicePeriods = [...new Set(creditCards.map(cc => {
-        const date = new Date(cc.date + 'T00:00:00');
-        return `${cc.paymentMethod}|${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
+        return `${cc.paymentMethod}|${cc.date}`;
       }))].sort((a, b) => {
         const dateA = new Date(a.split('|')[1]);
         const dateB = new Date(b.split('|')[1]);
@@ -270,12 +269,11 @@ export const CreditCardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
       // Process each invoice period in chronological order.
       for (const period of invoicePeriods) {
-        const [paymentMethod, monthKey] = period.split('|');
+        const [paymentMethod, invoiceDateStr] = period.split('|');
+        const invoiceDate = new Date(invoiceDateStr + 'T00:00:00');
 
         const monthCards = creditCards.filter(cc => {
-          const ccDate = new Date(cc.date + 'T00:00:00');
-          const ccMonthKey = `${ccDate.getFullYear()}-${(ccDate.getMonth() + 1).toString().padStart(2, '0')}`;
-          return cc.paymentMethod === paymentMethod && ccMonthKey === monthKey;
+          return cc.paymentMethod === paymentMethod && cc.date === invoiceDateStr;
         });
 
         let invoiceBalance = monthCards.reduce((sum, cc) => sum + cc.amount, 0);
@@ -283,7 +281,12 @@ export const CreditCardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         if (invoiceBalance > 0) {
           // Find advances applicable to this payment method
           for (const advance of availableAdvances) {
-            if (advance.payment_method === paymentMethod && advance.remaining_amount > 0) {
+            const advanceDate = new Date(advance.date + 'T00:00:00');
+            if (
+              advance.payment_method === paymentMethod &&
+              advance.remaining_amount > 0 &&
+              advanceDate <= invoiceDate
+            ) {
               if (invoiceBalance <= 0) break;
 
               const amountToUse = Math.min(invoiceBalance, advance.remaining_amount);
@@ -300,61 +303,32 @@ export const CreditCardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
         const finalTotal = invoiceBalance;
 
-        // Get month name in Portuguese
-        const [year, month] = monthKey.split('-');
+        const [year, month, day] = invoiceDateStr.split('-');
         const monthNames = [
           'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
           'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
         ];
         const monthName = monthNames[parseInt(month) - 1];
         
-        const invoiceDescription = `Fatura ${paymentMethod} - ${monthName}/${year}`;
+        const invoiceDescription = `Fatura ${paymentMethod} - Venc. ${day}/${month}/${year}`;
         
         try {
-          // Check if invoice already exists (try both old and new formats)
-          const oldInvoiceDescription = `Fatura ${paymentMethod} - ${monthKey}`;
-          
-          let existingInvoices: any[] = [];
-
-          // First try to find with new format
-          const { data: newFormatInvoices, error: newError } = await supabase
+          // Check if an expense for this invoice already exists
+          const { data: existingInvoices, error: searchError } = await supabase
             .from('expenses')
             .select('*')
             .eq('user_id', user.id)
             .eq('description', invoiceDescription)
             .limit(1);
 
-          if (newError) {
-            console.error(`Error searching for new format invoice ${invoiceDescription}:`, newError);
+          if (searchError) {
+            console.error(`Error searching for invoice ${invoiceDescription}:`, searchError);
             continue;
-          }
-
-          if (newFormatInvoices && newFormatInvoices.length > 0) {
-            existingInvoices = newFormatInvoices;
-          } else {
-            // If not found, try old format
-            const { data: oldFormatInvoices, error: oldError } = await supabase
-              .from('expenses')
-              .select('*')
-              .eq('user_id', user.id)
-              .eq('description', oldInvoiceDescription)
-              .limit(1);
-
-            if (oldError) {
-              console.error(`Error searching for old format invoice ${oldInvoiceDescription}:`, oldError);
-              continue;
-            }
-
-            if (oldFormatInvoices && oldFormatInvoices.length > 0) {
-              existingInvoices = oldFormatInvoices;
-            }
           }
 
           // Get representative card data for this group
           const groupCards = creditCards.filter(cc => {
-            const ccDate = new Date(cc.date + 'T00:00:00');
-            const ccMonthKey = `${ccDate.getFullYear()}-${(ccDate.getMonth() + 1).toString().padStart(2, '0')}`;
-            return cc.paymentMethod === paymentMethod && ccMonthKey === monthKey;
+            return cc.paymentMethod === paymentMethod && cc.date === invoiceDateStr;
           });
           
           const representativeCard = groupCards[Math.floor(groupCards.length / 2)]; // Get middle card as representative
