@@ -71,36 +71,6 @@ const FinancialAIChat: React.FC = () => {
       };
     });
 
-    // Function to select relevant fields to keep the context lean
-    const selectExpenseFields = (exp: any) => ({
-      id: exp.id,
-      date: exp.date,
-      category: exp.category,
-      description: exp.description,
-      amount: exp.amount,
-      payment_method: exp.payment_method,
-      paid: exp.paid,
-      is_credit_card: exp.is_credit_card,
-    });
-
-    const selectIncomeFields = (inc: any) => ({
-      id: inc.id,
-      date: inc.date,
-      source: inc.source,
-      amount: inc.amount,
-      account: inc.account,
-      is_credit_card: inc.is_credit_card,
-    });
-
-    const selectTransferFields = (trans: any) => ({
-      id: trans.id,
-      date: trans.date,
-      from_account: trans.from_account,
-      to_account: trans.to_account,
-      amount: trans.amount,
-      description: trans.description,
-    });
-
     return {
       summary: {
         monthlyExpenses: monthlyExpenses.toFixed(2),
@@ -124,11 +94,7 @@ const FinancialAIChat: React.FC = () => {
         totalExpenses: expenses.length,
         totalIncome: income.length,
         totalTransfers: transfers.length
-      },
-      // Adding raw data for detailed analysis
-      allExpenses: expenses.map(selectExpenseFields),
-      allIncomes: income.map(selectIncomeFields),
-      allTransfers: transfers.map(selectTransferFields),
+      }
     };
   }, [expenses, income, transfers, accounts]);
 
@@ -138,40 +104,44 @@ const FinancialAIChat: React.FC = () => {
     }
 
     const contextPrompt = financialContext ? 
-`Contexto financeiro do usuário:
+      `Contexto financeiro do usuário:
+RESUMO MENSAL (${financialContext.period.currentMonth}):
+- Despesas: R$ ${financialContext.summary.monthlyExpenses}
+- Receitas: R$ ${financialContext.summary.monthlyIncome}
+- Saldo: R$ ${financialContext.summary.monthlyBalance}
+- Cartão de crédito: R$ ${financialContext.summary.creditCardTotal}
 
-1. RESUMO FINANCEIRO:
-   - Mês Atual (${financialContext.period.currentMonth}):
-     - Despesas: R$ ${financialContext.summary.monthlyExpenses}
-     - Receitas: R$ ${financialContext.summary.monthlyIncome}
-     - Saldo Mensal: R$ ${financialContext.summary.monthlyBalance}
-     - Total Cartão de Crédito: R$ ${financialContext.summary.creditCardTotal}
-   - Resumo Anual:
-     - Total Despesas: R$ ${financialContext.summary.yearlyExpenses}
-     - Total Receitas: R$ ${financialContext.summary.yearlyIncome}
-   - Saldos das Contas:
-${financialContext.accounts.map(acc => `     - ${acc.name}: R$ ${acc.balance}`).join('\n')}
+RESUMO ANUAL:
+- Total despesas: R$ ${financialContext.summary.yearlyExpenses}
+- Total receitas: R$ ${financialContext.summary.yearlyIncome}
+- Total transações: ${financialContext.summary.totalTransactions}
 
-2. DADOS COMPLETOS (JSON):
-   - O JSON a seguir contém todas as transações do usuário. Use-o para responder perguntas detalhadas.
-   - Despesas: ${JSON.stringify(financialContext.allExpenses, null, 2)}
-   - Receitas: ${JSON.stringify(financialContext.allIncomes, null, 2)}
-   - Transferências: ${JSON.stringify(financialContext.allTransfers, null, 2)}
+PRINCIPAIS CATEGORIAS DE DESPESA:
+${financialContext.topCategories.map(cat => `- ${cat.category}: R$ ${cat.amount}`).join('\n')}
+
+SALDOS DAS CONTAS:
+${financialContext.accounts.map(acc => `- ${acc.name}: R$ ${acc.balance}`).join('\n')}
+
+DADOS HISTÓRICOS:
+- ${financialContext.period.totalExpenses} despesas registradas
+- ${financialContext.period.totalIncome} receitas registradas
+- ${financialContext.period.totalTransfers} transferências realizadas
 
 Por favor, analise estes dados reais do usuário e forneça insights financeiros práticos e personalizados.`
       : 'O usuário ainda não possui dados financeiros suficientes para análise detalhada.';
 
-    const systemPrompt = `Você é um assistente financeiro avançado. Sua especialidade é analisar dados financeiros detalhados para fornecer insights profundos, responder perguntas específicas e ajudar no planejamento financeiro.
+    const systemPrompt = `Você é um assistente financeiro especializado em análise de dados pessoais.
+Seu papel é fornecer insights práticos, sugestões de economia, identificar padrões de gastos e ajudar com planejamento financeiro.
 
 INSTRUÇÕES:
-- Você tem acesso a DOIS tipos de dados: um resumo financeiro e os dados COMPLETOS em formato JSON.
-- Para perguntas gerais sobre o resumo (ex: "como foi meu mês?"), use o resumo.
-- Para perguntas DETALHADAS e específicas (ex: "liste minhas despesas com comida", "qual foi minha maior receita em janeiro?", "quanto transferi para a poupança?"), você DEVE OBRIGATORIAMENTE analisar os arrays JSON ('allExpenses', 'allIncomes', 'allTransfers').
-- Suas respostas devem ser baseadas EXCLUSIVAMENTE nos dados fornecidos. Não invente informações.
-- Seja preciso, use os valores exatos dos dados.
-- Formate suas respostas de maneira clara e organizada.
-- Use valores em Reais (R$) e formato brasileiro.
-- Se os dados JSON estiverem vazios ou não contiverem a resposta, informe ao usuário.
+- Use SEMPRE os dados reais fornecidos no contexto
+- Forneça análises específicas e práticas
+- Sugira ações concretas baseadas nos dados
+- Use valores em Reais (R$) e formato brasileiro
+- Seja conciso mas detalhado
+- Identifique oportunidades de economia
+- Destaque padrões importantes nos gastos
+- Se não houver dados suficientes, explique isso claramente
 
 ${contextPrompt}
 
