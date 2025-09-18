@@ -404,20 +404,6 @@ export const CreditCardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     }
 
     try {
-      console.log("Context: Attempting to insert into Supabase...");
-      const { data, error } = await supabase
-        .from('credit_card_advances')
-        .insert([{ ...advanceData, user_id: user.id }])
-        .select()
-        .single();
-
-      console.log("Context: Supabase response:", { data, error });
-
-      if (error) {
-        console.error("Context: Supabase insert error:", error);
-        throw error;
-      }
-
       const expenseForAdvance = {
         date: advanceData.date,
         category: 'Adiantamento',
