@@ -310,72 +310,50 @@ export const CreditCardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         ];
         const monthName = monthNames[parseInt(month) - 1];
         
-        const invoiceDescription = `Fatura ${paymentMethod} - Venc. ${day}/${month}/${year}`;
+        const invoiceDescription = `Fatura ${paymentMethod.trim()} - Venc. ${day}/${month}/${year}`;
         
         try {
-          // Check if an expense for this invoice already exists
-          const { data: existingInvoices, error: searchError } = await supabase
+          // Clean up ALL existing expenses for this invoice to prevent duplicates.
+          const { data: allExistingInvoices, error: searchError } = await supabase
             .from('expenses')
-            .select('*')
+            .select('id')
             .eq('user_id', user.id)
-            .eq('description', invoiceDescription)
-            .limit(1);
+            .eq('description', invoiceDescription);
 
           if (searchError) {
-            console.error(`Error searching for invoice ${invoiceDescription}:`, searchError);
-            continue;
+            console.error(`Error searching for duplicates for ${invoiceDescription}:`, searchError);
+            continue; // Skip this invoice if we can't check for duplicates
           }
 
-          // Get representative card data for this group
-          const groupCards = creditCards.filter(cc => {
-            return cc.paymentMethod === paymentMethod && cc.date === invoiceDateStr;
-          });
-          
-          const representativeCard = groupCards[Math.floor(groupCards.length / 2)]; // Get middle card as representative
-          const invoicePaymentMethod = representativeCard?.paymentMethod || paymentMethod;
-          const invoiceDate = representativeCard?.date || new Date(parseInt(year), parseInt(month), 0).toISOString().split('T')[0];
-
-          if (existingInvoices && existingInvoices.length > 0) {
-            const existingInvoiceId = existingInvoices[0].id;
-            if (finalTotal <= 0) {
-              // If the final total is zero or less, delete the invoice expense
-              await deleteExpenseFromFinance(existingInvoiceId);
-              console.log(`✅ Deleted invoice with zero balance: ${invoiceDescription}`);
-            } else {
-              // Otherwise, update the existing invoice
-              const { error: updateError } = await supabase
-                .from('expenses')
-                .update({
-                  amount: finalTotal,
-                  date: invoiceDate,
-                  payment_method: invoicePaymentMethod,
-                  description: invoiceDescription, // Update to new format
-                })
-                .eq('id', existingInvoiceId);
-
-              if (!updateError) {
-                console.log(`✅ Updated: ${invoiceDescription} - R$ ${finalTotal.toFixed(2)}`);
-              }
+          if (allExistingInvoices && allExistingInvoices.length > 0) {
+            console.log(`🧹 Found ${allExistingInvoices.length} duplicate(s) for ${invoiceDescription}. Cleaning up...`);
+            for (const invoice of allExistingInvoices) {
+              await deleteExpenseFromFinance(invoice.id);
             }
-          } else if (finalTotal > 0) {
-            // Create new invoice only if there's a positive balance
-            const { error: insertError } = await supabase
-              .from('expenses')
-              .insert([{
-                date: invoiceDate,
-                category: 'Cartão de Crédito',
-                description: invoiceDescription,
-                amount: finalTotal,
-                payment_method: invoicePaymentMethod,
-                location: 'Fatura Automática',
-                is_credit_card: false,
-                paid: false,
-                user_id: user.id,
-              }]);
+            console.log(`✅ Cleanup complete for ${invoiceDescription}.`);
+          }
 
-            if (!insertError) {
-              console.log(`✅ Created: ${invoiceDescription} - R$ ${finalTotal.toFixed(2)}`);
-            }
+          // After cleanup, only create a new expense if the final total is positive.
+          if (finalTotal > 0) {
+            const groupCards = creditCards.filter(cc => {
+              return cc.paymentMethod === paymentMethod && cc.date === invoiceDateStr;
+            });
+            const representativeCard = groupCards[Math.floor(groupCards.length / 2)];
+            const invoicePaymentMethod = representativeCard?.paymentMethod || paymentMethod;
+
+            await addExpense({
+              date: invoiceDateStr,
+              category: 'Cartão de Crédito',
+              description: invoiceDescription,
+              amount: finalTotal,
+              paymentMethod: invoicePaymentMethod,
+              location: 'Fatura Automática',
+              isCreditCard: false,
+              paid: false,
+            });
+            console.log(`✅ Created new invoice expense: ${invoiceDescription} - R$ ${finalTotal.toFixed(2)}`);
+          } else {
+            console.log(`ℹ️ Invoice ${invoiceDescription} has zero or negative balance. Skipping creation.`);
           }
         } catch (error) {
           console.error(`Error processing invoice ${invoiceDescription}:`, error);
