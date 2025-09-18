@@ -283,7 +283,7 @@ export const CreditCardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           for (const advance of availableAdvances) {
             const advanceDate = new Date(advance.date + 'T00:00:00');
             if (
-              advance.payment_method.trim() === paymentMethod.trim() &&
+              advance.payment_method.trim().toLowerCase() === paymentMethod.trim().toLowerCase() &&
               advance.remaining_amount > 0 &&
               advanceDate <= invoiceDate
             ) {
