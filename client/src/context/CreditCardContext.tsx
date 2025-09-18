@@ -450,8 +450,12 @@ export const CreditCardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         expense_id: insertedAdvance.expense_id,
       };
 
-      const newAdvances = [newAdvance, ...creditCardAdvances];
-      setCreditCardAdvances(newAdvances);
+      setCreditCardAdvances(prev => {
+        if (prev.some(adv => adv.id === newAdvance.id)) {
+          return prev;
+        }
+        return [newAdvance, ...prev];
+      });
       console.log('Context: ✅ Credit card advance added to state');
 
       console.log("Context: Calling syncAllInvoicesToExpenses after adding advance...");
