@@ -141,10 +141,20 @@ export function CreditCardAdvanceForm({ isOpen, onClose }: CreditCardAdvanceForm
                 Valor <span className="text-red-500">*</span>
               </label>
               <input
-                type="number"
-                step="0.01"
+                type="text"
                 placeholder="0,00"
-                {...register('amount', { valueAsNumber: true })}
+                value={watch('amount').toString().replace('.', ',')}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  const cleaned = value.replace(/[^\d,]/g, '');
+                  const parts = cleaned.split(',');
+                  if (parts.length > 2) return;
+                  if (parts[1] && parts[1].length > 2) {
+                    parts[1] = parts[1].substring(0, 2);
+                  }
+                  const formatted = parts.join(',');
+                  setValue('amount', parseFloat(formatted.replace(',', '.')) || 0, { shouldValidate: true });
+                }}
                 className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
               />
               {errors.amount && <p className="text-sm text-red-500 mt-1">{errors.amount.message}</p>}
