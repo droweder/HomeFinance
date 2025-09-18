@@ -312,7 +312,6 @@ export const CreditCardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         
         const trimmedPaymentMethod = paymentMethod.trim();
         const monthKey = `${year}-${month}`;
-        const monthName = monthNames[parseInt(month) - 1];
 
         // Define all possible description formats to search for.
         const desc_new = `Fatura ${trimmedPaymentMethod} - Venc. ${day}/${month}/${year}`;
