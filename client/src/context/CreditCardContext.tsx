@@ -283,7 +283,7 @@ export const CreditCardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           for (const advance of availableAdvances) {
             const advanceDate = new Date(advance.date + 'T00:00:00');
             if (
-              advance.payment_method === paymentMethod &&
+              advance.payment_method.trim() === paymentMethod.trim() &&
               advance.remaining_amount > 0 &&
               advanceDate <= invoiceDate
             ) {
@@ -310,19 +310,26 @@ export const CreditCardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         ];
         const monthName = monthNames[parseInt(month) - 1];
         
-        const invoiceDescription = `Fatura ${paymentMethod.trim()} - Venc. ${day}/${month}/${year}`;
-        
+        const trimmedPaymentMethod = paymentMethod.trim();
+        const monthKey = `${year}-${month}`;
+        const monthName = monthNames[parseInt(month) - 1];
+
+        // Define all possible description formats to search for.
+        const desc_new = `Fatura ${trimmedPaymentMethod} - Venc. ${day}/${month}/${year}`;
+        const desc_legacy_month_name = `Fatura ${trimmedPaymentMethod} - ${monthName}/${year}`;
+        const desc_legacy_month_key = `Fatura ${trimmedPaymentMethod} - ${monthKey}`;
+
         try {
-          // Check if an expense for this invoice already exists.
+          // Search for any existing expense matching any of the possible descriptions.
           const { data: existingInvoices, error: searchError } = await supabase
             .from('expenses')
             .select('*')
             .eq('user_id', user.id)
-            .eq('description', invoiceDescription)
+            .or(`description.eq.${desc_new},description.eq.${desc_legacy_month_name},description.eq.${desc_legacy_month_key}`)
             .limit(1);
 
           if (searchError) {
-            console.error(`Error searching for invoice ${invoiceDescription}:`, searchError);
+            console.error(`Error searching for invoice for ${paymentMethod} on ${invoiceDateStr}:`, searchError);
             continue;
           }
 
@@ -335,40 +342,41 @@ export const CreditCardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
             if (finalTotal <= 0) {
               // Invoice is paid off, delete the expense.
               await deleteExpenseFromFinance(existingInvoiceId);
-              console.log(`✅ Deleted zero-balance invoice: ${invoiceDescription}`);
+              console.log(`✅ Deleted zero-balance invoice: ${desc_new}`);
             } else {
-              // Invoice exists, update its amount.
+              // Invoice exists, update its amount and normalize its description.
               const { error: updateError } = await supabase
                 .from('expenses')
                 .update({
                   amount: finalTotal,
                   date: invoiceDateStr,
                   payment_method: invoicePaymentMethod,
+                  description: desc_new, // Enforce new canonical description
                 })
                 .eq('id', existingInvoiceId);
 
               if (updateError) {
-                console.error(`Error updating invoice ${invoiceDescription}:`, updateError);
+                console.error(`Error updating invoice ${desc_new}:`, updateError);
               } else {
-                console.log(`✅ Updated invoice: ${invoiceDescription} - R$ ${finalTotal.toFixed(2)}`);
+                console.log(`✅ Updated invoice: ${desc_new} - R$ ${finalTotal.toFixed(2)}`);
               }
             }
           } else if (finalTotal > 0) {
-            // No existing invoice, create a new one.
+            // No existing invoice, create a new one with the canonical description.
             await addExpense({
               date: invoiceDateStr,
               category: 'Cartão de Crédito',
-              description: invoiceDescription,
+              description: desc_new,
               amount: finalTotal,
               paymentMethod: invoicePaymentMethod,
               location: 'Fatura Automática',
               isCreditCard: false,
               paid: false,
             });
-            console.log(`✅ Created new invoice: ${invoiceDescription} - R$ ${finalTotal.toFixed(2)}`);
+            console.log(`✅ Created new invoice: ${desc_new} - R$ ${finalTotal.toFixed(2)}`);
           }
         } catch (error) {
-          console.error(`Error processing invoice ${invoiceDescription}:`, error);
+          console.error(`Error processing invoice for ${paymentMethod} on ${invoiceDateStr}:`, error);
         }
       }
 
