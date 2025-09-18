@@ -320,16 +320,22 @@ export const CreditCardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
         try {
           // Search for any existing expense matching any of the possible descriptions.
-          const { data: existingInvoices, error: searchError } = await supabase
-            .from('expenses')
-            .select('*')
-            .eq('user_id', user.id)
-            .or(`description.eq.${desc_new},description.eq.${desc_legacy_month_name},description.eq.${desc_legacy_month_key}`)
-            .limit(1);
+          // This is done verbosely to avoid any potential issues with the .or() filter syntax.
+          let existingInvoices: any[] | null = null;
 
-          if (searchError) {
-            console.error(`Error searching for invoice for ${paymentMethod} on ${invoiceDateStr}:`, searchError);
-            continue;
+          const { data: d1 } = await supabase.from('expenses').select('*').eq('user_id', user.id).eq('description', desc_new).limit(1);
+          if (d1 && d1.length > 0) {
+            existingInvoices = d1;
+          } else {
+            const { data: d2 } = await supabase.from('expenses').select('*').eq('user_id', user.id).eq('description', desc_legacy_month_name).limit(1);
+            if (d2 && d2.length > 0) {
+              existingInvoices = d2;
+            } else {
+              const { data: d3 } = await supabase.from('expenses').select('*').eq('user_id', user.id).eq('description', desc_legacy_month_key).limit(1);
+              if (d3 && d3.length > 0) {
+                existingInvoices = d3;
+              }
+            }
           }
 
           const groupCards = creditCards.filter(cc => cc.paymentMethod === paymentMethod && cc.date === invoiceDateStr);
