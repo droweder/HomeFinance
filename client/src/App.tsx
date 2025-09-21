@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Bot, X } from 'lucide-react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ToastProvider } from './components/ui/toast';
 import { SettingsProvider } from './context/SettingsContext';
@@ -71,6 +72,8 @@ const AppContent: React.FC = () => {
     const savedTab = localStorage.getItem('finance-app-active-tab');
     return savedTab || 'dashboard';
   });
+  const [isAIChatOpen, setIsAIChatOpen] = useState(false);
+
 
   // Save active tab to localStorage to prevent tab resets
   React.useEffect(() => {
@@ -130,8 +133,6 @@ const AppContent: React.FC = () => {
           return <CreditCardList />;
         case 'daily-summary':
           return <DailyAccountSummary />;
-        case 'ai-chat':
-          return <FinancialAIChat />;
         case 'settings':
           return <Settings />;
         default:
@@ -163,6 +164,39 @@ const AppContent: React.FC = () => {
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
         <Navigation activeTab={activeTab} onTabChange={setActiveTab} />
         <main>{renderContent()}</main>
+
+        {/* FAB to open AI Chat */}
+        <button
+          onClick={() => setIsAIChatOpen(true)}
+          className="fixed bottom-6 right-6 bg-blue-600 text-white p-4 rounded-full shadow-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 transition-transform transform hover:scale-110 z-40"
+          aria-label="Abrir IA Financeira"
+        >
+          <Bot className="w-6 h-6" />
+        </button>
+
+        {/* AI Chat Modal */}
+        {isAIChatOpen && (
+          <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-3xl h-[90vh] flex flex-col border border-gray-200 dark:border-gray-700">
+              <div className="flex justify-between items-center p-4 border-b border-gray-200 dark:border-gray-700">
+                <div className="flex items-center gap-3">
+                  <Bot className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                  <h2 className="text-lg font-semibold text-gray-900 dark:text-white">IA Financeira</h2>
+                </div>
+                <button
+                  onClick={() => setIsAIChatOpen(false)}
+                  className="p-2 rounded-full text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                  aria-label="Fechar modal"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+              <div className="flex-grow p-4 overflow-y-auto">
+                <FinancialAIChat />
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </ErrorBoundary>
   );

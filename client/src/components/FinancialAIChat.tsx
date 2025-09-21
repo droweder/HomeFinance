@@ -5,6 +5,7 @@ import { useFinance } from '../context/FinanceContext';
 import { useAccounts } from '../context/AccountContext';
 import { useAIChatHistory } from '../hooks/useAIChatHistory';
 import { useToast } from './ui/toast';
+import ConfirmDialog from './ConfirmDialog';
 
 interface ChatMessage {
   id: string;
@@ -21,6 +22,7 @@ const FinancialAIChat: React.FC = () => {
   const { showError, showSuccess } = useToast();
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [isConfirmOpen, setConfirmOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Auto scroll to bottom when new messages arrive
@@ -224,10 +226,12 @@ Responda de forma clara e útil baseando-se nos dados reais fornecidos:`;
   };
 
   const handleClearHistory = () => {
-    if (window.confirm('Tem certeza que deseja limpar todo o histórico de conversas?')) {
-      clearHistory();
-      showSuccess('Histórico limpo', 'O histórico de conversas foi removido com sucesso.');
-    }
+    setConfirmOpen(true);
+  };
+
+  const confirmClearHistory = () => {
+    clearHistory();
+    showSuccess('Histórico limpo', 'O histórico de conversas foi removido com sucesso.');
   };
 
   const quickQuestions = useMemo(() => {
@@ -264,9 +268,9 @@ Responda de forma clara e útil baseando-se nos dados reais fornecidos:`;
   }, [financialContext]);
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="mb-6">
+      <div className="p-4 border-b border-gray-200 dark:border-gray-700">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
             <div className="p-3 bg-purple-100 dark:bg-purple-900 rounded-xl">
@@ -299,33 +303,34 @@ Responda de forma clara e útil baseando-se nos dados reais fornecidos:`;
         </div>
       </div>
 
-      {/* Quick Questions */}
-      {quickQuestions.length > 0 && (
-        <div className="mb-6">
-          <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
-            <Lightbulb className="w-4 h-4" />
-            Perguntas Rápidas
-          </h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {quickQuestions.map((question, index) => (
-              <button
-                key={index}
-                onClick={() => handleQuickQuestion(question)}
-                disabled={loading}
-                className="p-3 text-left bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-purple-50 dark:hover:bg-purple-900/20 hover:border-purple-200 dark:hover:border-purple-700 transition-colors text-sm disabled:opacity-50"
-              >
-                {question}
-              </button>
-            ))}
+      {/* Main content with scroll */}
+      <div className="flex-grow overflow-y-auto p-4">
+        {/* Quick Questions */}
+        {quickQuestions.length > 0 && messages.length === 0 && (
+          <div className="mb-6">
+            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
+              <Lightbulb className="w-4 h-4" />
+              Perguntas Rápidas
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {quickQuestions.map((question, index) => (
+                <button
+                  key={index}
+                  onClick={() => handleQuickQuestion(question)}
+                  disabled={loading}
+                  className="p-3 text-left bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-purple-50 dark:hover:bg-purple-900/20 hover:border-purple-200 dark:hover:border-purple-700 transition-colors text-sm disabled:opacity-50"
+                >
+                  {question}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Chat Messages */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 mb-4">
-        <div className="h-96 overflow-y-auto p-4 space-y-4">
+        {/* Chat Messages */}
+        <div className="space-y-4">
           {messages.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-center">
+            <div className="flex flex-col items-center justify-center h-full text-center pt-10">
               <Bot className="w-12 h-12 text-purple-400 mb-4" />
               <h3 className="text-lg font-semibold text-gray-600 dark:text-gray-400 mb-2">
                 Olá! Como posso ajudar?
@@ -388,7 +393,7 @@ Responda de forma clara e útil baseando-se nos dados reais fornecidos:`;
       </div>
 
       {/* Input Area */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-4">
+      <div className="p-4 border-t border-gray-200 dark:border-gray-700">
         <div className="flex gap-3">
           <div className="flex-1">
             <textarea
@@ -421,6 +426,17 @@ Responda de forma clara e útil baseando-se nos dados reais fornecidos:`;
           </div>
         )}
       </div>
+
+      <ConfirmDialog
+        isOpen={isConfirmOpen}
+        onClose={() => setConfirmOpen(false)}
+        onConfirm={confirmClearHistory}
+        title="Limpar Histórico"
+        message="Tem certeza que deseja limpar todo o histórico de conversas? Esta ação não pode ser desfeita."
+        type="danger"
+        confirmText="Sim, Limpar"
+        cancelText="Cancelar"
+      />
     </div>
   );
 };
