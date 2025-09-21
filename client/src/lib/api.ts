@@ -184,7 +184,7 @@ export const pivotTableApi = {
     const { data: expenses, error: expensesError } = await supabase.from('expenses').select('*');
     if (expensesError) throw new Error(expensesError.message);
 
-    const { data: incomes, error: incomesError } = await supabase.from('incomes').select('*');
+    const { data: incomes, error: incomesError } = await supabase.from('income').select('*');
     if (incomesError) throw new Error(incomesError.message);
 
     const { data: transfers, error: transfersError } = await supabase.from('transfers').select('*');
