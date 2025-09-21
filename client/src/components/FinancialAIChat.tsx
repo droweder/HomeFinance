@@ -124,18 +124,20 @@ const FinancialAIChat: React.FC = () => {
     };
   }, [expenses, income, transfers, accounts]);
 
-  const callGeminiAPI = async (userMessage: string, statementData: any[] | null): Promise<string> => {
+  const callGeminiAPI = async (
+    userMessage: string,
+    statementData: any[] | null,
+    onStream: (chunk: string) => void
+  ): Promise<void> => {
     if (!settings.geminiApiKey) {
       throw new Error('Chave da API Gemini não configurada. Configure nas Configurações.');
     }
 
-    // Defensive check to prevent crash if context is not ready
     if (!financialContext) {
-      return 'Desculpe, os dados financeiros ainda não estão prontos. Por favor, tente novamente em um momento.';
+      throw new Error('Dados financeiros não estão prontos.');
     }
 
     let contextPrompt;
-
     if (statementData) {
       // Reconciliation Task
       contextPrompt = `TAREFA DE CONCILIAÇÃO DE FATURA:
@@ -211,43 +213,45 @@ Responda de forma clara e útil baseando-se nos dados reais fornecidos:`;
 
     try {
       const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${settings.geminiModel || 'gemini-2.0-flash'}:generateContent?key=${settings.geminiApiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/${settings.geminiModel || 'gemini-1.5-flash'}:streamGenerateContent?key=${settings.geminiApiKey}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            contents: [
-              {
-                parts: [
-                  { text: `${systemPrompt}\n\nPergunta do usuário: ${userMessage}` }
-                ]
-              }
-            ],
-            generationConfig: {
-              temperature: 0.7,
-              topK: 40,
-              topP: 0.95,
-              maxOutputTokens: 1024,
-            }
+            contents: [{ parts: [{ text: `${systemPrompt}\n\nPergunta do usuário: ${userMessage}` }] }],
+            generationConfig: { temperature: 0.7, topK: 40, topP: 0.95, maxOutputTokens: 1024 }
           })
         }
       );
 
-      if (!response.ok) {
+      if (!response.ok || !response.body) {
         const errorData = await response.json();
-        console.error('❌ Erro da API Gemini:', errorData);
         throw new Error(`Erro da API: ${errorData.error?.message || 'Erro desconhecido'}`);
       }
-
-      const data = await response.json();
       
-      if (!data.candidates?.[0]?.content?.parts?.[0]?.text) {
-        throw new Error('Resposta vazia da API Gemini');
-      }
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
 
-      return data.candidates[0].content.parts[0].text;
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value);
+        try {
+          // The stream returns JSON chunks, sometimes multiple per value
+          const lines = chunk.split('\n').filter(line => line.trim().startsWith('{'));
+          for (const line of lines) {
+            const parsed = JSON.parse(line);
+            if (parsed.candidates?.[0]?.content?.parts?.[0]?.text) {
+              onStream(parsed.candidates[0].content.parts[0].text);
+            }
+          }
+        } catch (e) {
+          console.error("Erro ao processar chunk do stream:", e, "Chunk:", chunk);
+        }
+      }
     } catch (error: any) {
-      console.error('❌ Erro ao chamar Gemini:', error);
+      console.error('❌ Erro ao chamar Gemini (stream):', error);
       throw new Error(error.message || 'Erro ao conectar com a API Gemini');
     }
   };
@@ -285,17 +289,27 @@ Responda de forma clara e útil baseando-se nos dados reais fornecidos:`;
     setInput('');
     setIsSending(true);
 
-    // Add user message
+    // Add user message and a placeholder for AI response
     addMessage(userMessage, 'user');
+    const aiMessageId = addMessage("...", 'ai'); // Get ID of the new message
 
     try {
-      // Pass both the original message and the parsed data to the API call
-      const aiResponse = await callGeminiAPI(userMessage, statementData);
-      addMessage(aiResponse, 'ai');
+      await callGeminiAPI(userMessage, statementData, (chunk) => {
+        // Update the AI message content with the new chunk
+        setMessages(prevMessages =>
+          prevMessages.map(msg =>
+            msg.id === aiMessageId ? { ...msg, content: msg.content === "..." ? chunk : msg.content + chunk } : msg
+          )
+        );
+      });
     } catch (error: any) {
       console.error('❌ Erro na IA:', error);
       showError('Erro na IA', error.message);
-      addMessage(`❌ Desculpe, ocorreu um erro: ${error.message}`, 'ai');
+      setMessages(prevMessages =>
+        prevMessages.map(msg =>
+          msg.id === aiMessageId ? { ...msg, content: `❌ Desculpe, ocorreu um erro: ${error.message}` } : msg
+        )
+      );
     } finally {
       setIsSending(false);
     }
