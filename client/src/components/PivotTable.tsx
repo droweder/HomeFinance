@@ -62,11 +62,11 @@ const PivotTable: React.FC = () => {
   const dataSourceSettings = {
     dataSource: data,
     expandAll: false,
-    rows: [{ name: 'category', caption: 'Category' }],
-    columns: [{ name: 'date', caption: 'Date' }],
-    values: [{ name: 'amount', caption: 'Amount' }],
-    filters: [{ name: 'type', caption: 'Type' }],
-    formatSettings: [{ name: 'amount', format: 'C2' }],
+    rows: [{ name: 'Categoria' }],
+    columns: [{ name: 'Data' }],
+    values: [{ name: 'Valor' }],
+    filters: [{ name: 'Tipo' }],
+    formatSettings: [{ name: 'Valor', format: 'C2' }],
   };
 
   return (
