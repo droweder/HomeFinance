@@ -64,7 +64,22 @@ const Dashboard: React.FC = () => {
 
   // 1. SEÇÃO: Visão Geral Financeira
   const financialOverview = useMemo(() => {
-    // Receitas do mês selecionado (excluindo transferências)
+    const lastDayOfMonth = new Date(currentYear, currentMonth + 1, 0);
+
+    // Saldo Total Disponível: saldo no final do mês selecionado
+    const initialBalance = accounts.reduce((sum, account) => sum + account.initialBalance, 0);
+
+    const incomeUpToSelectedMonth = income
+      .filter(inc => new Date(inc.date) <= lastDayOfMonth && inc.source?.toLowerCase() !== 'transferência')
+      .reduce((sum, inc) => sum + inc.amount, 0);
+
+    const expensesUpToSelectedMonth = expenses
+      .filter(exp => new Date(exp.date) <= lastDayOfMonth && exp.category?.toLowerCase() !== 'transferência')
+      .reduce((sum, exp) => sum + exp.amount, 0);
+
+    const totalBalance = initialBalance + incomeUpToSelectedMonth - expensesUpToSelectedMonth;
+
+    // Receitas do Mês: A soma de receitas do mês selecionado, sem contar transferências.
     const monthlyIncome = income
       .filter(inc => {
         const incomeDate = new Date(inc.date);
@@ -74,51 +89,18 @@ const Dashboard: React.FC = () => {
       })
       .reduce((sum, inc) => sum + inc.amount, 0);
 
-    // Gastos do mês: despesas (excluindo faturas de cartão e transferências)
-    const monthlyExpenses = expenses
+    // Gastos do Mês: A soma de despesas do mês selecionado, sem contar transferências.
+    const totalMonthlySpending = expenses
       .filter(exp => {
         const expenseDate = new Date(exp.date);
         return expenseDate.getMonth() === currentMonth && 
                expenseDate.getFullYear() === currentYear &&
-               exp.category?.toLowerCase() !== 'cartão de crédito' &&
-               exp.category?.toLowerCase() !== 'transferência'; // Excluir transferências
+               exp.category?.toLowerCase() !== 'transferência';
       })
       .reduce((sum, exp) => sum + exp.amount, 0);
 
-    // Faturas de cartão de crédito do mês (já conciliadas, com abonos)
-    const monthlyCreditCardInvoices = expenses
-      .filter(exp => {
-        const expenseDate = new Date(exp.date);
-        return expenseDate.getMonth() === currentMonth &&
-               expenseDate.getFullYear() === currentYear &&
-               exp.category?.toLowerCase() === 'cartão de crédito';
-      })
-      .reduce((sum, exp) => sum + exp.amount, 0);
-
-    // Transferências do mês selecionado
-    const monthlyTransfersIn = transfers
-      .filter(transfer => {
-        const transferDate = new Date(transfer.date);
-        return transferDate.getMonth() === currentMonth && transferDate.getFullYear() === currentYear;
-      })
-      .reduce((sum, transfer) => sum + transfer.amount, 0);
-
-    const monthlyTransfersOut = transfers
-      .filter(transfer => {
-        const transferDate = new Date(transfer.date);
-        return transferDate.getMonth() === currentMonth && transferDate.getFullYear() === currentYear;
-      })
-      .reduce((sum, transfer) => sum + transfer.amount, 0);
-
-    const totalMonthlySpending = monthlyExpenses + monthlyCreditCardInvoices;
+    // Resultado do Mês: Receitas - Despesas
     const monthlyResult = monthlyIncome - totalMonthlySpending;
-
-    // Saldo total disponível: saldo inicial de todas as contas + total de receitas - total de despesas.
-    // Transferências são neutras e não entram no cálculo do saldo total.
-    const initialBalance = accounts.reduce((sum, account) => sum + account.initialBalance, 0);
-    const totalIncome = income.reduce((sum, inc) => inc.source?.toLowerCase() !== 'transferência' ? sum + inc.amount : sum, 0);
-    const totalExpenses = expenses.reduce((sum, exp) => exp.category?.toLowerCase() !== 'transferência' ? sum + exp.amount : sum, 0);
-    const totalBalance = initialBalance + totalIncome - totalExpenses;
 
     return {
       totalBalance,
@@ -126,50 +108,66 @@ const Dashboard: React.FC = () => {
       totalMonthlySpending,
       monthlyResult
     };
-  }, [accounts, income, expenses, creditCards, transfers, currentMonth, currentYear]);
+  }, [accounts, income, expenses, currentMonth, currentYear]);
 
   // 2. SEÇÃO: Cartões de Crédito
   const creditCardAnalysis = useMemo(() => {
-    // Faturas pendentes são as despesas de "Cartão de Crédito" que não foram pagas
-    const pendingInvoices = expenses
-      .filter(exp => exp.category?.toLowerCase() === 'cartão de crédito' && !exp.paid)
-      .reduce((sum, exp) => sum + exp.amount, 0);
+    const allInvoices = creditCards.reduce((acc, card) => {
+      const transactionDate = new Date(card.date);
+      // Assumindo que a fatura vence no mês seguinte à transação
+      const invoiceDate = new Date(transactionDate.getFullYear(), transactionDate.getMonth() + 1, 1);
+      const monthKey = `${invoiceDate.getFullYear()}-${invoiceDate.getMonth()}`;
 
-    // Próximas faturas (próximos 30 dias)
-    const next30Days = new Date();
-    next30Days.setDate(now.getDate() + 30);
-    
-    const upcomingInvoices = expenses
-      .filter(exp => {
-        const expenseDate = new Date(exp.date);
-        return exp.category?.toLowerCase() === 'cartão de crédito' &&
-               !exp.paid &&
-               expenseDate <= next30Days &&
-               expenseDate >= now;
-      })
-      .reduce((sum, exp) => sum + exp.amount, 0);
+      if (!acc[monthKey]) {
+        acc[monthKey] = {
+          total: 0,
+          month: invoiceDate.getMonth(),
+          year: invoiceDate.getFullYear(),
+          cards: {}
+        };
+      }
 
-    // Maior fatura pendente por cartão
-    const invoicesByCard = expenses
-      .filter(exp => exp.category?.toLowerCase() === 'cartão de crédito' && !exp.paid)
-      .reduce((acc, exp) => {
-        const cardName = exp.paymentMethod || 'Desconhecido';
-        acc[cardName] = (acc[cardName] || 0) + exp.amount;
-        return acc;
-      }, {} as Record<string, number>);
+      acc[monthKey].total += card.amount;
+      const cardName = card.cardName || 'Desconhecido';
+      acc[monthKey].cards[cardName] = (acc[monthKey].cards[cardName] || 0) + card.amount;
 
-    const largestInvoice = Object.entries(invoicesByCard)
-      .sort(([,a], [,b]) => b - a)[0] || ['Nenhum', 0];
+      return acc;
+    }, {} as Record<string, { total: number; month: number; year: number, cards: Record<string, number> }>);
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Faturas Pendentes: A soma do valor das faturas cuja o dia de pagamento é futuro.
+    const pendingInvoices = Object.values(allInvoices)
+      .filter(invoice => new Date(invoice.year, invoice.month, 1) >= today)
+      .reduce((sum, inv) => sum + inv.total, 0);
+
+    // Próximas Faturas: fatura do mês seguinte ao selecionado.
+    const nextMonthDate = new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 1);
+    const nextMonthKey = `${nextMonthDate.getFullYear()}-${nextMonthDate.getMonth()}`;
+    const upcomingInvoice = allInvoices[nextMonthKey] || { total: 0, month: nextMonthDate.getMonth(), year: nextMonthDate.getFullYear() };
+
+    // Maior Fatura: De todas as faturas existentes.
+    const largestInvoice = Object.values(allInvoices).reduce((max, inv) => {
+      if (inv.total > max.amount) {
+        // Encontra o cartão com o maior gasto nessa fatura
+        const largestCardInInvoice = Object.entries(inv.cards).sort(([, a], [, b]) => b - a)[0];
+        return {
+          amount: inv.total,
+          card: largestCardInInvoice ? largestCardInInvoice[0] : 'Múltiplos',
+          month: inv.month,
+          year: inv.year
+        };
+      }
+      return max;
+    }, { amount: 0, card: 'Nenhum', month: 0, year: 0 });
 
     return {
       pendingInvoices,
-      upcomingInvoices,
-      largestInvoice: {
-        card: largestInvoice[0],
-        amount: largestInvoice[1]
-      }
+      upcomingInvoice,
+      largestInvoice
     };
-  }, [expenses, now]);
+  }, [creditCards, selectedDate]);
 
   // 3. SEÇÃO: Análises Inteligentes
   const intelligentAnalysis = useMemo(() => {
@@ -446,16 +444,26 @@ const Dashboard: React.FC = () => {
               color="yellow"
             />
             <StatCard
-              title="Próximas Faturas"
-              subtitle="Próximos 30 dias"
-              value={formatCurrency(creditCardAnalysis.upcomingInvoices)}
+              title="Próxima Fatura"
+              subtitle={new Date(creditCardAnalysis.upcomingInvoice.year, creditCardAnalysis.upcomingInvoice.month).toLocaleDateString('pt-BR', {
+                month: 'long',
+                year: 'numeric',
+              })}
+              value={formatCurrency(creditCardAnalysis.upcomingInvoice.total)}
               icon={<Calendar className="w-6 h-6" />}
               color="purple"
             />
             <StatCard
               title="Maior Fatura"
-              subtitle={creditCardAnalysis.largestInvoice.card}
-              value={formatCurrency(Number(creditCardAnalysis.largestInvoice.amount) || 0)}
+              subtitle={
+                creditCardAnalysis.largestInvoice.amount > 0
+                  ? `${creditCardAnalysis.largestInvoice.card} - ${new Date(
+                      creditCardAnalysis.largestInvoice.year,
+                      creditCardAnalysis.largestInvoice.month
+                    ).toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' })}`
+                  : 'Nenhuma fatura encontrada'
+              }
+              value={formatCurrency(creditCardAnalysis.largestInvoice.amount)}
               icon={<AlertCircle className="w-6 h-6" />}
               color="red"
             />
