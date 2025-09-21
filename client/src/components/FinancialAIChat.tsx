@@ -5,6 +5,7 @@ import { useFinance } from '../context/FinanceContext';
 import { useAccounts } from '../context/AccountContext';
 import { useAIChatHistory } from '../hooks/useAIChatHistory';
 import { useToast } from './ui/toast';
+import { formatDateForInput } from '../utils/dateUtils';
 
 interface ChatMessage {
   id: string;
@@ -38,14 +39,14 @@ const FinancialAIChat: React.FC = () => {
     const endOfLastMonth = new Date(today.getFullYear(), today.getMonth(), 0);
 
     // Filter data for current and previous month
-    const currentMonthExpenses = expenses.filter(exp => new Date(exp.date) >= startOfMonth);
+    const currentMonthExpenses = expenses.filter(exp => new Date(formatDateForInput(exp.date)) >= startOfMonth);
     const lastMonthExpenses = expenses.filter(exp => {
-      const expDate = new Date(exp.date);
+      const expDate = new Date(formatDateForInput(exp.date));
       return expDate >= startOfLastMonth && expDate <= endOfLastMonth;
     });
-    const currentMonthIncome = income.filter(inc => new Date(inc.date) >= startOfMonth);
+    const currentMonthIncome = income.filter(inc => new Date(formatDateForInput(inc.date)) >= startOfMonth);
     const lastMonthIncome = income.filter(inc => {
-      const incDate = new Date(inc.date);
+      const incDate = new Date(formatDateForInput(inc.date));
       return incDate >= startOfLastMonth && incDate <= endOfLastMonth;
     });
 
@@ -77,8 +78,8 @@ const FinancialAIChat: React.FC = () => {
       .map(([category, amount]) => ({ category, amount: amount.toFixed(2) }));
 
     // Last 5 transactions
-    const last5Expenses = [...expenses].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 5);
-    const last5Incomes = [...income].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 5);
+    const last5Expenses = [...expenses].sort((a, b) => new Date(formatDateForInput(b.date)).getTime() - new Date(formatDateForInput(a.date)).getTime()).slice(0, 5);
+    const last5Incomes = [...income].sort((a, b) => new Date(formatDateForInput(b.date)).getTime() - new Date(formatDateForInput(a.date)).getTime()).slice(0, 5);
 
     // Account balances (existing logic)
     const accountBalances = accounts.map(acc => {
