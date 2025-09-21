@@ -279,47 +279,8 @@ Responda de forma clara e útil baseando-se nos dados reais fornecidos:`;
               </p>
             </div>
           </div>
-          {messages.length > 1 && (
-            <button
-              onClick={handleClearHistory}
-              className="flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-            >
-              <Trash2 className="w-4 h-4" />
-              Limpar Histórico
-            </button>
-          )}
-        </div>
-
-        {/* Status da API */}
-        <div className="flex items-center gap-2 text-sm">
-          <div className={`w-2 h-2 rounded-full ${settings.geminiApiKey ? 'bg-green-500' : 'bg-red-500'}`}></div>
-          <span className="text-gray-600 dark:text-gray-400">
-            {settings.geminiApiKey ? `Gemini ${settings.geminiModel || 'gemini-2.0-flash'} conectado` : 'API não configurada'}
-          </span>
         </div>
       </div>
-
-      {/* Quick Questions */}
-      {quickQuestions.length > 0 && (
-        <div className="mb-6">
-          <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
-            <Lightbulb className="w-4 h-4" />
-            Perguntas Rápidas
-          </h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {quickQuestions.map((question, index) => (
-              <button
-                key={index}
-                onClick={() => handleQuickQuestion(question)}
-                disabled={loading}
-                className="p-3 text-left bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-purple-50 dark:hover:bg-purple-900/20 hover:border-purple-200 dark:hover:border-purple-700 transition-colors text-sm disabled:opacity-50"
-              >
-                {question}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* Chat Messages */}
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 mb-4">
@@ -414,12 +375,6 @@ Responda de forma clara e útil baseando-se nos dados reais fornecidos:`;
           </button>
         </div>
         
-        {!settings.geminiApiKey && (
-          <div className="mt-3 flex items-center gap-2 text-sm text-amber-600 dark:text-amber-400">
-            <AlertCircle className="w-4 h-4" />
-            Configure sua chave da API Gemini nas Configurações para usar o assistente
-          </div>
-        )}
       </div>
     </div>
   );
