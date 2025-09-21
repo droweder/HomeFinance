@@ -47,80 +47,57 @@ const Dashboard: React.FC = () => {
     setSelectedDate(new Date(now.getFullYear(), now.getMonth(), 1));
   };
 
-  // Calcula todos os gastos mensais (exceto transferências e faturas) para análises de tendência
+  // Calcula todos os gastos mensais para análises de tendência
   const allMonthsSpending = useMemo(() => {
     const spending = {} as Record<string, number>;
     
-    expenses
-      .filter(exp => exp.category?.toLowerCase() !== 'transferência' && exp.category?.toLowerCase() !== 'cartão de crédito')
-      .forEach(exp => {
-        const itemDate = new Date(exp.date);
-        const monthKey = `${itemDate.getFullYear()}-${itemDate.getMonth()}`;
-        spending[monthKey] = (spending[monthKey] || 0) + exp.amount;
-      });
+    expenses.forEach(exp => {
+      const itemDate = new Date(exp.date);
+      const monthKey = `${itemDate.getFullYear()}-${itemDate.getMonth()}`;
+      spending[monthKey] = (spending[monthKey] || 0) + exp.amount;
+    });
 
     return spending;
   }, [expenses]);
 
   // 1. SEÇÃO: Visão Geral Financeira
   const financialOverview = useMemo(() => {
-    // Primeiro, identificar todas as transferências para excluí-las de forma robusta.
-    // Criamos um conjunto de chaves únicas para as transferências (data-valor)
-    const transferKeys = new Set(
-      transfers.map(t => `${new Date(t.date).toISOString().split('T')[0]}_${t.amount.toFixed(2)}`)
-    );
-
-    const isNotTransfer = (item: Income | Expense) => {
-      const itemKey = `${new Date(item.date).toISOString().split('T')[0]}_${item.amount.toFixed(2)}`;
-      // Uma transação é considerada parte de uma transferência se uma chave correspondente existir
-      // e se a descrição for 'Transferência entre contas' ou a categoria/fonte for 'Transferência'.
-      // Isso cobre tanto a criação automática (backend) quanto a manual (frontend).
-      const isLikelyTransfer = transferKeys.has(itemKey) &&
-        (item.description === 'Transferência entre contas' ||
-         (item as Expense).category === 'Transferência' ||
-         (item as Income).source === 'Transferência');
-
-      // A lógica original de filtro por string é mantida como um fallback.
-      const fallbackFilter = (item as Expense).category?.toLowerCase() !== 'transferência' && (item as Income).source?.toLowerCase() !== 'transferência';
-
-      return !isLikelyTransfer && fallbackFilter;
-    };
-
     const lastDayOfMonth = new Date(currentYear, currentMonth + 1, 0);
 
     // Saldo Total Disponível: saldo no final do mês selecionado
     const initialBalance = accounts.reduce((sum, account) => sum + account.initialBalance, 0);
 
+    // Total de receitas e despesas até o final do mês selecionado (sem filtros de transferência)
     const incomeUpToSelectedMonth = income
-      .filter(inc => new Date(inc.date) <= lastDayOfMonth && isNotTransfer(inc))
+      .filter(inc => new Date(inc.date) <= lastDayOfMonth)
       .reduce((sum, inc) => sum + inc.amount, 0);
 
     const expensesUpToSelectedMonth = expenses
-      .filter(exp => new Date(exp.date) <= lastDayOfMonth && isNotTransfer(exp))
+      .filter(exp => new Date(exp.date) <= lastDayOfMonth)
       .reduce((sum, exp) => sum + exp.amount, 0);
 
+    // Saldo total é o saldo inicial mais tudo que entrou menos tudo que saiu. Transferências se anulam.
     const totalBalance = initialBalance + incomeUpToSelectedMonth - expensesUpToSelectedMonth;
 
-    // Receitas do Mês
+    // Receitas do Mês: Soma de todos os lançamentos em 'income' para o mês.
     const monthlyIncome = income
       .filter(inc => {
         const incomeDate = new Date(inc.date);
         return incomeDate.getMonth() === currentMonth &&
-               incomeDate.getFullYear() === currentYear &&
-               isNotTransfer(inc);
+               incomeDate.getFullYear() === currentYear;
       })
       .reduce((sum, inc) => sum + inc.amount, 0);
 
-    // Gastos do Mês
+    // Gastos do Mês: Soma de todos os lançamentos em 'expenses' para o mês.
     const totalMonthlySpending = expenses
       .filter(exp => {
         const expenseDate = new Date(exp.date);
         return expenseDate.getMonth() === currentMonth && 
-               expenseDate.getFullYear() === currentYear &&
-               isNotTransfer(exp);
+               expenseDate.getFullYear() === currentYear;
       })
       .reduce((sum, exp) => sum + exp.amount, 0);
 
+    // Resultado do Mês: Receitas - Despesas
     const monthlyResult = monthlyIncome - totalMonthlySpending;
 
     return {
@@ -129,7 +106,7 @@ const Dashboard: React.FC = () => {
       totalMonthlySpending,
       monthlyResult
     };
-  }, [accounts, income, expenses, transfers, currentMonth, currentYear]);
+  }, [accounts, income, expenses, currentMonth, currentYear]);
 
   // 2. SEÇÃO: Cartões de Crédito
   const creditCardAnalysis = useMemo(() => {
@@ -192,14 +169,12 @@ const Dashboard: React.FC = () => {
 
   // 3. SEÇÃO: Análises Inteligentes
   const intelligentAnalysis = useMemo(() => {
-    // Top 5 categorias do mês (despesas reais, excluindo pagamentos de fatura e transferências)
+    // Top 5 categorias de despesa do mês
     const categorySpending = expenses
       .filter(item => {
         const itemDate = new Date(item.date);
         return itemDate.getMonth() === currentMonth &&
-               itemDate.getFullYear() === currentYear &&
-               item.category?.toLowerCase() !== 'cartão de crédito' &&
-               item.category?.toLowerCase() !== 'transferência';
+               itemDate.getFullYear() === currentYear;
       })
       .reduce((acc, item) => {
         const category = item.category || 'Sem Categoria';
@@ -216,9 +191,7 @@ const Dashboard: React.FC = () => {
       .filter(item => {
         const itemDate = new Date(item.date);
         return itemDate.getMonth() === currentMonth &&
-               itemDate.getFullYear() === currentYear &&
-               item.category?.toLowerCase() !== 'cartão de crédito' &&
-               item.category?.toLowerCase() !== 'transferência';
+               itemDate.getFullYear() === currentYear;
       })
       .sort((a, b) => b.amount - a.amount)
       .slice(0, 3);
