@@ -6,6 +6,8 @@ import { useAccounts } from '../context/AccountContext';
 import { useAIChatHistory } from '../hooks/useAIChatHistory';
 import { useToast } from './ui/toast';
 import { formatDateForInput } from '../utils/dateUtils';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 interface ChatMessage {
   id: string;
@@ -287,11 +289,15 @@ Responda de forma clara e útil baseando-se nos dados reais fornecidos:`;
                       ? 'bg-blue-500 text-white'
                       : 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white'
                   }`}>
-                    <div className="text-sm whitespace-pre-wrap">{message.content}</div>
+                    <div className="text-sm prose dark:prose-invert max-w-none">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        {message.content}
+                      </ReactMarkdown>
+                    </div>
                     <div className={`text-xs mt-1 opacity-70`}>
-                      {message.timestamp.toLocaleTimeString('pt-BR', { 
-                        hour: '2-digit', 
-                        minute: '2-digit' 
+                      {message.timestamp.toLocaleTimeString('pt-BR', {
+                        hour: '2-digit',
+                        minute: '2-digit'
                       })}
                     </div>
                   </div>
