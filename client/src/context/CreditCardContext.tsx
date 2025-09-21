@@ -253,12 +253,14 @@ export const CreditCardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       // This is crucial for operations like deletion where the state might not be updated yet.
       const advancesToUse = currentAdvances || creditCardAdvances;
 
-      // Get all advances with a remaining balance, sorted by date.
-      // Make a mutable copy to track remaining amounts during this bulk operation.
-      let availableAdvances = advancesToUse
-        .filter(adv => adv.remaining_amount > 0)
-        .map(adv => ({ ...adv })) // Create shallow copies
-        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+      // [IDEMPOTENCY FIX V2] Perform a full recalculation from primary data sources.
+      // Create a deep, mutable copy of advances for in-memory calculations.
+      // The remaining_amount is reset to the original amount to ensure a clean slate for the calculation.
+      console.log(`[SYNC] Creating in-memory copies for ${advancesToUse.length} advances.`);
+      const inMemoryAdvances = advancesToUse.map(adv => ({
+        ...adv,
+        remaining_amount: adv.amount, // Reset for calculation
+      }));
 
       // Get all unique invoices (paymentMethod + paymentDate) and sort them chronologically.
       const invoicePeriods = [...new Set(creditCards.map(cc => {
@@ -282,26 +284,25 @@ export const CreditCardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
         let invoiceBalance = monthCards.reduce((sum, cc) => sum + cc.amount, 0);
 
+        // Sort available advances by date to ensure they are applied chronologically.
+        const applicableAdvances = inMemoryAdvances
+          .filter(adv =>
+            adv.payment_method.trim().toLowerCase() === paymentMethod.trim().toLowerCase() &&
+            adv.remaining_amount > 0 &&
+            new Date(adv.date + 'T00:00:00') <= invoiceDate
+          )
+          .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
         if (invoiceBalance > 0) {
           // Find advances applicable to this payment method
-          for (const advance of availableAdvances) {
-            const advanceDate = new Date(advance.date + 'T00:00:00');
-            if (
-              advance.payment_method.trim().toLowerCase() === paymentMethod.trim().toLowerCase() &&
-              advance.remaining_amount > 0 &&
-              advanceDate <= invoiceDate
-            ) {
-              if (invoiceBalance <= 0) break;
+          for (const advance of applicableAdvances) {
+            if (invoiceBalance <= 0) break;
 
-              const amountToUse = Math.min(invoiceBalance, advance.remaining_amount);
+            const amountToUse = Math.min(invoiceBalance, advance.remaining_amount);
 
-              // Update balances in our local, mutable copy
-              advance.remaining_amount -= amountToUse;
-              invoiceBalance -= amountToUse;
-
-              // Persist the change to the database
-              await updateCreditCardAdvance(advance.id, { remaining_amount: advance.remaining_amount });
-            }
+            // Update balances in our local, mutable in-memory copy
+            advance.remaining_amount -= amountToUse;
+            invoiceBalance -= amountToUse;
           }
         }
 
@@ -390,6 +391,24 @@ export const CreditCardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       }
 
       console.log(`🎉 Bulk sync completed!`);
+
+      // [IDEMPOTENCY FIX V2] Persist the final state of all advances after calculation.
+      console.log(`[SYNC] Persisting final state for ${inMemoryAdvances.length} advances.`);
+      const updatePromises = inMemoryAdvances.map(finalAdvance => {
+        const originalAdvance = advancesToUse.find(adv => adv.id === finalAdvance.id);
+        // Only update if the remaining_amount has actually changed.
+        if (originalAdvance && originalAdvance.remaining_amount !== finalAdvance.remaining_amount) {
+          return updateCreditCardAdvance(finalAdvance.id, { remaining_amount: finalAdvance.remaining_amount });
+        }
+        return null;
+      }).filter(Boolean); // Filter out nulls
+
+      if (updatePromises.length > 0) {
+        await Promise.all(updatePromises);
+        console.log(`[SYNC] Persisted changes for ${updatePromises.length} advances.`);
+      } else {
+        console.log('[SYNC] No changes to advance balances needed.');
+      }
       
     } catch (error) {
       console.error('Error in bulk sync:', error);
