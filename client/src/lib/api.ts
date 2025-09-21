@@ -181,19 +181,24 @@ export async function callChatModel(message: string): Promise<{ reply: string }>
 // Pivot Table Data API
 export const pivotTableApi = {
   async getData(): Promise<any[]> {
-    const { data: expenses, error: expensesError } = await supabase.from('expenses').select('*');
+    const [
+      { data: expenses, error: expensesError },
+      { data: incomes, error: incomesError },
+      { data: transfers, error: transfersError },
+      { data: accounts, error: accountsError },
+      { data: categories, error: categoriesError },
+    ] = await Promise.all([
+      supabase.from('expenses').select('*'),
+      supabase.from('income').select('*'),
+      supabase.from('transfers').select('*'),
+      supabase.from('accounts').select('*'),
+      supabase.from('categories').select('*'),
+    ]);
+
     if (expensesError) throw new Error(expensesError.message);
-
-    const { data: incomes, error: incomesError } = await supabase.from('income').select('*');
     if (incomesError) throw new Error(incomesError.message);
-
-    const { data: transfers, error: transfersError } = await supabase.from('transfers').select('*');
     if (transfersError) throw new Error(transfersError.message);
-
-    const { data: accounts, error: accountsError } = await supabase.from('accounts').select('*');
     if (accountsError) throw new Error(accountsError.message);
-
-    const { data: categories, error: categoriesError } = await supabase.from('categories').select('*');
     if (categoriesError) throw new Error(categoriesError.message);
 
     const accountMap = new Map(accounts.map(a => [a.id, a.name]));
