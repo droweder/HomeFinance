@@ -405,53 +405,83 @@ const Settings: React.FC = () => {
     }
   };
 
-  const handleExportData = (type: 'all' | 'creditCard') => {
+  const handleExportData = () => {
     try {
       const timestamp = new Date().toISOString().split('T')[0];
-      let filesExported = 0;
 
-      const exportCSV = (filename: string, data: any[], headers: string[]) => {
-        if (!data || data.length === 0) return;
-
-        const content = [
-          headers.join(','),
-          ...data.map(item => headers.map(header => {
-            let value = item[header] || '';
-            // Remap for consistency
-            if (header === 'Método de Pagamento') value = item['paymentMethod'] || '';
-            if (header === 'Cartão de Crédito') value = item['isCreditCard'] ? 'sim' : 'não';
-
-            value = String(value).replace(/"/g, '""');
-            return `"${value}"`;
-          }).join(','))
+      // Export Expenses
+      if (expenses && expenses.length > 0) {
+        const expenseHeaders = ['Data', 'Categoria', 'Valor', 'Método de Pagamento', 'Descrição', 'Localização', 'Parcelas', 'Cartão de Crédito'];
+        const expenseContent = [
+          expenseHeaders.join(','),
+          ...expenses.map(item => [
+            item.date,
+            `"${item.category || ''}"`,
+            item.amount.toString().replace('.', ','),
+            `"${item.paymentMethod || ''}"`,
+            `"${item.description || ''}"`,
+            `"${item.location || ''}"`,
+            `"${item.installments || '1'}"`,
+            `"${item.creditCard || ''}"`
+          ].join(','))
         ].join('\n');
         
-        const blob = new Blob(['\uFEFF' + content], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `${filename}_${timestamp}.csv`;
-        link.click();
-        URL.revokeObjectURL(url);
-        filesExported++;
-      };
-
-      if (type === 'all') {
-        exportCSV('despesas', expenses, ['date', 'category', 'amount', 'paymentMethod', 'description', 'location', 'isCreditCard']);
-        exportCSV('receitas', income, ['date', 'source', 'amount', 'account', 'notes', 'location']);
-        exportCSV('transferencias', transfers, ['date', 'fromAccount', 'toAccount', 'amount', 'description']);
+        const expenseBlob = new Blob(['\uFEFF' + expenseContent], { type: 'text/csv;charset=utf-8;' });
+        const expenseUrl = URL.createObjectURL(expenseBlob);
+        const expenseLink = document.createElement('a');
+        expenseLink.href = expenseUrl;
+        expenseLink.download = `despesas_${timestamp}.csv`;
+        expenseLink.click();
+        URL.revokeObjectURL(expenseUrl);
       }
 
-      if (type === 'creditCard') {
-        const creditCardExpenses = expenses.filter(e => e.isCreditCard);
-        exportCSV('despesas_cartao_credito', creditCardExpenses, ['date', 'category', 'amount', 'paymentMethod', 'description', 'location']);
+      // Export Income
+      if (income && income.length > 0) {
+        const incomeHeaders = ['Data', 'Categoria', 'Valor', 'Conta', 'Descrição'];
+        const incomeContent = [
+          incomeHeaders.join(','),
+          ...income.map(item => [
+            item.date,
+            `"${item.category || ''}"`,
+            item.amount.toString().replace('.', ','),
+            `"${item.account || ''}"`,
+            `"${item.description || ''}"`
+          ].join(','))
+        ].join('\n');
+
+        const incomeBlob = new Blob(['\uFEFF' + incomeContent], { type: 'text/csv;charset=utf-8;' });
+        const incomeUrl = URL.createObjectURL(incomeBlob);
+        const incomeLink = document.createElement('a');
+        incomeLink.href = incomeUrl;
+        incomeLink.download = `receitas_${timestamp}.csv`;
+        incomeLink.click();
+        URL.revokeObjectURL(incomeUrl);
       }
 
-      if (filesExported > 0) {
-        showSuccess('Exportação realizada', `${filesExported} arquivo(s) exportado(s) com sucesso!`);
-      } else {
-        showError('Nada para exportar', 'Não foram encontrados dados para o tipo de exportação selecionado.');
+      // Export Transfers
+      if (transfers && transfers.length > 0) {
+        const transferHeaders = ['Data', 'Conta Origem', 'Conta Destino', 'Valor', 'Descrição'];
+        const transferContent = [
+          transferHeaders.join(','),
+          ...transfers.map(item => [
+            item.date,
+            `"${item.fromAccount || ''}"`,
+            `"${item.toAccount || ''}"`,
+            item.amount.toString().replace('.', ','),
+            `"${item.description || ''}"`
+          ].join(','))
+        ].join('\n');
+
+        const transferBlob = new Blob(['\uFEFF' + transferContent], { type: 'text/csv;charset=utf-8;' });
+        const transferUrl = URL.createObjectURL(transferBlob);
+        const transferLink = document.createElement('a');
+        transferLink.href = transferUrl;
+        transferLink.download = `transferencias_${timestamp}.csv`;
+        transferLink.click();
+        URL.revokeObjectURL(transferUrl);
       }
+
+      showSuccess('Exportação realizada', 'Dados exportados com sucesso!');
     } catch (error) {
       showError('Erro na exportação', 'Erro ao exportar dados.');
     }
@@ -1252,17 +1282,10 @@ const Settings: React.FC = () => {
       </button>
       <button
         className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-        onClick={() => handleExportData('all')}
+        onClick={handleExportData}
       >
         <Download className="w-4 h-4" />
-        Exportar Todos os Dados
-      </button>
-      <button
-        className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors"
-        onClick={() => handleExportData('creditCard')}
-      >
-        <CreditCard className="w-4 h-4" />
-        Exportar Despesas do Cartão
+        Exportar Dados
       </button>
     </div>
   );

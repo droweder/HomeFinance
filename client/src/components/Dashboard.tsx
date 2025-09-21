@@ -47,55 +47,53 @@ const Dashboard: React.FC = () => {
     setSelectedDate(new Date(now.getFullYear(), now.getMonth(), 1));
   };
 
-  // Calcula todos os gastos mensais primeiro (para usar em várias análises)
+  // Calcula todos os gastos mensais (exceto transferências e faturas) para análises de tendência
   const allMonthsSpending = useMemo(() => {
     const spending = {} as Record<string, number>;
     
-    // Adicionar despesas (exceto faturas de cartão)
     expenses
-      .filter(exp => exp.category !== 'Cartão de Crédito')
+      .filter(exp => exp.category?.toLowerCase() !== 'transferência' && exp.category?.toLowerCase() !== 'cartão de crédito')
       .forEach(exp => {
         const itemDate = new Date(exp.date);
         const monthKey = `${itemDate.getFullYear()}-${itemDate.getMonth()}`;
         spending[monthKey] = (spending[monthKey] || 0) + exp.amount;
       });
-    
-    // Adicionar cartões de crédito
-    creditCards.forEach(cc => {
-      const itemDate = new Date(cc.date);
-      const monthKey = `${itemDate.getFullYear()}-${itemDate.getMonth()}`;
-      spending[monthKey] = (spending[monthKey] || 0) + cc.amount;
-    });
 
     return spending;
-  }, [expenses, creditCards]);
+  }, [expenses]);
 
   // 1. SEÇÃO: Visão Geral Financeira
   const financialOverview = useMemo(() => {
-    // Receitas do mês selecionado
+    // Receitas do mês selecionado (excluindo transferências)
     const monthlyIncome = income
       .filter(inc => {
         const incomeDate = new Date(inc.date);
-        return incomeDate.getMonth() === currentMonth && incomeDate.getFullYear() === currentYear;
+        return incomeDate.getMonth() === currentMonth &&
+               incomeDate.getFullYear() === currentYear &&
+               inc.source?.toLowerCase() !== 'transferência';
       })
       .reduce((sum, inc) => sum + inc.amount, 0);
 
-    // Gastos do mês: despesas (exceto faturas de cartão) + cartões de crédito
+    // Gastos do mês: despesas (excluindo faturas de cartão e transferências)
     const monthlyExpenses = expenses
       .filter(exp => {
         const expenseDate = new Date(exp.date);
         return expenseDate.getMonth() === currentMonth && 
                expenseDate.getFullYear() === currentYear &&
-               exp.category !== 'Cartão de Crédito'; // Excluir faturas para evitar duplicidade
+               exp.category?.toLowerCase() !== 'cartão de crédito' &&
+               exp.category?.toLowerCase() !== 'transferência'; // Excluir transferências
       })
       .reduce((sum, exp) => sum + exp.amount, 0);
 
-    const monthlyCreditCards = creditCards
-      .filter(cc => {
-        const ccDate = new Date(cc.date);
-        return ccDate.getMonth() === currentMonth && ccDate.getFullYear() === currentYear;
+    // Faturas de cartão de crédito do mês (já conciliadas, com abonos)
+    const monthlyCreditCardInvoices = expenses
+      .filter(exp => {
+        const expenseDate = new Date(exp.date);
+        return expenseDate.getMonth() === currentMonth &&
+               expenseDate.getFullYear() === currentYear &&
+               exp.category?.toLowerCase() === 'cartão de crédito';
       })
-      .reduce((sum, cc) => sum + cc.amount, 0);
+      .reduce((sum, exp) => sum + exp.amount, 0);
 
     // Transferências do mês selecionado
     const monthlyTransfersIn = transfers
@@ -112,34 +110,15 @@ const Dashboard: React.FC = () => {
       })
       .reduce((sum, transfer) => sum + transfer.amount, 0);
 
-    const totalMonthlySpending = monthlyExpenses + monthlyCreditCards;
+    const totalMonthlySpending = monthlyExpenses + monthlyCreditCardInvoices;
     const monthlyResult = monthlyIncome - totalMonthlySpending;
 
-    // Saldo total disponível: saldo inicial + receitas acumuladas - gastos acumulados + transferências líquidas
-    // Calculando acumulado até o final do mês selecionado
-    const endOfSelectedMonth = new Date(currentYear, currentMonth + 1, 0); // Último dia do mês selecionado
-    
-    const accumulatedIncome = income
-      .filter(inc => new Date(inc.date) <= endOfSelectedMonth)
-      .reduce((sum, inc) => sum + inc.amount, 0);
-
-    const accumulatedExpenses = expenses
-      .filter(exp => new Date(exp.date) <= endOfSelectedMonth && exp.category !== 'Cartão de Crédito')
-      .reduce((sum, exp) => sum + exp.amount, 0);
-
-    const accumulatedCreditCards = creditCards
-      .filter(cc => new Date(cc.date) <= endOfSelectedMonth)
-      .reduce((sum, cc) => sum + cc.amount, 0);
-
-    const accumulatedTransfersNet = transfers
-      .filter(transfer => new Date(transfer.date) <= endOfSelectedMonth)
-      .reduce((sum, transfer) => {
-        // Assume que transferências internas não alteram saldo total geral
-        return sum; // Para saldo geral, transferências se cancelam
-      }, 0);
-
+    // Saldo total disponível: saldo inicial de todas as contas + total de receitas - total de despesas.
+    // Transferências são neutras e não entram no cálculo do saldo total.
     const initialBalance = accounts.reduce((sum, account) => sum + account.initialBalance, 0);
-    const totalBalance = initialBalance + accumulatedIncome - accumulatedExpenses - accumulatedCreditCards + accumulatedTransfersNet;
+    const totalIncome = income.reduce((sum, inc) => inc.source?.toLowerCase() !== 'transferência' ? sum + inc.amount : sum, 0);
+    const totalExpenses = expenses.reduce((sum, exp) => exp.category?.toLowerCase() !== 'transferência' ? sum + exp.amount : sum, 0);
+    const totalBalance = initialBalance + totalIncome - totalExpenses;
 
     return {
       totalBalance,
@@ -151,32 +130,36 @@ const Dashboard: React.FC = () => {
 
   // 2. SEÇÃO: Cartões de Crédito
   const creditCardAnalysis = useMemo(() => {
-    // Faturas pendentes (futuras, baseado na data)
-    const pendingInvoices = creditCards
-      .filter(cc => new Date(cc.date) > now)
-      .reduce((sum, cc) => sum + cc.amount, 0);
+    // Faturas pendentes são as despesas de "Cartão de Crédito" que não foram pagas
+    const pendingInvoices = expenses
+      .filter(exp => exp.category?.toLowerCase() === 'cartão de crédito' && !exp.paid)
+      .reduce((sum, exp) => sum + exp.amount, 0);
 
     // Próximas faturas (próximos 30 dias)
     const next30Days = new Date();
-    next30Days.setDate(next30Days.getDate() + 30);
+    next30Days.setDate(now.getDate() + 30);
     
-    const upcomingInvoices = creditCards
-      .filter(cc => {
-        const ccDate = new Date(cc.date);
-        return ccDate <= next30Days && ccDate >= now;
+    const upcomingInvoices = expenses
+      .filter(exp => {
+        const expenseDate = new Date(exp.date);
+        return exp.category?.toLowerCase() === 'cartão de crédito' &&
+               !exp.paid &&
+               expenseDate <= next30Days &&
+               expenseDate >= now;
       })
-      .reduce((sum, cc) => sum + cc.amount, 0);
+      .reduce((sum, exp) => sum + exp.amount, 0);
 
-    // Maior fatura por cartão (baseado na data, não no status)
-    const invoicesByCard = creditCards
-      .filter(cc => new Date(cc.date) > now)
-      .reduce((acc, cc) => {
-        acc[cc.paymentMethod] = (acc[cc.paymentMethod] || 0) + cc.amount;
+    // Maior fatura pendente por cartão
+    const invoicesByCard = expenses
+      .filter(exp => exp.category?.toLowerCase() === 'cartão de crédito' && !exp.paid)
+      .reduce((acc, exp) => {
+        const cardName = exp.paymentMethod || 'Desconhecido';
+        acc[cardName] = (acc[cardName] || 0) + exp.amount;
         return acc;
       }, {} as Record<string, number>);
 
     const largestInvoice = Object.entries(invoicesByCard)
-      .sort(([,a], [,b]) => (b as number) - (a as number))[0] || ['Nenhum', 0];
+      .sort(([,a], [,b]) => b - a)[0] || ['Nenhum', 0];
 
     return {
       pendingInvoices,
@@ -186,31 +169,37 @@ const Dashboard: React.FC = () => {
         amount: largestInvoice[1]
       }
     };
-  }, [creditCards, now]);
+  }, [expenses, now]);
 
   // 3. SEÇÃO: Análises Inteligentes
   const intelligentAnalysis = useMemo(() => {
-    // Top 5 categorias do mês (despesas exceto faturas + cartões de crédito)
-    const filteredExpenses = expenses.filter(exp => exp.category !== 'Cartão de Crédito');
-    const categorySpending = [...filteredExpenses, ...creditCards]
+    // Top 5 categorias do mês (despesas reais, excluindo pagamentos de fatura e transferências)
+    const categorySpending = expenses
       .filter(item => {
         const itemDate = new Date(item.date);
-        return itemDate.getMonth() === currentMonth && itemDate.getFullYear() === currentYear;
+        return itemDate.getMonth() === currentMonth &&
+               itemDate.getFullYear() === currentYear &&
+               item.category?.toLowerCase() !== 'cartão de crédito' &&
+               item.category?.toLowerCase() !== 'transferência';
       })
       .reduce((acc, item) => {
-        acc[item.category] = (acc[item.category] || 0) + item.amount;
+        const category = item.category || 'Sem Categoria';
+        acc[category] = (acc[category] || 0) + item.amount;
         return acc;
       }, {} as Record<string, number>);
 
     const topCategories = Object.entries(categorySpending)
-      .sort(([,a], [,b]) => (b as number) - (a as number))
+      .sort(([,a], [,b]) => b - a)
       .slice(0, 5);
 
-    // Maiores transações do mês
-    const biggestTransactions = [...filteredExpenses, ...creditCards]
+    // Maiores transações de despesa do mês
+    const biggestTransactions = expenses
       .filter(item => {
         const itemDate = new Date(item.date);
-        return itemDate.getMonth() === currentMonth && itemDate.getFullYear() === currentYear;
+        return itemDate.getMonth() === currentMonth &&
+               itemDate.getFullYear() === currentYear &&
+               item.category?.toLowerCase() !== 'cartão de crédito' &&
+               item.category?.toLowerCase() !== 'transferência';
       })
       .sort((a, b) => b.amount - a.amount)
       .slice(0, 3);
