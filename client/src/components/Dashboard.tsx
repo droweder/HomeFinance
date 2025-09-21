@@ -64,42 +64,63 @@ const Dashboard: React.FC = () => {
 
   // 1. SEÇÃO: Visão Geral Financeira
   const financialOverview = useMemo(() => {
+    // Primeiro, identificar todas as transferências para excluí-las de forma robusta.
+    // Criamos um conjunto de chaves únicas para as transferências (data-valor)
+    const transferKeys = new Set(
+      transfers.map(t => `${new Date(t.date).toISOString().split('T')[0]}_${t.amount.toFixed(2)}`)
+    );
+
+    const isNotTransfer = (item: Income | Expense) => {
+      const itemKey = `${new Date(item.date).toISOString().split('T')[0]}_${item.amount.toFixed(2)}`;
+      // Uma transação é considerada parte de uma transferência se uma chave correspondente existir
+      // e se a descrição for 'Transferência entre contas' ou a categoria/fonte for 'Transferência'.
+      // Isso cobre tanto a criação automática (backend) quanto a manual (frontend).
+      const isLikelyTransfer = transferKeys.has(itemKey) &&
+        (item.description === 'Transferência entre contas' ||
+         (item as Expense).category === 'Transferência' ||
+         (item as Income).source === 'Transferência');
+
+      // A lógica original de filtro por string é mantida como um fallback.
+      const fallbackFilter = (item as Expense).category?.toLowerCase() !== 'transferência' && (item as Income).source?.toLowerCase() !== 'transferência';
+
+      return !isLikelyTransfer && fallbackFilter;
+    };
+
     const lastDayOfMonth = new Date(currentYear, currentMonth + 1, 0);
 
     // Saldo Total Disponível: saldo no final do mês selecionado
     const initialBalance = accounts.reduce((sum, account) => sum + account.initialBalance, 0);
 
     const incomeUpToSelectedMonth = income
-      .filter(inc => new Date(inc.date) <= lastDayOfMonth && inc.source?.toLowerCase() !== 'transferência')
+      .filter(inc => new Date(inc.date) <= lastDayOfMonth && isNotTransfer(inc))
       .reduce((sum, inc) => sum + inc.amount, 0);
 
     const expensesUpToSelectedMonth = expenses
-      .filter(exp => new Date(exp.date) <= lastDayOfMonth && exp.category?.toLowerCase() !== 'transferência')
+      .filter(exp => new Date(exp.date) <= lastDayOfMonth && isNotTransfer(exp))
       .reduce((sum, exp) => sum + exp.amount, 0);
 
     const totalBalance = initialBalance + incomeUpToSelectedMonth - expensesUpToSelectedMonth;
 
-    // Receitas do Mês: A soma de receitas do mês selecionado, sem contar transferências.
+    // Receitas do Mês
     const monthlyIncome = income
       .filter(inc => {
         const incomeDate = new Date(inc.date);
         return incomeDate.getMonth() === currentMonth &&
                incomeDate.getFullYear() === currentYear &&
-               inc.source?.toLowerCase() !== 'transferência';
+               isNotTransfer(inc);
       })
       .reduce((sum, inc) => sum + inc.amount, 0);
 
-    // Gastos do Mês: A soma de despesas do mês selecionado, sem contar transferências.
+    // Gastos do Mês
     const totalMonthlySpending = expenses
       .filter(exp => {
         const expenseDate = new Date(exp.date);
         return expenseDate.getMonth() === currentMonth && 
                expenseDate.getFullYear() === currentYear &&
-               exp.category?.toLowerCase() !== 'transferência';
+               isNotTransfer(exp);
       })
       .reduce((sum, exp) => sum + exp.amount, 0);
 
-    // Resultado do Mês: Receitas - Despesas
     const monthlyResult = monthlyIncome - totalMonthlySpending;
 
     return {
@@ -108,7 +129,7 @@ const Dashboard: React.FC = () => {
       totalMonthlySpending,
       monthlyResult
     };
-  }, [accounts, income, expenses, currentMonth, currentYear]);
+  }, [accounts, income, expenses, transfers, currentMonth, currentYear]);
 
   // 2. SEÇÃO: Cartões de Crédito
   const creditCardAnalysis = useMemo(() => {
