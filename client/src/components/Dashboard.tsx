@@ -89,24 +89,13 @@ const Dashboard: React.FC = () => {
       .reduce((sum, inc) => sum + inc.amount, 0);
 
     // Gastos do Mês: Soma de todos os lançamentos em 'expenses' para o mês.
-    const totalMonthlyDirectSpending = expenses
+    const totalMonthlySpending = expenses
       .filter(exp => {
         const expenseDate = new Date(exp.date);
         return expenseDate.getMonth() === currentMonth && 
                expenseDate.getFullYear() === currentYear;
       })
       .reduce((sum, exp) => sum + exp.amount, 0);
-
-    // Gastos com Cartão de Crédito no Mês
-    const monthlyCreditCardSpending = creditCards
-      .filter(card => {
-        const cardDate = new Date(card.date);
-        return cardDate.getMonth() === currentMonth &&
-               cardDate.getFullYear() === currentYear;
-      })
-      .reduce((sum, card) => sum + card.amount, 0);
-
-    const totalMonthlySpending = totalMonthlyDirectSpending + monthlyCreditCardSpending;
 
     // Resultado do Mês: Receitas - Despesas
     const monthlyResult = monthlyIncome - totalMonthlySpending;
@@ -117,7 +106,7 @@ const Dashboard: React.FC = () => {
       totalMonthlySpending,
       monthlyResult
     };
-  }, [accounts, income, expenses, creditCards, currentMonth, currentYear]);
+  }, [accounts, income, expenses, currentMonth, currentYear]);
 
   // 2. SEÇÃO: Cartões de Crédito
   const creditCardAnalysis = useMemo(() => {
@@ -420,7 +409,7 @@ const Dashboard: React.FC = () => {
             />
             <StatCard
               title="Gastos do Mês"
-              subtitle="Despesas + Cartões"
+              subtitle="Despesas"
               value={formatCurrency(financialOverview.totalMonthlySpending)}
               icon={<TrendingDown className="w-6 h-6" />}
               color="red"
