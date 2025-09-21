@@ -15,6 +15,7 @@ import CreditCardList from './components/CreditCardList';
 import Settings from './components/Settings';
 import DailyAccountSummary from './components/DailyAccountSummary';
 import FinancialAIChat from './components/FinancialAIChat';
+import PivotTable from './components/PivotTable';
 import Login from './components/Login';
 
 // Error Boundary Component
@@ -132,6 +133,8 @@ const AppContent: React.FC = () => {
           return <DailyAccountSummary />;
         case 'ai-chat':
           return <FinancialAIChat />;
+        case 'pivot-table':
+          return <PivotTable />;
         case 'settings':
           return <Settings />;
         default:
