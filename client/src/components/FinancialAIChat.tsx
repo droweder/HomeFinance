@@ -31,7 +31,11 @@ const FinancialAIChat: React.FC = () => {
 
   // Generate financial context for AI
   const financialContext = useMemo(() => {
-    if (!expenses.length && !income.length) return null;
+    // Add robust checks to ensure all data arrays are defined
+    if (!expenses || !income || !transfers || !accounts) {
+      return null;
+    }
+    if (expenses.length === 0 && income.length === 0) return null;
 
     const today = new Date();
     const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
