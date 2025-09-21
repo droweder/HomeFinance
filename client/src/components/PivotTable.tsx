@@ -1,19 +1,38 @@
 import React, { useState, useEffect } from 'react';
-import PivotTableUI from 'react-pivottable/PivotTableUI';
-import 'react-pivottable/pivottable.css';
-import TableRenderers from 'react-pivottable/TableRenderers';
-import Plot from 'react-plotly.js';
-import createPlotlyRenderers from 'react-pivottable/PlotlyRenderers';
+import {
+  PivotViewComponent,
+  Inject,
+  GroupingBar,
+  FieldList,
+  CalculatedField,
+  Toolbar,
+  PDFExport,
+  ExcelExport,
+  ConditionalFormatting,
+} from '@syncfusion/ej2-react-pivotview';
 import { pivotTableApi } from '../lib/api';
-
-// create Plotly renderers via dependency injection
-const PlotlyRenderers = createPlotlyRenderers(Plot);
 
 const PivotTable: React.FC = () => {
   const [data, setData] = useState<any[]>([]);
-  const [pivotState, setPivotState] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  let pivotObj: PivotViewComponent | null = null;
+
+  const toolbarOptions = [
+    'New',
+    'Save',
+    'SaveAs',
+    'Rename',
+    'Remove',
+    'Load',
+    'Grid',
+    'Chart',
+    'Export',
+    'SubTotal',
+    'GrandTotal',
+    'ConditionalFormatting',
+    'FieldList',
+  ];
 
   useEffect(() => {
     const fetchData = async () => {
@@ -40,17 +59,44 @@ const PivotTable: React.FC = () => {
     return <div className="p-4 text-red-500">Error: {error}</div>;
   }
 
+  const dataSourceSettings = {
+    dataSource: data,
+    expandAll: false,
+    rows: [{ name: 'category', caption: 'Category' }],
+    columns: [{ name: 'date', caption: 'Date' }],
+    values: [{ name: 'amount', caption: 'Amount' }],
+    filters: [{ name: 'type', caption: 'Type' }],
+    formatSettings: [{ name: 'amount', format: 'C2' }],
+  };
+
   return (
     <div className="p-4">
       <h1 className="text-2xl font-bold mb-4">Análise Dinâmica</h1>
-      <div className="w-full h-[calc(100vh-150px)] overflow-auto">
-        <PivotTableUI
-          data={data}
-          onChange={(s: any) => setPivotState(s)}
-          renderers={Object.assign({}, TableRenderers, PlotlyRenderers)}
-          {...pivotState}
-        />
-      </div>
+      <PivotViewComponent
+        ref={(d) => (pivotObj = d)}
+        id="PivotView"
+        dataSourceSettings={dataSourceSettings}
+        width={'100%'}
+        height={'600'}
+        showGroupingBar={true}
+        showFieldList={true}
+        allowCalculatedField={true}
+        allowPdfExport={true}
+        allowExcelExport={true}
+        showToolbar={true}
+        allowConditionalFormatting={true}
+        toolbar={toolbarOptions}
+      >
+        <Inject services={[
+          GroupingBar,
+          FieldList,
+          CalculatedField,
+          Toolbar,
+          PDFExport,
+          ExcelExport,
+          ConditionalFormatting,
+        ]} />
+      </PivotViewComponent>
     </div>
   );
 };
