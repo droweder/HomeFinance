@@ -16,12 +16,12 @@ interface ChatMessage {
 
 const FinancialAIChat: React.FC = () => {
   const { settings } = useSettings();
-  const { expenses, income, transfers, categories } = useFinance();
+  const { expenses, income, transfers, categories, isLoading: isFinanceLoading } = useFinance();
   const { accounts } = useAccounts();
   const { messages, addMessage, clearHistory } = useAIChatHistory();
   const { showError, showSuccess } = useToast();
   const [input, setInput] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [isSending, setIsSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Auto scroll to bottom when new messages arrive
@@ -122,8 +122,12 @@ const FinancialAIChat: React.FC = () => {
       throw new Error('Chave da API Gemini não configurada. Configure nas Configurações.');
     }
 
-    const contextPrompt = financialContext ? 
-      `Contexto financeiro detalhado do usuário para ${financialContext.summary.currentMonth}:
+    // Defensive check to prevent crash if context is not ready
+    if (!financialContext) {
+      return 'Desculpe, os dados financeiros ainda não estão prontos. Por favor, tente novamente em um momento.';
+    }
+
+    const contextPrompt = `Contexto financeiro detalhado do usuário para ${financialContext.summary.currentMonth}:
 
 == RESUMO MENSAL ==
 - Despesas: R$ ${financialContext.summary.monthlyExpenses}
@@ -146,8 +150,7 @@ ${financialContext.recentTransactions.incomes.map(i => `- ${i.date}: ${i.desc} (
 == SALDOS DAS CONTAS ==
 ${financialContext.accounts.map(acc => `- ${acc.name}: R$ ${acc.balance}`).join('\n')}
 
-Por favor, analise estes dados reais e detalhados do usuário e forneça insights financeiros práticos e personalizados.`
-      : 'O usuário ainda não possui dados financeiros suficientes para análise detalhada.';
+Por favor, analise estes dados reais e detalhados do usuário e forneça insights financeiros práticos e personalizados.`;
 
     const systemPrompt = `Você é um assistente financeiro especializado em análise de dados pessoais.
 Seu papel é fornecer insights práticos, sugestões de economia, identificar padrões de gastos e ajudar com planejamento financeiro.
@@ -210,11 +213,11 @@ Responda de forma clara e útil baseando-se nos dados reais fornecidos:`;
   };
 
   const handleSendMessage = async () => {
-    if (!input.trim() || loading) return;
+    if (!input.trim() || isSending) return;
 
     const userMessage = input.trim();
     setInput('');
-    setLoading(true);
+    setIsSending(true);
 
     // Add user message
     addMessage(userMessage, 'user');
@@ -227,7 +230,7 @@ Responda de forma clara e útil baseando-se nos dados reais fornecidos:`;
       showError('Erro na IA', error.message);
       addMessage(`❌ Desculpe, ocorreu um erro: ${error.message}`, 'ai');
     } finally {
-      setLoading(false);
+      setIsSending(false);
     }
   };
 
@@ -330,7 +333,7 @@ Responda de forma clara e útil baseando-se nos dados reais fornecidos:`;
             ))
           )}
           
-          {loading && (
+          {isSending && (
             <div className="flex gap-3 justify-start">
               <div className="flex gap-3 max-w-[80%]">
                 <div className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center bg-purple-100 dark:bg-purple-900 text-purple-600 dark:text-purple-400">
@@ -358,18 +361,18 @@ Responda de forma clara e útil baseando-se nos dados reais fornecidos:`;
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyPress}
-              placeholder={settings.geminiApiKey ? "Digite sua pergunta sobre suas finanças..." : "Configure a API Gemini nas Configurações primeiro"}
-              disabled={!settings.geminiApiKey || loading}
+              placeholder={isFinanceLoading ? "Carregando dados financeiros..." : (settings.geminiApiKey ? "Digite sua pergunta sobre suas finanças..." : "Configure a API Gemini nas Configurações primeiro")}
+              disabled={!settings.geminiApiKey || isSending || isFinanceLoading}
               className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-purple-500 dark:bg-gray-700 dark:text-white resize-none"
               rows={3}
             />
           </div>
           <button
             onClick={handleSendMessage}
-            disabled={!settings.geminiApiKey || !input.trim() || loading}
+            disabled={!settings.geminiApiKey || !input.trim() || isSending || isFinanceLoading}
             className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
           >
-            {loading ? (
+            {isSending ? (
               <Loader2 className="w-5 h-5 animate-spin" />
             ) : (
               <Send className="w-5 h-5" />
