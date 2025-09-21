@@ -1,38 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import {
-  PivotViewComponent,
-  Inject,
-  GroupingBar,
-  FieldList,
-  CalculatedField,
-  Toolbar,
-  PDFExport,
-  ExcelExport,
-  ConditionalFormatting,
-} from '@syncfusion/ej2-react-pivotview';
+import * as WebDataRocksReact from '@webdatarocks/react-webdatarocks';
 import { pivotTableApi } from '../lib/api';
 
 const PivotTable: React.FC = () => {
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  let pivotObj: PivotViewComponent | null = null;
-
-  const toolbarOptions = [
-    'New',
-    'Save',
-    'SaveAs',
-    'Rename',
-    'Remove',
-    'Load',
-    'Grid',
-    'Chart',
-    'Export',
-    'SubTotal',
-    'GrandTotal',
-    'ConditionalFormatting',
-    'FieldList',
-  ];
 
   useEffect(() => {
     const fetchData = async () => {
@@ -59,44 +32,33 @@ const PivotTable: React.FC = () => {
     return <div className="p-4 text-red-500">Error: {error}</div>;
   }
 
-  const dataSourceSettings = {
-    dataSource: data,
-    expandAll: false,
-    rows: [{ name: 'Categoria' }],
-    columns: [{ name: 'Data' }],
-    values: [{ name: 'Valor' }],
-    filters: [{ name: 'Tipo' }],
-    formatSettings: [{ name: 'Valor', format: 'C2' }],
+  const report = {
+    dataSource: {
+      data: data,
+    },
+    slice: {
+      rows: [{ uniqueName: "Categoria" }],
+      columns: [{ uniqueName: "Data" }],
+      measures: [{ uniqueName: "Valor", aggregation: "sum" }],
+      filters: [{ uniqueName: "Tipo" }],
+    },
+    formats: [{
+        name: "Valor",
+        thousandsSeparator: ",",
+        decimalSeparator: ".",
+        decimalPlaces: 2,
+        currencySymbol: "R$",
+        currencySymbolAlign: "left"
+    }]
   };
 
   return (
     <div className="p-4">
       <h1 className="text-2xl font-bold mb-4">Análise Dinâmica</h1>
-      <PivotViewComponent
-        ref={(d) => (pivotObj = d)}
-        id="PivotView"
-        dataSourceSettings={dataSourceSettings}
-        width={'100%'}
-        height={'600'}
-        showGroupingBar={true}
-        showFieldList={true}
-        allowCalculatedField={true}
-        allowPdfExport={true}
-        allowExcelExport={true}
-        showToolbar={true}
-        allowConditionalFormatting={true}
-        toolbar={toolbarOptions}
-      >
-        <Inject services={[
-          GroupingBar,
-          FieldList,
-          CalculatedField,
-          Toolbar,
-          PDFExport,
-          ExcelExport,
-          ConditionalFormatting,
-        ]} />
-      </PivotViewComponent>
+      <WebDataRocksReact.Pivot
+        toolbar={true}
+        report={report}
+      />
     </div>
   );
 };
