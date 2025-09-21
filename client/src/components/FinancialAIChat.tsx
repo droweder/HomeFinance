@@ -6,6 +6,7 @@ import { useAccounts } from '../context/AccountContext';
 import { useAIChatHistory } from '../hooks/useAIChatHistory';
 import { useToast } from './ui/toast';
 import ConfirmDialog from './ConfirmDialog';
+import ReactMarkdown from 'react-markdown';
 
 interface ChatMessage {
   id: string;
@@ -271,18 +272,16 @@ Responda de forma clara e útil baseando-se nos dados reais fornecidos:`;
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <div className="p-3 bg-purple-100 dark:bg-purple-900 rounded-xl">
-              <Bot className="w-8 h-8 text-purple-600 dark:text-purple-400" />
-            </div>
-            <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">Assistente Financeiro</h1>
-              <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400">
-                Análises inteligentes dos seus dados financeiros
-              </p>
-            </div>
+        <div className="flex items-center justify-between">
+          {/* Status da API */}
+          <div className="flex items-center gap-2 text-sm">
+            <div className={`w-2 h-2 rounded-full ${settings.geminiApiKey ? 'bg-green-500' : 'bg-red-500'}`}></div>
+            <span className="text-gray-600 dark:text-gray-400">
+              {settings.geminiApiKey ? `Gemini ${settings.geminiModel || 'gemini-2.0-flash'} conectado` : 'API não configurada'}
+            </span>
           </div>
+
+          {/* Clear History Button */}
           {messages.length > 1 && (
             <button
               onClick={handleClearHistory}
@@ -292,14 +291,6 @@ Responda de forma clara e útil baseando-se nos dados reais fornecidos:`;
               Limpar Histórico
             </button>
           )}
-        </div>
-
-        {/* Status da API */}
-        <div className="flex items-center gap-2 text-sm">
-          <div className={`w-2 h-2 rounded-full ${settings.geminiApiKey ? 'bg-green-500' : 'bg-red-500'}`}></div>
-          <span className="text-gray-600 dark:text-gray-400">
-            {settings.geminiApiKey ? `Gemini ${settings.geminiModel || 'gemini-2.0-flash'} conectado` : 'API não configurada'}
-          </span>
         </div>
       </div>
 
@@ -359,7 +350,11 @@ Responda de forma clara e útil baseando-se nos dados reais fornecidos:`;
                       ? 'bg-blue-500 text-white'
                       : 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white'
                   }`}>
-                    <div className="text-sm whitespace-pre-wrap">{message.content}</div>
+                    <div className="text-sm">
+                      <ReactMarkdown className="prose prose-sm dark:prose-invert max-w-none">
+                        {message.content}
+                      </ReactMarkdown>
+                    </div>
                     <div className={`text-xs mt-1 opacity-70`}>
                       {message.timestamp.toLocaleTimeString('pt-BR', {
                         hour: '2-digit',
