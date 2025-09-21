@@ -237,17 +237,26 @@ Responda de forma clara e útil baseando-se nos dados reais fornecidos:`;
         if (done) break;
 
         const chunk = decoder.decode(value);
+        // The stream can send multiple JSON objects, sometimes separated by commas,
+        // and might not be perfectly formed in each chunk. We need to handle this.
+        // A simple and robust way is to try to parse JSON objects from the chunk.
+        // We'll replace commas between curly braces to create a parsable array.
+        const jsonObjects = `[${chunk.replace(/}\s*,\s*{/g, '},{')}]`;
+
         try {
-          // The stream returns JSON chunks, sometimes multiple per value
-          const lines = chunk.split('\n').filter(line => line.trim().startsWith('{'));
-          for (const line of lines) {
-            const parsed = JSON.parse(line);
-            if (parsed.candidates?.[0]?.content?.parts?.[0]?.text) {
-              onStream(parsed.candidates[0].content.parts[0].text);
+          const parsedChunk = JSON.parse(jsonObjects);
+          if (Array.isArray(parsedChunk)) {
+            for (const item of parsedChunk) {
+              if (item.candidates?.[0]?.content?.parts?.[0]?.text) {
+                onStream(item.candidates[0].content.parts[0].text);
+              }
             }
           }
         } catch (e) {
-          console.error("Erro ao processar chunk do stream:", e, "Chunk:", chunk);
+          // This can happen if a chunk is incomplete. We'll ignore parsing errors
+          // and wait for the next chunk to form a complete object.
+          // For debugging, we can log this, but in production, we might want to be silent.
+          console.warn("Ignorando chunk de stream malformado:", e);
         }
       }
     } catch (error: any) {
