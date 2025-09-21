@@ -181,53 +181,52 @@ export async function callChatModel(message: string): Promise<{ reply: string }>
 // Pivot Table Data API
 export const pivotTableApi = {
   async getData(): Promise<any[]> {
+    // Fetch all data in parallel
     const [
       { data: expenses, error: expensesError },
       { data: incomes, error: incomesError },
       { data: transfers, error: transfersError },
       { data: accounts, error: accountsError },
-      { data: categories, error: categoriesError },
     ] = await Promise.all([
       supabase.from('expenses').select('*'),
       supabase.from('income').select('*'),
       supabase.from('transfers').select('*'),
       supabase.from('accounts').select('*'),
-      supabase.from('categories').select('*'),
     ]);
 
-    if (expensesError) throw new Error(expensesError.message);
-    if (incomesError) throw new Error(incomesError.message);
-    if (transfersError) throw new Error(transfersError.message);
-    if (accountsError) throw new Error(accountsError.message);
-    if (categoriesError) throw new Error(categoriesError.message);
+    // Error handling
+    if (expensesError) throw new Error(`Error fetching expenses: ${expensesError.message}`);
+    if (incomesError) throw new Error(`Error fetching income: ${incomesError.message}`);
+    if (transfersError) throw new Error(`Error fetching transfers: ${transfersError.message}`);
+    if (accountsError) throw new Error(`Error fetching accounts: ${accountsError.message}`);
 
+    // Account map is still needed for transfers
     const accountMap = new Map(accounts.map(a => [a.id, a.name]));
-    const categoryMap = new Map(categories.map(c => [c.id, c.name]));
 
     const pivotData = [
       ...expenses.map(e => ({
         'Tipo': 'Despesa',
         'Data': e.date,
-        'Categoria': categoryMap.get(e.category) || 'N/A',
+        'Categoria': e.category, // Use name directly
         'Descrição': e.description,
         'Valor': -e.amount,
-        'Conta': accountMap.get(e.payment_method) || 'N/A',
+        'Conta': e.payment_method, // Use name directly
       })),
       ...incomes.map(i => ({
         'Tipo': 'Receita',
         'Data': i.date,
-        'Categoria': 'Receita',
-        'Descrição': i.source,
+        'Categoria': i.source, // Use source as category for incomes
+        'Descrição': i.notes,
         'Valor': i.amount,
-        'Conta': accountMap.get(i.account) || 'N/A',
+        'Conta': i.account || 'N/A', // Use name directly
       })),
       ...transfers.map(t => ({
         'Tipo': 'Transferência',
         'Data': t.date,
-        'Categoria': 'Transferência',
-        'Descrição': `De ${accountMap.get(t.from_account)} para ${accountMap.get(t.to_account)}`,
+        'Categoria': 'Transferência', // Hardcoded category for transfers
+        'Descrição': `De ${accountMap.get(t.from_account) || 'Conta Desconhecida'} para ${accountMap.get(t.to_account) || 'Conta Desconhecida'}`,
         'Valor': t.amount,
-        'Conta': 'N/A',
+        'Conta': 'N/A', // Transfers involve two accounts, so a single 'Conta' is not applicable
       })),
     ];
 
