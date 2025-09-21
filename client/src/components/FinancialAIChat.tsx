@@ -32,35 +32,55 @@ const FinancialAIChat: React.FC = () => {
   const financialContext = useMemo(() => {
     if (!expenses.length && !income.length) return null;
 
-    const currentMonth = new Date();
-    const startOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
-    
-    // Filter current month data
-    const currentExpenses = expenses.filter(exp => new Date(exp.date) >= startOfMonth);
-    const currentIncome = income.filter(inc => new Date(inc.date) >= startOfMonth);
-    const currentTransfers = transfers.filter(trans => new Date(trans.date) >= startOfMonth);
+    const today = new Date();
+    const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    const startOfLastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+    const endOfLastMonth = new Date(today.getFullYear(), today.getMonth(), 0);
 
-    // Calculate totals
-    const monthlyExpenses = currentExpenses.reduce((sum, exp) => sum + exp.amount, 0);
-    const monthlyIncome = currentIncome.reduce((sum, inc) => sum + inc.amount, 0);
-    const yearlyExpenses = expenses.reduce((sum, exp) => sum + exp.amount, 0);
-    const yearlyIncome = income.reduce((sum, inc) => sum + inc.amount, 0);
+    // Filter data for current and previous month
+    const currentMonthExpenses = expenses.filter(exp => new Date(exp.date) >= startOfMonth);
+    const lastMonthExpenses = expenses.filter(exp => {
+      const expDate = new Date(exp.date);
+      return expDate >= startOfLastMonth && expDate <= endOfLastMonth;
+    });
+    const currentMonthIncome = income.filter(inc => new Date(inc.date) >= startOfMonth);
+    const lastMonthIncome = income.filter(inc => {
+      const incDate = new Date(inc.date);
+      return incDate >= startOfLastMonth && incDate <= endOfLastMonth;
+    });
 
-    // Top expense categories this month
-    const expensesByCategory = currentExpenses.reduce((acc, exp) => {
+    // --- CALCULATIONS ---
+
+    // Totals for current month
+    const totalCurrentMonthExpenses = currentMonthExpenses.reduce((sum, exp) => sum + exp.amount, 0);
+    const totalCurrentMonthIncome = currentMonthIncome.reduce((sum, inc) => sum + inc.amount, 0);
+
+    // Totals for last month
+    const totalLastMonthExpenses = lastMonthExpenses.reduce((sum, exp) => sum + exp.amount, 0);
+    const totalLastMonthIncome = lastMonthIncome.reduce((sum, inc) => sum + inc.amount, 0);
+
+    // Month-over-month comparison
+    const expenseChange = totalLastMonthExpenses > 0
+      ? ((totalCurrentMonthExpenses - totalLastMonthExpenses) / totalLastMonthExpenses) * 100
+      : totalCurrentMonthExpenses > 0 ? 100 : 0;
+    const incomeChange = totalLastMonthIncome > 0
+      ? ((totalCurrentMonthIncome - totalLastMonthIncome) / totalLastMonthIncome) * 100
+      : totalCurrentMonthIncome > 0 ? 100 : 0;
+
+    // Full expense breakdown by category for the current month
+    const expensesByCategory = currentMonthExpenses.reduce((acc, exp) => {
       acc[exp.category] = (acc[exp.category] || 0) + exp.amount;
       return acc;
     }, {} as Record<string, number>);
-
-    const topExpenseCategories = Object.entries(expensesByCategory)
+    const fullCategoryBreakdown = Object.entries(expensesByCategory)
       .sort(([,a], [,b]) => b - a)
-      .slice(0, 5);
+      .map(([category, amount]) => ({ category, amount: amount.toFixed(2) }));
 
-    // Credit card expenses
-    const creditCardExpenses = currentExpenses.filter(exp => exp.paymentMethod?.toLowerCase().includes('crédito'));
-    const totalCreditCard = creditCardExpenses.reduce((sum, exp) => sum + exp.amount, 0);
+    // Last 5 transactions
+    const last5Expenses = [...expenses].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 5);
+    const last5Incomes = [...income].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 5);
 
-    // Account balances
+    // Account balances (existing logic)
     const accountBalances = accounts.map(acc => {
       const accIncome = income.filter(inc => inc.account === acc.name).reduce((sum, inc) => sum + inc.amount, 0);
       const accTransfersIn = transfers.filter(trans => trans.toAccount === acc.name).reduce((sum, trans) => sum + trans.amount, 0);
@@ -73,28 +93,26 @@ const FinancialAIChat: React.FC = () => {
 
     return {
       summary: {
-        monthlyExpenses: monthlyExpenses.toFixed(2),
-        monthlyIncome: monthlyIncome.toFixed(2),
-        monthlyBalance: (monthlyIncome - monthlyExpenses).toFixed(2),
-        yearlyExpenses: yearlyExpenses.toFixed(2),
-        yearlyIncome: yearlyIncome.toFixed(2),
-        totalTransactions: expenses.length + income.length + transfers.length,
-        creditCardTotal: totalCreditCard.toFixed(2)
+        currentMonth: today.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }),
+        monthlyExpenses: totalCurrentMonthExpenses.toFixed(2),
+        monthlyIncome: totalCurrentMonthIncome.toFixed(2),
+        monthlyBalance: (totalCurrentMonthIncome - totalCurrentMonthExpenses).toFixed(2),
       },
-      topCategories: topExpenseCategories.map(([cat, amount]) => ({
-        category: cat,
-        amount: amount.toFixed(2)
-      })),
+      comparison: {
+        expenseChange: expenseChange.toFixed(2),
+        incomeChange: incomeChange.toFixed(2),
+      },
+      breakdown: {
+        categories: fullCategoryBreakdown,
+      },
+      recentTransactions: {
+        expenses: last5Expenses.map(e => ({ date: e.date, desc: e.description, amount: e.amount.toFixed(2) })),
+        incomes: last5Incomes.map(i => ({ date: i.date, desc: i.source, amount: i.amount.toFixed(2) })),
+      },
       accounts: accountBalances.map(acc => ({
         name: acc.name,
         balance: acc.balance.toFixed(2)
       })),
-      period: {
-        currentMonth: currentMonth.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }),
-        totalExpenses: expenses.length,
-        totalIncome: income.length,
-        totalTransfers: transfers.length
-      }
     };
   }, [expenses, income, transfers, accounts]);
 
@@ -104,30 +122,30 @@ const FinancialAIChat: React.FC = () => {
     }
 
     const contextPrompt = financialContext ? 
-      `Contexto financeiro do usuário:
-RESUMO MENSAL (${financialContext.period.currentMonth}):
+      `Contexto financeiro detalhado do usuário para ${financialContext.summary.currentMonth}:
+
+== RESUMO MENSAL ==
 - Despesas: R$ ${financialContext.summary.monthlyExpenses}
 - Receitas: R$ ${financialContext.summary.monthlyIncome}
-- Saldo: R$ ${financialContext.summary.monthlyBalance}
-- Cartão de crédito: R$ ${financialContext.summary.creditCardTotal}
+- Saldo do Mês: R$ ${financialContext.summary.monthlyBalance}
 
-RESUMO ANUAL:
-- Total despesas: R$ ${financialContext.summary.yearlyExpenses}
-- Total receitas: R$ ${financialContext.summary.yearlyIncome}
-- Total transações: ${financialContext.summary.totalTransactions}
+== COMPARAÇÃO COM MÊS ANTERIOR ==
+- Variação de Despesas: ${financialContext.comparison.expenseChange}%
+- Variação de Receitas: ${financialContext.comparison.incomeChange}%
 
-PRINCIPAIS CATEGORIAS DE DESPESA:
-${financialContext.topCategories.map(cat => `- ${cat.category}: R$ ${cat.amount}`).join('\n')}
+== DETALHAMENTO DE DESPESAS POR CATEGORIA ==
+${financialContext.breakdown.categories.map(cat => `- ${cat.category}: R$ ${cat.amount}`).join('\n')}
 
-SALDOS DAS CONTAS:
+== ÚLTIMAS 5 DESPESAS ==
+${financialContext.recentTransactions.expenses.map(e => `- ${e.date}: ${e.desc} (R$ ${e.amount})`).join('\n')}
+
+== ÚLTIMAS 5 RECEITAS ==
+${financialContext.recentTransactions.incomes.map(i => `- ${i.date}: ${i.desc} (R$ ${i.amount})`).join('\n')}
+
+== SALDOS DAS CONTAS ==
 ${financialContext.accounts.map(acc => `- ${acc.name}: R$ ${acc.balance}`).join('\n')}
 
-DADOS HISTÓRICOS:
-- ${financialContext.period.totalExpenses} despesas registradas
-- ${financialContext.period.totalIncome} receitas registradas
-- ${financialContext.period.totalTransfers} transferências realizadas
-
-Por favor, analise estes dados reais do usuário e forneça insights financeiros práticos e personalizados.`
+Por favor, analise estes dados reais e detalhados do usuário e forneça insights financeiros práticos e personalizados.`
       : 'O usuário ainda não possui dados financeiros suficientes para análise detalhada.';
 
     const systemPrompt = `Você é um assistente financeiro especializado em análise de dados pessoais.
@@ -264,27 +282,10 @@ Responda de forma clara e útil baseando-se nos dados reais fornecidos:`;
   }, [financialContext]);
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-      {/* Header */}
-      <div className="mb-6">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <div className="p-3 bg-purple-100 dark:bg-purple-900 rounded-xl">
-              <Bot className="w-8 h-8 text-purple-600 dark:text-purple-400" />
-            </div>
-            <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">Assistente Financeiro</h1>
-              <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400">
-                Análises inteligentes dos seus dados financeiros
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-
+    <div className="flex flex-col h-full">
       {/* Chat Messages */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 mb-4">
-        <div className="h-96 overflow-y-auto p-4 space-y-4">
+      <div className="flex-grow bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 mb-4 overflow-hidden">
+        <div className="h-full overflow-y-auto p-4 space-y-4">
           {messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center">
               <Bot className="w-12 h-12 text-purple-400 mb-4" />
@@ -349,7 +350,7 @@ Responda de forma clara e útil baseando-se nos dados reais fornecidos:`;
       </div>
 
       {/* Input Area */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-4">
+      <div className="flex-shrink-0 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-4">
         <div className="flex gap-3">
           <div className="flex-1">
             <textarea

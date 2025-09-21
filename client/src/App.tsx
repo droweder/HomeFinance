@@ -14,8 +14,9 @@ import TransferList from './components/TransferList';
 import CreditCardList from './components/CreditCardList';
 import Settings from './components/Settings';
 import DailyAccountSummary from './components/DailyAccountSummary';
+import { Bot } from 'lucide-react';
+import Modal from './components/Modal';
 import FinancialAIChat from './components/FinancialAIChat';
-import FinancialAIChatModal from './components/FinancialAIChatModal';
 import Login from './components/Login';
 
 // Error Boundary Component
@@ -68,17 +69,15 @@ const AppContent: React.FC = () => {
   const { isAuthenticated } = useAuth();
   const { connectionStatus } = useSupabaseSync();
   const [activeTab, setActiveTab] = useState(() => {
-    // Preserve tab from localStorage to prevent auto-navigation to dashboard
     const savedTab = localStorage.getItem('finance-app-active-tab');
     return savedTab || 'dashboard';
   });
+  const [isChatOpen, setIsChatOpen] = useState(false);
 
-  // Save active tab to localStorage to prevent tab resets
   React.useEffect(() => {
     localStorage.setItem('finance-app-active-tab', activeTab);
   }, [activeTab]);
 
-  // Verificar se está autenticado e conectado ao Supabase
   if (!isAuthenticated) {
     return <Login />;
   }
@@ -118,6 +117,10 @@ const AppContent: React.FC = () => {
 
   const renderContent = () => {
     try {
+      // The AI Chat is always available but hidden, so it's not part of the main tab content
+      if (activeTab === 'ai-chat') {
+        return <Dashboard />; // Or some other default view
+      }
       switch (activeTab) {
         case 'dashboard':
           return <Dashboard />;
@@ -131,8 +134,6 @@ const AppContent: React.FC = () => {
           return <CreditCardList />;
         case 'daily-summary':
           return <DailyAccountSummary />;
-        case 'ai-chat':
-          return <FinancialAIChat />;
         case 'settings':
           return <Settings />;
         default:
@@ -164,7 +165,24 @@ const AppContent: React.FC = () => {
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
         <Navigation activeTab={activeTab} onTabChange={setActiveTab} />
         <main>{renderContent()}</main>
-        <FinancialAIChatModal />
+
+        {/* Floating Action Button for AI Chat */}
+        <button
+          onClick={() => setIsChatOpen(true)}
+          className="fixed bottom-6 right-6 bg-purple-600 text-white p-4 rounded-full shadow-lg hover:bg-purple-700 transition-colors focus:outline-none focus:ring-2 focus:ring-purple-500 z-40"
+          aria-label="Abrir Assistente Financeiro"
+        >
+          <Bot className="w-6 h-6" />
+        </button>
+
+        {/* Chat Modal */}
+        <Modal
+          isOpen={isChatOpen}
+          onClose={() => setIsChatOpen(false)}
+          title="Assistente Financeiro"
+        >
+          <FinancialAIChat />
+        </Modal>
       </div>
     </ErrorBoundary>
   );
