@@ -120,10 +120,11 @@ const FinancialAIChat: React.FC = () => {
         name: acc.name,
         balance: acc.balance.toFixed(2)
       })),
+      allExpenses: expenses, // Pass all expenses for reconciliation
     };
   }, [expenses, income, transfers, accounts]);
 
-  const callGeminiAPI = async (userMessage: string): Promise<string> => {
+  const callGeminiAPI = async (userMessage: string, statementData: any[] | null): Promise<string> => {
     if (!settings.geminiApiKey) {
       throw new Error('Chave da API Gemini não configurada. Configure nas Configurações.');
     }
@@ -133,7 +134,25 @@ const FinancialAIChat: React.FC = () => {
       return 'Desculpe, os dados financeiros ainda não estão prontos. Por favor, tente novamente em um momento.';
     }
 
-    const contextPrompt = `Contexto financeiro detalhado do usuário para ${financialContext.summary.currentMonth}:
+    let contextPrompt;
+
+    if (statementData) {
+      // Reconciliation Task
+      contextPrompt = `TAREFA DE CONCILIAÇÃO DE FATURA:
+O usuário forneceu a seguinte fatura de cartão de crédito:
+--- INÍCIO DA FATURA ---
+${JSON.stringify(statementData, null, 2)}
+--- FIM DA FATURA ---
+
+Abaixo estão TODAS AS DESPESAS já registradas no aplicativo do usuário:
+--- INÍCIO DE TODAS AS DESPESAS ---
+${JSON.stringify(financialContext.allExpenses, null, 2)}
+--- FIM DE TODAS AS DESPESAS ---
+
+Por favor, compare as duas listas e identifique os lançamentos da fatura que não estão nas despesas do aplicativo.`;
+    } else {
+      // General Analysis Task
+      contextPrompt = `Contexto financeiro detalhado do usuário para ${financialContext.summary.currentMonth}:
 
 == RESUMO MENSAL ==
 - Despesas: R$ ${financialContext.summary.monthlyExpenses}
@@ -157,19 +176,26 @@ ${financialContext.recentTransactions.incomes.map(i => `- ${i.date}: ${i.desc} (
 ${financialContext.accounts.map(acc => `- ${acc.name}: R$ ${acc.balance}`).join('\n')}
 
 Por favor, analise estes dados reais e detalhados do usuário e forneça insights financeiros práticos e personalizados.`;
+    }
 
     const systemPrompt = `Você é um assistente financeiro especializado em análise de dados pessoais.
-Seu papel é fornecer insights práticos, sugestões de economia, identificar padrões de gastos e ajudar com planejamento financeiro.
+Seu papel é fornecer insights práticos, sugestões de economia, identificar padrões de gastos, ajudar com planejamento financeiro e realizar conciliação de faturas de cartão de crédito.
 
-INSTRUÇÕES:
-- Use SEMPRE os dados reais fornecidos no contexto
-- Forneça análises específicas e práticas
-- Sugira ações concretas baseadas nos dados
-- Use valores em Reais (R$) e formato brasileiro
-- Seja conciso mas detalhado
-- Identifique oportunidades de economia
-- Destaque padrões importantes nos gastos
-- Se não houver dados suficientes, explique isso claramente
+INSTRUÇÕES GERAIS:
+- Use SEMPRE os dados reais fornecidos no contexto.
+- Forneça análises específicas e práticas.
+- Sugira ações concretas baseadas nos dados.
+- Use valores em Reais (R$) e formato brasileiro.
+- Seja conciso mas detalhado.
+- Identifique oportunidades de economia e destaque padrões importantes nos gastos.
+- Se não houver dados suficientes para uma análise, explique isso claramente.
+
+INSTRUÇÕES PARA CONCILIAÇÃO DE FATURA:
+- Se o usuário fornecer uma lista de lançamentos de uma fatura de cartão, sua tarefa é compará-la com a lista de 'TODAS AS DESPESAS' do contexto.
+- Seu objetivo é identificar quais lançamentos da fatura AINDA NÃO ESTÃO PRESENTES nas despesas do aplicativo.
+- Para cada lançamento da fatura, verifique se existe uma despesa correspondente no aplicativo com valor e descrição semelhantes na mesma data ou em datas próximas.
+- Ao final, liste de forma clara e organizada APENAS os lançamentos da fatura que você acredita que estão faltando no aplicativo, para que o usuário possa adicioná-los.
+- Se todos os lançamentos parecerem já existir, informe ao usuário que a fatura parece estar conciliada.
 
 ${contextPrompt}
 
@@ -222,6 +248,32 @@ Responda de forma clara e útil baseando-se nos dados reais fornecidos:`;
     if (!input.trim() || isSending) return;
 
     const userMessage = input.trim();
+    let statementData = null;
+
+    // Simple regex to detect if the input is likely a TSV statement
+    const tsvRegex = /(\d{2}\/\d{2}\/\d{4})\t(.*?)\t(.*?)\t(.*?)\t(.*?)/;
+    if (tsvRegex.test(userMessage)) {
+      try {
+        statementData = userMessage.split('\n').map(line => {
+          const parts = line.split('\t');
+          if (parts.length >= 5) {
+            return {
+              date: parts[0],
+              description: parts[1],
+              city: parts[2],
+              card: parts[3],
+              amount: parseFloat(parts[4].replace(',', '.').replace(/.*?\s/, ''))
+            };
+          }
+          return null;
+        }).filter(Boolean); // Filter out nulls from lines that don't parse
+        console.log("Statement data parsed:", statementData);
+      } catch (e) {
+        console.error("Failed to parse statement data, sending as plain text.", e);
+        statementData = null; // Reset on error
+      }
+    }
+
     setInput('');
     setIsSending(true);
 
@@ -229,7 +281,8 @@ Responda de forma clara e útil baseando-se nos dados reais fornecidos:`;
     addMessage(userMessage, 'user');
 
     try {
-      const aiResponse = await callGeminiAPI(userMessage);
+      // Pass both the original message and the parsed data to the API call
+      const aiResponse = await callGeminiAPI(userMessage, statementData);
       addMessage(aiResponse, 'ai');
     } catch (error: any) {
       console.error('❌ Erro na IA:', error);
