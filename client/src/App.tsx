@@ -69,7 +69,11 @@ const AppContent: React.FC = () => {
   const { isAuthenticated } = useAuth();
   const { connectionStatus } = useSupabaseSync();
   const [activeTab, setActiveTab] = useState(() => {
-    const savedTab = localStorage.getItem('finance-app-active-tab');
+    let savedTab = localStorage.getItem('finance-app-active-tab');
+    // If the saved tab is the old 'ai-chat', default to dashboard instead.
+    if (savedTab === 'ai-chat') {
+      savedTab = 'dashboard';
+    }
     return savedTab || 'dashboard';
   });
   const [isChatOpen, setIsChatOpen] = useState(false);
