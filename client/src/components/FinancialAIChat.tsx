@@ -412,7 +412,7 @@ Responda de forma clara e útil baseando-se nos dados reais fornecidos:`;
 
       {/* Input Area */}
       <div className="flex-shrink-0 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-4">
-        <div className="flex gap-3">
+        <div className="flex items-center gap-3">
           <div className="flex-1">
             <textarea
               value={input}
@@ -424,17 +424,28 @@ Responda de forma clara e útil baseando-se nos dados reais fornecidos:`;
               rows={3}
             />
           </div>
-          <button
-            onClick={handleSendMessage}
-            disabled={!settings.geminiApiKey || !input.trim() || isSending || isFinanceLoading}
-            className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-          >
-            {isSending ? (
-              <Loader2 className="w-5 h-5 animate-spin" />
-            ) : (
-              <Send className="w-5 h-5" />
+          <div className="flex flex-col gap-2">
+            <button
+              onClick={handleSendMessage}
+              disabled={!settings.geminiApiKey || !input.trim() || isSending || isFinanceLoading}
+              className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            >
+              {isSending ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : (
+                <Send className="w-5 h-5" />
+              )}
+            </button>
+            {messages.length > 1 && (
+              <button
+                onClick={handleClearHistory}
+                title="Limpar histórico"
+                className="p-2 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
             )}
-          </button>
+          </div>
         </div>
         
       </div>
