@@ -3,7 +3,7 @@ name: Auto Merge Develop to Main
 on:
   push:
     branches:
-      - develop
+      - develop # Substitua pelo branch que o Jules faz push
 
 jobs:
   auto-merge:
