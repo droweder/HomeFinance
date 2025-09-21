@@ -178,6 +178,58 @@ export async function callChatModel(message: string): Promise<{ reply: string }>
 }
 // **FIM DA ALTERAÇÃO**
 
+// Pivot Table Data API
+export const pivotTableApi = {
+  async getData(): Promise<any[]> {
+    const { data: expenses, error: expensesError } = await supabase.from('expenses').select('*');
+    if (expensesError) throw new Error(expensesError.message);
+
+    const { data: incomes, error: incomesError } = await supabase.from('incomes').select('*');
+    if (incomesError) throw new Error(incomesError.message);
+
+    const { data: transfers, error: transfersError } = await supabase.from('transfers').select('*');
+    if (transfersError) throw new Error(transfersError.message);
+
+    const { data: accounts, error: accountsError } = await supabase.from('accounts').select('*');
+    if (accountsError) throw new Error(accountsError.message);
+
+    const { data: categories, error: categoriesError } = await supabase.from('categories').select('*');
+    if (categoriesError) throw new Error(categoriesError.message);
+
+    const accountMap = new Map(accounts.map(a => [a.id, a.name]));
+    const categoryMap = new Map(categories.map(c => [c.id, c.name]));
+
+    const pivotData = [
+      ...expenses.map(e => ({
+        type: 'Expense',
+        date: e.date,
+        category: categoryMap.get(e.category) || 'N/A',
+        description: e.description,
+        amount: -e.amount,
+        account: accountMap.get(e.payment_method) || 'N/A',
+      })),
+      ...incomes.map(i => ({
+        type: 'Income',
+        date: i.date,
+        category: 'Income',
+        description: i.source,
+        amount: i.amount,
+        account: accountMap.get(i.account) || 'N/A',
+      })),
+      ...transfers.map(t => ({
+        type: 'Transfer',
+        date: t.date,
+        category: 'Transfer',
+        description: `From ${accountMap.get(t.from_account)} to ${accountMap.get(t.to_account)}`,
+        amount: t.amount,
+        account: 'N/A',
+      })),
+    ];
+
+    return pivotData;
+  },
+};
+
 export { ApiError };
 
 // Credit Card Advances API
