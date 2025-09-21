@@ -245,49 +245,12 @@ Responda de forma clara e útil baseando-se nos dados reais fornecidos:`;
     }
   };
 
-  const handleQuickQuestion = (question: string) => {
-    setInput(question);
-  };
-
   const handleClearHistory = () => {
     if (window.confirm('Tem certeza que deseja limpar todo o histórico de conversas?')) {
       clearHistory();
       showSuccess('Histórico limpo', 'O histórico de conversas foi removido com sucesso.');
     }
   };
-
-  const quickQuestions = useMemo(() => {
-    if (!financialContext) {
-      return [
-        'Como organizar minhas finanças?',
-        'Dicas para economizar dinheiro',
-        'Como criar um orçamento mensal?',
-        'Estratégias de investimento básicas'
-      ];
-    }
-
-    const questions = [
-      'Analise meus gastos deste mês',
-      'Onde posso economizar mais?',
-      'Qual categoria gasto demais?',
-      'Como está meu saldo atual?'
-    ];
-
-    // Add specific questions based on data
-    if (parseFloat(financialContext.summary.creditCardTotal) > 0) {
-      questions.push('Analise meus gastos no cartão de crédito');
-    }
-
-    if (parseFloat(financialContext.summary.monthlyBalance) < 0) {
-      questions.push('Como equilibrar minhas finanças?');
-    }
-
-    if (financialContext.topCategories.length > 0) {
-      questions.push(`Dicas para reduzir gastos em ${financialContext.topCategories[0].category}`);
-    }
-
-    return questions.slice(0, 6);
-  }, [financialContext]);
 
   return (
     <div className="flex flex-col h-full">
