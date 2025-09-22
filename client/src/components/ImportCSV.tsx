@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { Upload, Download, FileText, AlertCircle, CheckCircle, XCircle, Info } from 'lucide-react';
 import { useFinance } from '../context/FinanceContext';
 import { useAccounts } from '../context/AccountContext';
-import { useCreditCard } from '../context/CreditCardContext';
 
 interface ImportCSVProps {
   onClose: () => void;
@@ -24,8 +23,7 @@ interface ProcessedRow {
 const ImportCSV: React.FC<ImportCSVProps> = ({ onClose }) => {
   const { addExpense, addIncome, addTransfer, categories } = useFinance();
   const { accounts } = useAccounts();
-  const { addCreditCard } = useCreditCard();
-  const [importType, setImportType] = useState<'expenses' | 'income' | 'transfers' | 'cards'>('expenses');
+  const [importType, setImportType] = useState<'expenses' | 'income' | 'transfers'>('expenses');
   const [csvData, setCsvData] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [isValidating, setIsValidating] = useState(false);
@@ -53,9 +51,6 @@ const ImportCSV: React.FC<ImportCSVProps> = ({ onClose }) => {
 2025-01-20,500.00,Carteira,Conta Corrente,Depósito em dinheiro
 2025-01-25,300.00,Poupança,Conta Corrente,`;
 
-  const cardTemplate = `Date,Category,Description,Amount,PaymentMethod,Location,Paid,IsInstallment,InstallmentNumber,TotalInstallments,InstallmentGroup,IsCreditCard,IsRefund
-2025-01-15,Alimentação,Almoço no restaurante,45.50,Cartão Principal,Restaurante ABC,Não,Não,1,1,,Sim,Não`;
-
   const downloadTemplate = () => {
     let template;
     switch (importType) {
@@ -67,9 +62,6 @@ const ImportCSV: React.FC<ImportCSVProps> = ({ onClose }) => {
         break;
       case 'transfers':
         template = transferTemplate;
-        break;
-      case 'cards':
-        template = cardTemplate;
         break;
       default:
         template = expenseTemplate;
@@ -96,6 +88,7 @@ const ImportCSV: React.FC<ImportCSVProps> = ({ onClose }) => {
     for (let i = 1; i < lines.length; i++) {
       if (lines[i].trim() === '') continue; // Skip empty lines
       
+      // Handle CSV parsing with proper quote handling
       const values = [];
       let current = '';
       let inQuotes = false;
@@ -111,7 +104,7 @@ const ImportCSV: React.FC<ImportCSVProps> = ({ onClose }) => {
           current += char;
         }
       }
-      values.push(current.trim());
+      values.push(current.trim()); // Add the last value
 
       const row: any = {};
       headers.forEach((header, index) => {
@@ -123,20 +116,23 @@ const ImportCSV: React.FC<ImportCSVProps> = ({ onClose }) => {
     return { headers, data };
   };
 
-  const validateRow = (row: any, rowNumber: number, type: 'expenses' | 'income' | 'transfers' | 'cards'): ValidationResult => {
+  const validateRow = (row: any, rowNumber: number, type: 'expenses' | 'income' | 'transfers'): ValidationResult => {
     const errors: string[] = [];
     const warnings: string[] = [];
 
     if (type === 'expenses') {
+      // Required fields validation
       if (!row.Date) errors.push('Data é obrigatória');
       if (!row.Category) errors.push('Categoria é obrigatória');
       if (!row.Amount) errors.push('Valor é obrigatório');
       if (!row.PaymentMethod) errors.push('Método de pagamento é obrigatório');
 
+      // Date validation
       if (row.Date && !isValidDate(row.Date)) {
         errors.push(`Data inválida: ${row.Date}. Use formato YYYY-MM-DD`);
       }
 
+      // Amount validation
       if (row.Amount) {
         const amount = parseFloat(row.Amount.toString().replace(/[^\d.,]/g, '').replace(',', '.'));
         if (isNaN(amount) || amount <= 0) {
@@ -144,15 +140,18 @@ const ImportCSV: React.FC<ImportCSVProps> = ({ onClose }) => {
         }
       }
 
+      // Category validation
       const expenseCategories = categories.filter(cat => cat.type === 'expense');
       if (row.Category && !expenseCategories.some(cat => cat.name === row.Category)) {
         warnings.push(`Categoria "${row.Category}" não existe no sistema`);
       }
 
+      // Account validation
       if (row.PaymentMethod && !accounts.some(acc => acc.name === row.PaymentMethod)) {
         warnings.push(`Conta "${row.PaymentMethod}" não existe no sistema`);
       }
 
+      // Installment validation
       if (row.Installments) {
         const installments = parseInt(row.Installments);
         if (isNaN(installments) || installments < 1) {
@@ -169,14 +168,17 @@ const ImportCSV: React.FC<ImportCSVProps> = ({ onClose }) => {
       }
 
     } else if (type === 'income') {
+      // Income validation
       if (!row.Date) errors.push('Data é obrigatória');
       if (!row.Source) errors.push('Fonte é obrigatória');
       if (!row.Amount) errors.push('Valor é obrigatório');
 
+      // Date validation
       if (row.Date && !isValidDate(row.Date)) {
         errors.push(`Data inválida: ${row.Date}. Use formato YYYY-MM-DD`);
       }
 
+      // Amount validation
       if (row.Amount) {
         const amount = parseFloat(row.Amount.toString().replace(/[^\d.,]/g, '').replace(',', '.'));
         if (isNaN(amount) || amount <= 0) {
@@ -184,24 +186,30 @@ const ImportCSV: React.FC<ImportCSVProps> = ({ onClose }) => {
         }
       }
 
+      // Source validation
       const incomeCategories = categories.filter(cat => cat.type === 'income');
       if (row.Source && !incomeCategories.some(cat => cat.name === row.Source)) {
         warnings.push(`Fonte "${row.Source}" não existe no sistema`);
       }
 
+      // Account validation
       if (row.Account && !accounts.some(acc => acc.name === row.Account)) {
         warnings.push(`Conta "${row.Account}" não existe no sistema`);
       }
     } else if (type === 'transfers') {
+      // Transfer validation
       if (!row.Date) errors.push('Data é obrigatória');
       if (!row.Amount) errors.push('Valor é obrigatório');
       if (!row.FromAccount) errors.push('Conta origem é obrigatória');
       if (!row.ToAccount) errors.push('Conta destino é obrigatória');
+      // Descrição é opcional para transferências
 
+      // Date validation
       if (row.Date && !isValidDate(row.Date)) {
         errors.push(`Data inválida: ${row.Date}. Use formato YYYY-MM-DD`);
       }
 
+      // Amount validation
       if (row.Amount) {
         const amount = parseFloat(row.Amount.toString().replace(/[^\d.,]/g, '').replace(',', '.'));
         if (isNaN(amount) || amount <= 0) {
@@ -209,6 +217,7 @@ const ImportCSV: React.FC<ImportCSVProps> = ({ onClose }) => {
         }
       }
 
+      // Account validation
       if (row.FromAccount && !accounts.some(acc => acc.name === row.FromAccount)) {
         warnings.push(`Conta origem "${row.FromAccount}" não existe no sistema`);
       }
@@ -217,29 +226,9 @@ const ImportCSV: React.FC<ImportCSVProps> = ({ onClose }) => {
         warnings.push(`Conta destino "${row.ToAccount}" não existe no sistema`);
       }
 
+      // Same account validation
       if (row.FromAccount && row.ToAccount && row.FromAccount === row.ToAccount) {
         errors.push('Conta origem deve ser diferente da conta destino');
-      }
-    } else if (type === 'cards') {
-      if (!row.Date) errors.push('Data é obrigatória');
-      if (!row.Category) errors.push('Categoria é obrigatória');
-      if (!row.Amount) errors.push('Valor é obrigatório');
-      if (!row.PaymentMethod) errors.push('Método de pagamento é obrigatório');
-
-      if (row.Date && !isValidDate(row.Date)) {
-        errors.push(`Data inválida: ${row.Date}. Use formato YYYY-MM-DD`);
-      }
-
-      if (row.Amount) {
-        const amount = parseFloat(row.Amount.toString().replace(/[^\d.,]/g, '').replace(',', '.'));
-        if (isNaN(amount) || amount <= 0) {
-          errors.push(`Valor inválido: ${row.Amount}`);
-        }
-      }
-
-      const expenseCategories = categories.filter(cat => cat.type === 'expense');
-      if (row.Category && !expenseCategories.some(cat => cat.name === row.Category)) {
-        warnings.push(`Categoria "${row.Category}" não existe no sistema`);
       }
     }
 
@@ -269,7 +258,7 @@ const ImportCSV: React.FC<ImportCSVProps> = ({ onClose }) => {
 
       for (let i = 0; i < data.length; i++) {
         const row = data[i];
-        const rowNumber = i + 2;
+        const rowNumber = i + 2; // +2 because we skip header and arrays are 0-indexed
         const validation = validateRow(row, rowNumber, importType);
 
         const messages = [...validation.errors, ...validation.warnings];
@@ -304,15 +293,27 @@ const ImportCSV: React.FC<ImportCSVProps> = ({ onClose }) => {
       const validRows = validationResults.filter(row => row.status !== 'error');
       setImportProgress({ current: 0, total: validRows.length });
       
+      console.log('🔄 Iniciando importação:', {
+        totalValidationResults: validationResults.length,
+        validRows: validRows.length,
+        errorRows: validationResults.filter(row => row.status === 'error').length
+      });
+
       for (let i = 0; i < validRows.length; i++) {
         const processedRow = validRows[i];
         const row = processedRow.data;
         
+        console.log(`📝 Processando linha ${processedRow.rowNumber} (${i + 1}/${validRows.length}):`, {
+          data: row,
+          type: importType
+        });
+
         try {
           if (importType === 'expenses') {
             const amount = parseFloat(row.Amount.toString().replace(/[^\d.,]/g, '').replace(',', '.'));
             
             if (isNaN(amount) || amount <= 0) {
+              console.error(`❌ Valor inválido na linha ${processedRow.rowNumber}:`, row.Amount);
               errors.push(`Linha ${processedRow.rowNumber}: Valor inválido: ${row.Amount}`);
               continue;
             }
@@ -325,6 +326,7 @@ const ImportCSV: React.FC<ImportCSVProps> = ({ onClose }) => {
                row.IsCreditCard.toString().toLowerCase() === 'sim' || 
                row.IsCreditCard.toString() === '1') : false;
 
+            // Create installment group based on consistent data to group related installments
             const installmentGroup = isInstallment ? 
               `${(row.Description || 'Despesa').replace(/\s+/g, '_')}_${row.PaymentMethod}_${installments}_parcelas` : 
               undefined;
@@ -343,12 +345,17 @@ const ImportCSV: React.FC<ImportCSVProps> = ({ onClose }) => {
               isCreditCard: isCreditCard,
             };
             
+            console.log(`💾 Salvando despesa linha ${processedRow.rowNumber}:`, expenseData);
+
             await addExpense(expenseData);
+            console.log(`✅ Despesa linha ${processedRow.rowNumber} salva com sucesso`);
+
             successCount++;
           } else if (importType === 'income') {
             const amount = parseFloat(row.Amount.toString().replace(/[^\d.,]/g, '').replace(',', '.'));
             
             if (isNaN(amount) || amount <= 0) {
+              console.error(`❌ Valor inválido na linha ${processedRow.rowNumber}:`, row.Amount);
               errors.push(`Linha ${processedRow.rowNumber}: Valor inválido: ${row.Amount}`);
               continue;
             }
@@ -362,16 +369,22 @@ const ImportCSV: React.FC<ImportCSVProps> = ({ onClose }) => {
               account: row.Account || ''
             };
             
+            console.log(`💾 Salvando receita linha ${processedRow.rowNumber}:`, incomeData);
+
             await addIncome(incomeData);
+            console.log(`✅ Receita linha ${processedRow.rowNumber} salva com sucesso`);
+
             successCount++;
           } else if (importType === 'transfers') {
             const amount = parseFloat(row.Amount.toString().replace(/[^\d.,]/g, '').replace(',', '.'));
             
             if (isNaN(amount) || amount <= 0) {
+              console.error(`❌ Valor inválido na linha ${processedRow.rowNumber}:`, row.Amount);
               errors.push(`Linha ${processedRow.rowNumber}: Valor inválido: ${row.Amount}`);
               continue;
             }
 
+            // Find account IDs by name
             const fromAccount = accounts.find(acc => acc.name === row.FromAccount);
             const toAccount = accounts.find(acc => acc.name === row.ToAccount);
 
@@ -383,54 +396,44 @@ const ImportCSV: React.FC<ImportCSVProps> = ({ onClose }) => {
               description: row.Description || ''
             };
             
+            console.log(`💾 Salvando transferência linha ${processedRow.rowNumber}:`, transferData);
+
             await addTransfer(transferData);
-            successCount++;
-          } else if (importType === 'cards') {
-            const amount = parseFloat(row.Amount.toString().replace(/[^\d.,]/g, '').replace(',', '.'));
+            console.log(`✅ Transferência linha ${processedRow.rowNumber} salva com sucesso`);
 
-            if (isNaN(amount) || amount <= 0) {
-              errors.push(`Linha ${processedRow.rowNumber}: Valor inválido: ${row.Amount}`);
-              continue;
-            }
-
-            const cardData = {
-              date: row.Date,
-              category: row.Category,
-              description: row.Description || '',
-              amount: amount,
-              paymentMethod: row.PaymentMethod,
-              location: row.Location || '',
-              paid: row.Paid ? (row.Paid.toString().toLowerCase() === 'true' || row.Paid.toString().toLowerCase() === 'sim' || row.Paid.toString() === '1') : false,
-              isInstallment: row.IsInstallment ? (row.IsInstallment.toString().toLowerCase() === 'true' || row.IsInstallment.toString().toLowerCase() === 'sim' || row.IsInstallment.toString() === '1') : false,
-              installmentNumber: parseInt(row.InstallmentNumber) || undefined,
-              totalInstallments: parseInt(row.TotalInstallments) || undefined,
-              installmentGroup: row.InstallmentGroup || undefined,
-              isCreditCard: row.IsCreditCard ? (row.IsCreditCard.toString().toLowerCase() === 'true' || row.IsCreditCard.toString().toLowerCase() === 'sim' || row.IsCreditCard.toString() === '1') : false,
-              isRefund: row.IsRefund ? (row.IsRefund.toString().toLowerCase() === 'true' || row.IsRefund.toString().toLowerCase() === 'sim' || row.IsRefund.toString() === '1') : false,
-            };
-
-            await addCreditCard(cardData);
             successCount++;
           }
 
+          // Collect warnings from validation
           if (processedRow.status === 'warning') {
             warnings.push(...processedRow.messages.map(msg => `Linha ${processedRow.rowNumber}: ${msg}`));
           }
 
         } catch (error) {
+          console.error(`❌ Erro ao processar linha ${processedRow.rowNumber}:`, error);
           errors.push(`Linha ${processedRow.rowNumber}: Erro ao processar dados - ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
         }
 
+        // Update progress
         setImportProgress({ current: i + 1, total: validRows.length });
 
+        // Small delay to allow UI updates and prevent freezing
         if ((i + 1) % 10 === 0) {
           await new Promise(resolve => setTimeout(resolve, 50));
         }
       }
 
+      console.log('📊 Resultado final da importação:', {
+        successCount,
+        errorsCount: errors.length,
+        warningsCount: warnings.length,
+        totalProcessed: validRows.length
+      });
+
       setResults({ success: successCount, errors, warnings });
       setShowValidation(false);
     } catch (error) {
+      console.error('❌ Erro geral na importação:', error);
       errors.push(`Erro geral ao processar dados: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
       setResults({ success: 0, errors, warnings });
     }
@@ -466,6 +469,7 @@ const ImportCSV: React.FC<ImportCSVProps> = ({ onClose }) => {
   const warningRowsCount = validationResults.filter(row => row.status === 'warning').length;
   const successRowsCount = validationResults.filter(row => row.status === 'success').length;
 
+  // Filter validation results based on display filter
   const filteredValidationResults = displayFilter === 'all' 
     ? validationResults 
     : validationResults.filter(row => row.status === displayFilter);
@@ -490,6 +494,7 @@ const ImportCSV: React.FC<ImportCSVProps> = ({ onClose }) => {
 
         {!results && !showValidation ? (
           <>
+            {/* Type Selection */}
             <div className="mb-6">
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
                 Tipo de Dados
@@ -500,7 +505,7 @@ const ImportCSV: React.FC<ImportCSVProps> = ({ onClose }) => {
                     type="radio"
                     value="expenses"
                     checked={importType === 'expenses'}
-                    onChange={(e) => setImportType(e.target.value as 'expenses' | 'income' | 'transfers' | 'cards')}
+                    onChange={(e) => setImportType(e.target.value as 'expenses' | 'income' | 'transfers')}
                     className="mr-2"
                   />
                   Despesas
@@ -510,7 +515,7 @@ const ImportCSV: React.FC<ImportCSVProps> = ({ onClose }) => {
                     type="radio"
                     value="income"
                     checked={importType === 'income'}
-                    onChange={(e) => setImportType(e.target.value as 'expenses' | 'income' | 'transfers' | 'cards')}
+                    onChange={(e) => setImportType(e.target.value as 'expenses' | 'income' | 'transfers')}
                     className="mr-2"
                   />
                   Receitas
@@ -520,24 +525,15 @@ const ImportCSV: React.FC<ImportCSVProps> = ({ onClose }) => {
                     type="radio"
                     value="transfers"
                     checked={importType === 'transfers'}
-                    onChange={(e) => setImportType(e.target.value as 'expenses' | 'income' | 'transfers' | 'cards')}
+                    onChange={(e) => setImportType(e.target.value as 'expenses' | 'income' | 'transfers')}
                     className="mr-2"
                   />
                   Transferências
                 </label>
-                <label className="flex items-center">
-                  <input
-                    type="radio"
-                    value="cards"
-                    checked={importType === 'cards'}
-                    onChange={(e) => setImportType(e.target.value as 'expenses' | 'income' | 'transfers' | 'cards')}
-                    className="mr-2"
-                  />
-                  Cartões
-                </label>
               </div>
             </div>
 
+            {/* Template Download */}
             <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
               <div className="flex items-center justify-between">
                 <div>
@@ -550,9 +546,7 @@ const ImportCSV: React.FC<ImportCSVProps> = ({ onClose }) => {
                       ? 'Date,Category,Description,Amount,PaymentMethod,Location,Installments,InstallmentNumber,IsCreditCard'
                       : importType === 'income'
                       ? 'Date,Source,Amount,Notes,Location,Account'
-                      : importType === 'transfers'
-                      ? 'Date,Amount,FromAccount,ToAccount,Description (Opcional)'
-                      : 'Date,Category,Description,Amount,PaymentMethod,Location,Paid,IsInstallment,InstallmentNumber,TotalInstallments,InstallmentGroup,IsCreditCard,IsRefund'
+                      : 'Date,Amount,FromAccount,ToAccount,Description (Opcional)'
                     }
                   </p>
                 </div>
@@ -566,6 +560,7 @@ const ImportCSV: React.FC<ImportCSVProps> = ({ onClose }) => {
               </div>
             </div>
 
+            {/* Instructions */}
             <div className="mb-6 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
               <div className="flex items-start gap-2">
                 <Info className="w-5 h-5 text-amber-600 dark:text-amber-400 mt-0.5" />
@@ -590,6 +585,7 @@ const ImportCSV: React.FC<ImportCSVProps> = ({ onClose }) => {
               </div>
             </div>
 
+            {/* CSV Input */}
             <div className="mb-6">
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Cole seus dados CSV aqui:
@@ -598,10 +594,11 @@ const ImportCSV: React.FC<ImportCSVProps> = ({ onClose }) => {
                 value={csvData}
                 onChange={(e) => setCsvData(e.target.value)}
                 className="w-full h-40 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white font-mono text-sm"
-                placeholder={importType === 'expenses' ? expenseTemplate : importType === 'income' ? incomeTemplate : importType === 'transfers' ? transferTemplate : cardTemplate}
+                placeholder={importType === 'expenses' ? expenseTemplate : importType === 'income' ? incomeTemplate : transferTemplate}
               />
             </div>
 
+            {/* Actions */}
             <div className="flex gap-3">
               <button
                 onClick={onClose}
@@ -634,6 +631,7 @@ const ImportCSV: React.FC<ImportCSVProps> = ({ onClose }) => {
             </div>
           </>
         ) : showValidation ? (
+          /* Validation Results */
           <div className="space-y-4">
             <div className="text-center">
               <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/20 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -642,6 +640,7 @@ const ImportCSV: React.FC<ImportCSVProps> = ({ onClose }) => {
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Validação Concluída</h3>
             </div>
 
+            {/* Summary */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <button
                 onClick={() => setDisplayFilter(displayFilter === 'success' ? 'all' : 'success')}
@@ -705,6 +704,7 @@ const ImportCSV: React.FC<ImportCSVProps> = ({ onClose }) => {
               </button>
             </div>
 
+            {/* Filter indicator */}
             {displayFilter !== 'all' && (
               <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
                 <div className="flex items-center justify-between">
@@ -730,6 +730,7 @@ const ImportCSV: React.FC<ImportCSVProps> = ({ onClose }) => {
               </div>
             )}
 
+            {/* Validation Details */}
             <div className="max-h-60 overflow-y-auto border border-gray-200 dark:border-gray-600 rounded-lg">
               {filteredValidationResults.map((row, index) => (
                 <div key={index} className={`p-3 border-b border-gray-200 dark:border-gray-600 last:border-b-0 ${getStatusColor(row.status)}`}>
@@ -765,6 +766,7 @@ const ImportCSV: React.FC<ImportCSVProps> = ({ onClose }) => {
               </div>
             )}
 
+            {/* Import Progress */}
             {isProcessing && (
               <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
                 <div className="flex items-center justify-between mb-2">
@@ -787,6 +789,7 @@ const ImportCSV: React.FC<ImportCSVProps> = ({ onClose }) => {
               </div>
             )}
 
+            {/* Actions */}
             <div className="flex gap-3">
               <button
                 onClick={() => setShowValidation(false)}
@@ -819,6 +822,7 @@ const ImportCSV: React.FC<ImportCSVProps> = ({ onClose }) => {
             </div>
           </div>
         ) : (
+          /* Final Results */
           <div className="space-y-4">
             <div className="text-center">
               <div className="w-16 h-16 bg-green-100 dark:bg-green-900/20 rounded-full flex items-center justify-center mx-auto mb-4">
