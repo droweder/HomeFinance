@@ -112,8 +112,8 @@ const Dashboard: React.FC = () => {
   const creditCardAnalysis = useMemo(() => {
     const allInvoices = creditCards.reduce((acc, card) => {
       const transactionDate = new Date(`${card.date}T00:00:00`);
-      // Assumindo que a fatura vence no mês seguinte à transação
-      const invoiceDate = new Date(transactionDate.getFullYear(), transactionDate.getMonth() + 1, 1);
+      // A fatura agrupa transações que ocorreram no mesmo mês.
+      const invoiceDate = new Date(transactionDate.getFullYear(), transactionDate.getMonth(), 1);
       const monthKey = `${invoiceDate.getFullYear()}-${invoiceDate.getMonth()}`;
 
       if (!acc[monthKey]) {
@@ -148,11 +148,20 @@ const Dashboard: React.FC = () => {
     // Maior Fatura: De todas as faturas existentes.
     const largestInvoice = Object.values(allInvoices).reduce((max, inv) => {
       if (inv.total > max.amount) {
-        // Encontra o cartão com o maior gasto nessa fatura
-        const largestCardInInvoice = Object.entries(inv.cards).sort(([, a], [, b]) => b - a)[0];
+        const sortedCards = Object.entries(inv.cards).sort(([, a], [, b]) => b - a);
+        let cardName = 'Nenhum'; // Default if no cards
+        if (sortedCards.length > 0) {
+            const firstValidCard = sortedCards.find(([name]) => name !== 'Desconhecido');
+            if (firstValidCard) {
+                cardName = firstValidCard[0];
+            } else {
+                cardName = 'Múltiplos Cartões'; // Fallback if all are unknown
+            }
+        }
+
         return {
           amount: inv.total,
-          card: largestCardInInvoice ? largestCardInInvoice[0] : 'Múltiplos',
+          card: cardName,
           month: inv.month,
           year: inv.year
         };
