@@ -52,7 +52,7 @@ const Dashboard: React.FC = () => {
     const spending = {} as Record<string, number>;
     
     expenses.forEach(exp => {
-      const itemDate = new Date(exp.date);
+      const itemDate = new Date(`${exp.date}T00:00:00`);
       const monthKey = `${itemDate.getFullYear()}-${itemDate.getMonth()}`;
       spending[monthKey] = (spending[monthKey] || 0) + exp.amount;
     });
@@ -69,11 +69,11 @@ const Dashboard: React.FC = () => {
 
     // Total de receitas e despesas até o final do mês selecionado (sem filtros de transferência)
     const incomeUpToSelectedMonth = income
-      .filter(inc => new Date(inc.date) <= lastDayOfMonth)
+      .filter(inc => new Date(`${inc.date}T00:00:00`) <= lastDayOfMonth)
       .reduce((sum, inc) => sum + inc.amount, 0);
 
     const expensesUpToSelectedMonth = expenses
-      .filter(exp => new Date(exp.date) <= lastDayOfMonth)
+      .filter(exp => new Date(`${exp.date}T00:00:00`) <= lastDayOfMonth)
       .reduce((sum, exp) => sum + exp.amount, 0);
 
     // Saldo total é o saldo inicial mais tudo que entrou menos tudo que saiu. Transferências se anulam.
@@ -82,7 +82,7 @@ const Dashboard: React.FC = () => {
     // Receitas do Mês: Soma de todos os lançamentos em 'income' para o mês.
     const monthlyIncome = income
       .filter(inc => {
-        const incomeDate = new Date(inc.date);
+        const incomeDate = new Date(`${inc.date}T00:00:00`);
         return incomeDate.getMonth() === currentMonth &&
                incomeDate.getFullYear() === currentYear;
       })
@@ -91,7 +91,7 @@ const Dashboard: React.FC = () => {
     // Gastos do Mês: Soma de todos os lançamentos em 'expenses' para o mês.
     const totalMonthlySpending = expenses
       .filter(exp => {
-        const expenseDate = new Date(exp.date);
+        const expenseDate = new Date(`${exp.date}T00:00:00`);
         return expenseDate.getMonth() === currentMonth && 
                expenseDate.getFullYear() === currentYear;
       })
@@ -111,7 +111,7 @@ const Dashboard: React.FC = () => {
   // 2. SEÇÃO: Cartões de Crédito
   const creditCardAnalysis = useMemo(() => {
     const allInvoices = creditCards.reduce((acc, card) => {
-      const transactionDate = new Date(card.date);
+      const transactionDate = new Date(`${card.date}T00:00:00`);
       // Assumindo que a fatura vence no mês seguinte à transação
       const invoiceDate = new Date(transactionDate.getFullYear(), transactionDate.getMonth() + 1, 1);
       const monthKey = `${invoiceDate.getFullYear()}-${invoiceDate.getMonth()}`;
@@ -172,7 +172,7 @@ const Dashboard: React.FC = () => {
     // Top 5 categorias de despesa do mês
     const categorySpending = expenses
       .filter(item => {
-        const itemDate = new Date(item.date);
+        const itemDate = new Date(`${item.date}T00:00:00`);
         return itemDate.getMonth() === currentMonth &&
                itemDate.getFullYear() === currentYear;
       })
@@ -189,7 +189,7 @@ const Dashboard: React.FC = () => {
     // Maiores transações de despesa do mês
     const biggestTransactions = expenses
       .filter(item => {
-        const itemDate = new Date(item.date);
+        const itemDate = new Date(`${item.date}T00:00:00`);
         return itemDate.getMonth() === currentMonth &&
                itemDate.getFullYear() === currentYear;
       })
@@ -256,7 +256,7 @@ const Dashboard: React.FC = () => {
 
     // Parcelamentos ativos - detalhes completos
     const activeInstallmentsDetails = creditCards
-      .filter(cc => cc.isInstallment && new Date(cc.date) > now)
+      .filter(cc => cc.isInstallment && new Date(`${cc.date}T00:00:00`) > now)
       .reduce((acc, cc) => {
         const key = `${cc.description}_${cc.installmentGroup || 'no-group'}`;
         if (!acc[key]) {
