@@ -32,6 +32,28 @@ export interface CreditCardAdvance {
   expense_id?: string;
 }
 
+export interface CreditCard {
+  id: string;
+  date: string; // Stored in YYYY-MM-DD format
+  category: string;
+  description: string;
+  amount: number;
+  paymentMethod: string;
+  location?: string;
+  isInstallment?: boolean;
+  installmentNumber?: number;
+  totalInstallments?: number;
+  installmentGroup?: string;
+  paid?: boolean;
+  createdAt: string;
+  // Propriedades para agrupamento de parcelas
+  isGroupRepresentative?: boolean;
+  groupedExpenses?: CreditCard[];
+  totalGroupAmount?: number;
+  groupStartDate?: string;
+  groupEndDate?: string;
+}
+
 export interface Income {
   id: string;
   date: string; // Stored in YYYY-MM-DD format

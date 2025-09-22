@@ -113,10 +113,17 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
       console.warn('⚠️ formatCurrency: valor muito alto detectado:', amount);
     }
 
-    return new Intl.NumberFormat('pt-BR', {
+    const options: Intl.NumberFormatOptions = {
       style: 'currency',
       currency: 'BRL',
-    }).format(amount);
+    };
+
+    if (amount < 0) {
+      options.minimumFractionDigits = 3;
+      options.maximumFractionDigits = 3;
+    }
+
+    return new Intl.NumberFormat('pt-BR', options).format(amount);
   };
 
   const formatDate = (date: string): string => {
