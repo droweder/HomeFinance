@@ -18,7 +18,7 @@ const Settings: React.FC = () => {
   const { categories, deleteCategory, expenses, income, transfers } = useFinance();
   const { accounts, deleteAccount } = useAccounts();
   const { currentUser } = useAuth();
-  const { syncAllInvoicesToExpenses } = useCreditCard();
+  const { creditCards, syncAllInvoicesToExpenses } = useCreditCard();
   const { showApiKeySuccess, showSuccess, showError } = useToast();
   const { isOnline, syncStatus, lastSyncTime, connectionStatus, syncData } = useSupabaseSync();
   const [showCategoryForm, setShowCategoryForm] = useState(false);
@@ -479,6 +479,37 @@ const Settings: React.FC = () => {
         transferLink.download = `transferencias_${timestamp}.csv`;
         transferLink.click();
         URL.revokeObjectURL(transferUrl);
+      }
+
+      // Export Credit Cards
+      if (creditCards && creditCards.length > 0) {
+        const cardHeaders = ['Data', 'Categoria', 'Descrição', 'Valor', 'Método de Pagamento', 'Localização', 'Pago', 'Parcelado', 'Nº da Parcela', 'Total de Parcelas', 'Grupo da Parcela', 'É Cartão de Crédito', 'É Reembolso'];
+        const cardContent = [
+          cardHeaders.join(','),
+          ...creditCards.map(item => [
+            item.date,
+            `"${item.category || ''}"`,
+            `"${item.description || ''}"`,
+            item.amount.toString().replace('.', ','),
+            `"${item.paymentMethod || ''}"`,
+            `"${item.location || ''}"`,
+            `"${item.paid ? 'Sim' : 'Não'}"`,
+            `"${item.isInstallment ? 'Sim' : 'Não'}"`,
+            `"${item.installmentNumber || ''}"`,
+            `"${item.totalInstallments || ''}"`,
+            `"${item.installmentGroup || ''}"`,
+            `"${item.isCreditCard ? 'Sim' : 'Não'}"`,
+            `"${item.isRefund ? 'Sim' : 'Não'}"`,
+          ].join(','))
+        ].join('\n');
+
+        const cardBlob = new Blob(['\uFEFF' + cardContent], { type: 'text/csv;charset=utf-8;' });
+        const cardUrl = URL.createObjectURL(cardBlob);
+        const cardLink = document.createElement('a');
+        cardLink.href = cardUrl;
+        cardLink.download = `cartoes_${timestamp}.csv`;
+        cardLink.click();
+        URL.revokeObjectURL(cardUrl);
       }
 
       showSuccess('Exportação realizada', 'Dados exportados com sucesso!');
