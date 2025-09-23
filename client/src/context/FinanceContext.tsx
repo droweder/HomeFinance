@@ -159,9 +159,8 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
   // Track page visibility to prevent reload on tab changes
   useEffect(() => {
     const handleVisibilityChange = () => {
-      // Se a aba ficar visível e nenhum modal estiver aberto,
-      // atualiza a data da última interação para evitar recargas.
-      if (!document.hidden && !isModalOpen()) {
+      if (!document.hidden) {
+        // User returned to tab - update interaction time but don't reload
         setLastUserInteraction(Date.now());
         console.log('👁️ User returned to tab - preventing unnecessary reload');
       }
@@ -256,8 +255,12 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
 
       // Don't reload if user just switched tabs recently (within 10 seconds)
       const timeSinceInteraction = Date.now() - lastUserInteraction;
-      if (timeSinceInteraction < 10000 && !isInitialLoad && expenses.length > 0) {
-        console.log('⏸️ Recent tab switch detected - blocking reload to preserve user experience');
+      if ((timeSinceInteraction < 10000 || isModalOpen()) && !isInitialLoad && expenses.length > 0) {
+        if (isModalOpen()) {
+            console.log('🚫 Modal is open, blocking reload.');
+        } else {
+            console.log('⏸️ Recent tab switch detected - blocking reload to preserve user experience');
+        }
         createDataLock(); // Create lock
         return;
       }
