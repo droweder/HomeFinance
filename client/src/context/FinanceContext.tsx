@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthContext';
 import { withSupabaseRetry } from '../utils/supabaseRetry';
 import { storage } from '../utils/localStorage';
+import { isModalOpen } from '../utils/preventReloads';
 
 // Import Account type from types file
 import { Account } from '../types';
@@ -158,8 +159,9 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
   // Track page visibility to prevent reload on tab changes
   useEffect(() => {
     const handleVisibilityChange = () => {
-      if (!document.hidden) {
-        // User returned to tab - update interaction time but don't reload
+      // Se a aba ficar visível e nenhum modal estiver aberto,
+      // atualiza a data da última interação para evitar recargas.
+      if (!document.hidden && !isModalOpen()) {
         setLastUserInteraction(Date.now());
         console.log('👁️ User returned to tab - preventing unnecessary reload');
       }
