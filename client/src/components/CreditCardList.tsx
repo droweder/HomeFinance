@@ -7,12 +7,14 @@ import { CreditCard } from '../types/index';
 import CreditCardForm from './CreditCardForm';
 import ConfirmDialog from './ConfirmDialog';
 import { CreditCardAdvanceForm } from './CreditCardAdvanceForm';
+import CreditCardReconciliation from './CreditCardReconciliation';
 const CreditCardList: React.FC = () => {
   const { creditCards, deleteCreditCard } = useCreditCard();
   const { formatCurrency, formatDate, settings } = useSettings();
   const { showSuccess, showError } = useToast();
   const [showForm, setShowForm] = useState(false);
   const [showAdvanceForm, setShowAdvanceForm] = useState(false);
+  const [showReconciliationModal, setShowReconciliationModal] = useState(false);
   const [editingCreditCard, setEditingCreditCard] = useState<CreditCard | null>(null);
   const [refundData, setRefundData] = useState<Partial<CreditCard> | null>(null);
   const [showFilterModal, setShowFilterModal] = useState(false);
@@ -420,6 +422,13 @@ const CreditCardList: React.FC = () => {
                     Adicionar Antecipação
                   </button>
                   <button
+                    onClick={() => setShowReconciliationModal(true)}
+                    className="bg-yellow-500 text-white px-4 py-2 rounded-lg hover:bg-yellow-600 transition-colors flex items-center gap-2 shadow-sm"
+                  >
+                    <Search className="w-4 h-4" />
+                    Conciliação
+                  </button>
+                  <button
                     onClick={handleOpenFilterModal}
                     className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-2 shadow-sm"
                   >
@@ -620,6 +629,13 @@ const CreditCardList: React.FC = () => {
       <CreditCardAdvanceForm
         isOpen={showAdvanceForm}
         onClose={() => setShowAdvanceForm(false)}
+      />
+
+      <CreditCardReconciliation
+        isOpen={showReconciliationModal}
+        onClose={() => setShowReconciliationModal(false)}
+        filteredCards={filteredCards}
+        selectedMonth={selectedMonth}
       />
 
       <ConfirmDialog
