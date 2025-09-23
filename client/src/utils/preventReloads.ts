@@ -136,14 +136,3 @@ export function monitorReloadPatterns() {
     cleanup: reloadPrevention.cleanup
   };
 }
-
-// Função para verificar se existe algum modal aberto na tela.
-// A verificação é baseada na presença de um elemento com a classe 'z-50',
-// que é usada de forma consistente para todos os modais da aplicação.
-export const isModalOpen = (): boolean => {
-    // A classe 'z-50' é um indicador confiável de que um modal está ativo.
-    const modalElement = document.querySelector('.z-50');
-
-    // Retorna true se um elemento com a classe 'z-50' for encontrado.
-    return !!modalElement;
-  };

@@ -54,6 +54,7 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
   const [isLoading, setIsLoading] = useState(true);
   const [loadingError, setLoadingError] = useState<string | null>(null);
   const [isDataLoaded, setIsDataLoaded] = useState(false);
+  const [isCacheChecked, setIsCacheChecked] = useState(false);
   const [isLoadingHistorical, setIsLoadingHistorical] = useState(false);
   const [hasAllData, setHasAllData] = useState(false);
   
@@ -277,6 +278,7 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
         if (!isBackgroundRefresh) {
           setIsLoading(false);
         }
+        setIsCacheChecked(true); // Mark cache as checked even if fetch fails
       }
     };
 
@@ -295,6 +297,7 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
             setTransfers(data.transfers || []);
             setIsDataLoaded(true);
             setIsLoading(false);
+            setIsCacheChecked(true);
             return;
           }
           console.log('Cache expired, fetching new data...');
@@ -937,6 +940,29 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
     }
   };
 
+  // Show loading spinner until cache is checked and initial fetch is complete
+  if (!isCacheChecked || isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600 dark:text-gray-400">Carregando dados financeiros...</p>
+          {loadingError && (
+            <div className="mt-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg max-w-md mx-auto">
+              <p className="text-red-700 dark:text-red-400 text-sm">{loadingError}</p>
+              <button
+                onClick={() => window.location.reload()}
+                className="mt-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm"
+              >
+                Recarregar Página
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <FinanceContext.Provider
       value={{
@@ -965,32 +991,7 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
         isLoading,
       }}
     >
-      {isLoading ? (
-        <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center">
-          <div className="text-center">
-            <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-            <p className="text-gray-600 dark:text-gray-400">Carregando dados financeiros...</p>
-            <p className="text-gray-500 dark:text-gray-500 text-sm mt-2">
-              {expenses.length > 0 && `${expenses.length} despesas carregadas`}
-              {income.length > 0 && ` • ${income.length} receitas carregadas`}
-              {categories.length > 0 && ` • ${categories.length} categorias carregadas`}
-            </p>
-            {loadingError && (
-              <div className="mt-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg max-w-md mx-auto">
-                <p className="text-red-700 dark:text-red-400 text-sm">{loadingError}</p>
-                <button
-                  onClick={() => window.location.reload()}
-                  className="mt-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm"
-                >
-                  Recarregar Página
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      ) : (
-        children
-      )}
+      {children}
     </FinanceContext.Provider>
   );
 };
