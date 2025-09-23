@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Plus, Edit2, Trash2, Calendar, CreditCard as CreditCardIcon, Filter, Search, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useCreditCard } from '../context/CreditCardContext';
+import { useAccounts } from '../context/AccountContext';
 import { useSettings } from '../context/SettingsContext';
 import { useToast } from './ui/toast';
 import { CreditCard } from '../types/index';
@@ -10,6 +11,7 @@ import { CreditCardAdvanceForm } from './CreditCardAdvanceForm';
 import CreditCardReconciliation from './CreditCardReconciliation';
 const CreditCardList: React.FC = () => {
   const { creditCards, deleteCreditCard } = useCreditCard();
+  const { accounts } = useAccounts();
   const { formatCurrency, formatDate, settings } = useSettings();
   const { showSuccess, showError } = useToast();
   const [showForm, setShowForm] = useState(false);
@@ -17,6 +19,7 @@ const CreditCardList: React.FC = () => {
   const [showReconciliationModal, setShowReconciliationModal] = useState(false);
   const [editingCreditCard, setEditingCreditCard] = useState<CreditCard | null>(null);
   const [refundData, setRefundData] = useState<Partial<CreditCard> | null>(null);
+  const [initialCardData, setInitialCardData] = useState<Partial<CreditCard> | null>(null);
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [tempFilters, setTempFilters] = useState({
     category: '',
@@ -68,6 +71,14 @@ const CreditCardList: React.FC = () => {
     setRefundData(refundData);
     setEditingCreditCard(null);
     setShowForm(true);
+  };
+
+  const handleAddCardFromReconciliation = (cardData: Partial<CreditCard>) => {
+    setInitialCardData(cardData);
+    setEditingCreditCard(null);
+    setRefundData(null);
+    setShowForm(true);
+    setShowReconciliationModal(false); // Opcional: fechar o modal de conciliação
   };
 
   // Estado para filtros aplicados
@@ -620,8 +631,14 @@ const CreditCardList: React.FC = () => {
         <CreditCardForm
           creditCard={editingCreditCard}
           refundData={refundData}
-          onClose={handleCloseForm}
-          onSave={() => {}}
+          initialData={initialCardData}
+          onClose={() => {
+            handleCloseForm();
+            setInitialCardData(null);
+          }}
+          onSave={() => {
+            setInitialCardData(null);
+          }}
           onAddRefund={handleAddRefund}
         />
       )}
@@ -634,8 +651,11 @@ const CreditCardList: React.FC = () => {
       <CreditCardReconciliation
         isOpen={showReconciliationModal}
         onClose={() => setShowReconciliationModal(false)}
-        filteredCards={filteredCards}
+        creditCards={creditCards}
+        accounts={accounts}
+        availableMonths={availableMonths}
         selectedMonth={selectedMonth}
+        onAddExpense={handleAddCardFromReconciliation}
       />
 
       <ConfirmDialog

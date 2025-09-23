@@ -10,6 +10,7 @@ import type { CreditCard } from '../types/index';
 interface CreditCardFormProps {
   creditCard?: CreditCard | null;
   refundData?: Partial<CreditCard> | null;
+  initialData?: Partial<CreditCard> | null;
   onClose: () => void;
   onSave?: () => void;
   onAddRefund?: (refundData: Partial<CreditCard>) => void;
@@ -32,7 +33,7 @@ const formatDateForStorage = (dateStr: string) => {
   return dateStr;
 };
 
-const CreditCardForm: React.FC<CreditCardFormProps> = ({ creditCard, refundData, onClose, onSave, onAddRefund }) => {
+const CreditCardForm: React.FC<CreditCardFormProps> = ({ creditCard, refundData, initialData, onClose, onSave, onAddRefund }) => {
   const { addCreditCard, updateCreditCard } = useCreditCard();
   const { categories } = useFinance();
   const { accounts } = useAccounts();
@@ -110,8 +111,21 @@ const CreditCardForm: React.FC<CreditCardFormProps> = ({ creditCard, refundData,
         totalInstallments: 1,
         isRefund: true, // Marcar como extorno por padrão
       });
+    } else if (initialData) {
+      console.log('🔧 Carregando dados iniciais:', initialData);
+      setFormData({
+        date: formatDateForInput(initialData.date || getCurrentDateForInput()),
+        category: initialData.category || '',
+        amount: (initialData.amount || 0).toString().replace('.', ','),
+        account: initialData.paymentMethod || '',
+        description: initialData.description || '',
+        location: initialData.location || '',
+        isInstallment: false,
+        totalInstallments: 1,
+        isRefund: false,
+      });
     }
-  }, [creditCard, refundData]);
+  }, [creditCard, refundData, initialData]);
 
   const handleAmountChange = (value: string) => {
     // Remove tudo que não é número ou vírgula
