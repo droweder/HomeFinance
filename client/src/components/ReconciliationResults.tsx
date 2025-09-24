@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { X, AlertTriangle, CheckCircle, PlusCircle, Trash2, Plus, Eye, EyeOff } from 'lucide-react';
+import { X, AlertTriangle, CheckCircle, PlusCircle, Trash2, Banknote, FileWarning, FileCheck, Calendar, Wallet } from 'lucide-react';
 import type { CreditCard } from '../types/index';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -32,8 +32,6 @@ const ReconciliationResults: React.FC<ReconciliationResultsProps> = ({
   onAddExpense,
   onDeleteExpense,
 }) => {
-  const [filter, setFilter] = useState<'missingInApp' | 'missingInStatement' | 'matched' | 'all'>('missingInApp');
-
   const { matched, missingInApp, missingInStatement } = useMemo(() => {
     if (!isOpen) return { matched: [], missingInApp: [], missingInStatement: [] };
 
@@ -81,107 +79,152 @@ const ReconciliationResults: React.FC<ReconciliationResultsProps> = ({
     return null;
   }
 
-  const renderMissingInApp = () => (
-    <div className="bg-white dark:bg-gray-800 rounded-xl p-4 sm:p-6 border dark:border-gray-700">
-      <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-2">
-        Lançamentos na Fatura, mas não no App ({missingInApp.length})
-      </h3>
-      <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-        Estes são os lançamentos que constam na fatura mas não foram encontrados no aplicativo.
-      </p>
-      <div className="overflow-x-auto -mx-4 sm:-mx-6">
-        <table className="min-w-full text-left text-sm">
-          <thead className="bg-gray-50 dark:bg-gray-700/50">
-            <tr>
-              <th className="py-2 px-4 sm:px-6 text-left font-semibold text-gray-600 dark:text-gray-300">Data</th>
-              <th className="py-2 px-4 sm:px-6 text-left font-semibold text-gray-600 dark:text-gray-300">Descrição</th>
-              <th className="py-2 px-4 sm:px-6 text-right font-semibold text-gray-600 dark:text-gray-300">Valor</th>
-              <th className="py-2 px-4 sm:px-6 text-center font-semibold text-gray-600 dark:text-gray-300">Ações</th>
-            </tr>
-          </thead>
-          <tbody>
-            {missingInApp.map((t, i) => (
-              <tr key={`missing-app-${i}`} className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/40">
-                <td className="py-2 px-4 sm:px-6 whitespace-nowrap">{t.date}</td>
-                <td className="py-2 px-4 sm:px-6">{t.description}</td>
-                <td className="py-2 px-4 sm:px-6 text-right font-mono whitespace-nowrap">{t.amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
-                <td className="py-2 px-4 sm:px-6 text-center">
-                  <button onClick={() => handleAddClick(t)} className="text-blue-500 hover:text-blue-700 p-1">
-                    <PlusCircle className="w-5 h-5" />
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-
-  const renderMissingInStatement = () => (
-    <div className="bg-white dark:bg-gray-800 rounded-xl p-4 sm:p-6 border dark:border-gray-700">
-      <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-2">
-        Lançamentos no App, mas não na Fatura ({missingInStatement.length})
-      </h3>
-      <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-        Estes são os lançamentos registrados no aplicativo que não foram encontrados na fatura.
-      </p>
-      <div className="overflow-x-auto -mx-4 sm:-mx-6">
-        <table className="min-w-full text-left text-sm">
-          <thead className="bg-gray-50 dark:bg-gray-700/50">
-            <tr>
-              <th className="py-2 px-4 sm:px-6 text-left font-semibold text-gray-600 dark:text-gray-300">Data</th>
-              <th className="py-2 px-4 sm:px-6 text-left font-semibold text-gray-600 dark:text-gray-300">Descrição</th>
-              <th className="py-2 px-4 sm:px-6 text-right font-semibold text-gray-600 dark:text-gray-300">Valor</th>
-              <th className="py-2 px-4 sm:px-6 text-center font-semibold text-gray-600 dark:text-gray-300">Ações</th>
-            </tr>
-          </thead>
-          <tbody>
-            {missingInStatement.map((e, i) => (
-              <tr key={`missing-stmt-${i}`} className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/40">
-                <td className="py-2 px-4 sm:px-6 whitespace-nowrap">{format(new Date(e.date), 'dd/MM/yyyy', { locale: ptBR })}</td>
-                <td className="py-2 px-4 sm:px-6">{e.description}</td>
-                <td className="py-2 px-4 sm:px-6 text-right font-mono whitespace-nowrap">{e.amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
-                <td className="py-2 px-4 sm:px-6 text-center">
-                  {onDeleteExpense && (
-                    <button onClick={() => onDeleteExpense(e.id)} className="text-red-500 hover:text-red-700 p-1">
-                      <Trash2 className="w-5 h-5" />
-                    </button>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
+  const formattedReconMonth = useMemo(() => {
+    if (!reconMonth) return '';
+    const [year, month] = reconMonth.split('-');
+    return new Date(parseInt(year), parseInt(month) - 1).toLocaleDateString('pt-BR', {
+      month: 'long',
+      year: 'numeric',
+    });
+  }, [reconMonth]);
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50">
-      <div className="bg-gray-50 dark:bg-gray-900 rounded-xl w-full max-w-6xl max-h-[90vh] flex flex-col">
-        <div className="flex-shrink-0 flex items-center justify-between p-4 sm:p-6 border-b dark:border-gray-700">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+      <div className="bg-white dark:bg-gray-800 rounded-xl p-6 w-full max-w-5xl max-h-[90vh] flex flex-col">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-6">
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Resultado da Conciliação</h2>
-          <button onClick={onClose} className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-white rounded-full"><X className="w-5 h-5" /></button>
+          <button
+            onClick={onClose}
+            className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
 
-        <div className="flex-grow overflow-y-auto p-4 sm:p-6 space-y-6">
-          { /* Info Section - Removida para simplificar o layout */ }
+        {/* Summary Section */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+            <div className="flex items-center gap-3">
+              <Wallet className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+              <div>
+                <div className="text-blue-600 dark:text-blue-400 text-sm font-medium">Conta</div>
+                <div className="text-blue-700 dark:text-blue-300 text-lg font-bold">{reconAccount}</div>
+              </div>
+            </div>
+          </div>
+          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+            <div className="flex items-center gap-3">
+              <FileWarning className="w-6 h-6 text-red-600 dark:text-red-400" />
+              <div>
+                <div className="text-red-600 dark:text-red-400 text-sm font-medium">Na Fatura, não no App</div>
+                <div className="text-red-700 dark:text-red-300 text-lg font-bold">{missingInApp.length}</div>
+              </div>
+            </div>
+          </div>
+          <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+            <div className="flex items-center gap-3">
+              <FileCheck className="w-6 h-6 text-yellow-600 dark:text-yellow-400" />
+              <div>
+                <div className="text-yellow-600 dark:text-yellow-400 text-sm font-medium">No App, não na Fatura</div>
+                <div className="text-yellow-700 dark:text-yellow-300 text-lg font-bold">{missingInStatement.length}</div>
+              </div>
+            </div>
+          </div>
+        </div>
 
-          {missingInApp.length > 0 && renderMissingInApp()}
-          {missingInStatement.length > 0 && renderMissingInStatement()}
+        {/* Tables Container */}
+        <div className="flex-grow overflow-y-auto space-y-6">
+          {missingInApp.length > 0 && (
+            <div>
+              <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-2">
+                Lançamentos na Fatura, mas não no App
+              </h3>
+              <div className="bg-gray-50 dark:bg-gray-700 rounded-lg overflow-hidden">
+                <div className="max-h-64 overflow-y-auto">
+                  <table className="w-full">
+                    <thead className="bg-gray-100 dark:bg-gray-600 sticky top-0">
+                      <tr>
+                        <th className="text-left py-3 px-4 font-medium text-gray-900 dark:text-white">Data</th>
+                        <th className="text-left py-3 px-4 font-medium text-gray-900 dark:text-white">Descrição</th>
+                        <th className="text-right py-3 px-4 font-medium text-gray-900 dark:text-white">Valor</th>
+                        <th className="text-center py-3 px-4 font-medium text-gray-900 dark:text-white">Ação</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {missingInApp.map((t, i) => (
+                        <tr key={`missing-app-${i}`} className="border-b border-gray-200 dark:border-gray-600 hover:bg-white dark:hover:bg-gray-600">
+                          <td className="py-3 px-4 text-sm text-gray-700 dark:text-gray-300 whitespace-nowrap">{t.date}</td>
+                          <td className="py-3 px-4 text-sm text-gray-700 dark:text-gray-300">{t.description}</td>
+                          <td className="py-3 px-4 text-sm text-right font-mono text-red-600 dark:text-red-400 whitespace-nowrap">
+                            {t.amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                          </td>
+                          <td className="py-3 px-4 text-center">
+                            <button onClick={() => handleAddClick(t)} className="text-blue-500 hover:text-blue-700 p-1">
+                              <PlusCircle className="w-5 h-5" />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {missingInStatement.length > 0 && (
+            <div>
+              <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-2">
+                Lançamentos no App, mas não na Fatura
+              </h3>
+              <div className="bg-gray-50 dark:bg-gray-700 rounded-lg overflow-hidden">
+                <div className="max-h-64 overflow-y-auto">
+                  <table className="w-full">
+                    <thead className="bg-gray-100 dark:bg-gray-600 sticky top-0">
+                      <tr>
+                        <th className="text-left py-3 px-4 font-medium text-gray-900 dark:text-white">Data</th>
+                        <th className="text-left py-3 px-4 font-medium text-gray-900 dark:text-white">Descrição</th>
+                        <th className="text-right py-3 px-4 font-medium text-gray-900 dark:text-white">Valor</th>
+                        <th className="text-center py-3 px-4 font-medium text-gray-900 dark:text-white">Ação</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {missingInStatement.map((e, i) => (
+                        <tr key={`missing-stmt-${i}`} className="border-b border-gray-200 dark:border-gray-600 hover:bg-white dark:hover:bg-gray-600">
+                          <td className="py-3 px-4 text-sm text-gray-700 dark:text-gray-300 whitespace-nowrap">{format(new Date(e.date), 'dd/MM/yyyy', { locale: ptBR })}</td>
+                          <td className="py-3 px-4 text-sm text-gray-700 dark:text-gray-300">{e.description}</td>
+                          <td className="py-3 px-4 text-sm text-right font-mono text-yellow-600 dark:text-yellow-400 whitespace-nowrap">
+                            {e.amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                          </td>
+                          <td className="py-3 px-4 text-center">
+                            {onDeleteExpense && (
+                              <button onClick={() => onDeleteExpense(e.id)} className="text-red-500 hover:text-red-700 p-1">
+                                <Trash2 className="w-5 h-5" />
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
 
           {missingInApp.length === 0 && missingInStatement.length === 0 && (
-            <div className="text-center py-8 bg-white dark:bg-gray-800 rounded-lg border dark:border-gray-700">
-              <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-4" />
-              <h3 className="text-lg font-semibold dark:text-white">Tudo conciliado!</h3>
-              <p className="text-gray-600 dark:text-gray-400">Nenhuma divergência encontrada.</p>
+            <div className="text-center py-12 bg-gray-50 dark:bg-gray-700 rounded-lg">
+              <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
+              <h3 className="text-xl font-semibold text-gray-900 dark:text-white">Tudo conciliado!</h3>
+              <p className="text-gray-600 dark:text-gray-400 mt-2">Nenhuma divergência encontrada para {reconAccount} em {formattedReconMonth}.</p>
             </div>
           )}
         </div>
 
-        <div className="flex-shrink-0 flex justify-end p-4 sm:p-6 border-t dark:border-gray-700">
-          <button onClick={onClose} className="bg-gray-200 text-gray-800 px-6 py-2 rounded-lg hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600">
+        {/* Footer */}
+        <div className="flex-shrink-0 flex justify-end pt-6 mt-auto">
+          <button onClick={onClose} className="bg-gray-200 text-gray-800 px-6 py-2 rounded-lg hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 transition-colors">
             Fechar
           </button>
         </div>
