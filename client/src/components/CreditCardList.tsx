@@ -674,6 +674,7 @@ const CreditCardList: React.FC = () => {
           reconAccount={reconciliationData.reconAccount}
           parsedTransactions={reconciliationData.parsedTransactions}
           onAddExpense={handleAddCardFromReconciliation}
+          onDeleteExpense={deleteCreditCard}
         />
       )}
       <ConfirmDialog
