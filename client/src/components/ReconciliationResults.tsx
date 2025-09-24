@@ -90,7 +90,14 @@ const ReconciliationResults: React.FC<ReconciliationResultsProps> = ({
         Estes são os lançamentos que constam na fatura mas não foram encontrados no aplicativo.
       </p>
       <table className="w-full text-left text-sm">
-        {/* header */}
+        <thead className="bg-gray-50 dark:bg-gray-700/50">
+          <tr>
+            <th className="py-2 px-3 text-left font-semibold text-gray-600 dark:text-gray-300">Data</th>
+            <th className="py-2 px-3 text-left font-semibold text-gray-600 dark:text-gray-300">Descrição</th>
+            <th className="py-2 px-3 text-right font-semibold text-gray-600 dark:text-gray-300">Valor</th>
+            <th className="py-2 px-3 text-center font-semibold text-gray-600 dark:text-gray-300">Ações</th>
+          </tr>
+        </thead>
         <tbody>
           {missingInApp.map((t, i) => (
             <tr key={`missing-app-${i}`} className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50">
@@ -118,7 +125,14 @@ const ReconciliationResults: React.FC<ReconciliationResultsProps> = ({
         Estes são os lançamentos registrados no aplicativo que não foram encontrados na fatura.
       </p>
       <table className="w-full text-left text-sm">
-        {/* header */}
+        <thead className="bg-gray-50 dark:bg-gray-700/50">
+          <tr>
+            <th className="py-2 px-3 text-left font-semibold text-gray-600 dark:text-gray-300">Data</th>
+            <th className="py-2 px-3 text-left font-semibold text-gray-600 dark:text-gray-300">Descrição</th>
+            <th className="py-2 px-3 text-right font-semibold text-gray-600 dark:text-gray-300">Valor</th>
+            <th className="py-2 px-3 text-center font-semibold text-gray-600 dark:text-gray-300">Ações</th>
+          </tr>
+        </thead>
         <tbody>
           {missingInStatement.map((e, i) => (
             <tr key={`missing-stmt-${i}`} className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50">
@@ -147,7 +161,7 @@ const ReconciliationResults: React.FC<ReconciliationResultsProps> = ({
           <button onClick={onClose} className="p-2 text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
         </div>
 
-        <div className="flex-shrink-0 flex items-center justify-between mb-4 p-4 bg-gray-100 dark:bg-gray-700 rounded-lg">
+        <div className="flex-shrink-0 flex items-center justify-between mb-4 p-4 bg-gray-50 dark:bg-white/5 rounded-lg border border-gray-200 dark:border-gray-700">
            {/* Info Section */}
         </div>
 
