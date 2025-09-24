@@ -93,7 +93,7 @@ const ReconciliationResults: React.FC<ReconciliationResultsProps> = ({
         {/* header */}
         <tbody>
           {missingInApp.map((t, i) => (
-            <tr key={`missing-app-${i}`} className="border-b dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600/50">
+            <tr key={`missing-app-${i}`} className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50">
               <td className="py-2 px-3">{t.date}</td>
               <td className="py-2 px-3">{t.description}</td>
               <td className="py-2 px-3 text-right font-mono">{t.amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
@@ -121,7 +121,7 @@ const ReconciliationResults: React.FC<ReconciliationResultsProps> = ({
         {/* header */}
         <tbody>
           {missingInStatement.map((e, i) => (
-            <tr key={`missing-stmt-${i}`} className="border-b dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600/50">
+            <tr key={`missing-stmt-${i}`} className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50">
               <td className="py-2 px-3">{format(new Date(e.date), 'dd/MM/yyyy', { locale: ptBR })}</td>
               <td className="py-2 px-3">{e.description}</td>
               <td className="py-2 px-3 text-right font-mono">{e.amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
@@ -140,14 +140,14 @@ const ReconciliationResults: React.FC<ReconciliationResultsProps> = ({
   );
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center p-4 z-50">
-      <div className="bg-white dark:bg-gray-700 rounded-xl p-6 w-full max-w-6xl max-h-[90vh] flex flex-col">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+      <div className="bg-white dark:bg-gray-800 rounded-xl p-6 w-full max-w-6xl max-h-[90vh] flex flex-col">
         <div className="flex-shrink-0 flex items-center justify-between mb-4">
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Resultado da Conciliação</h2>
           <button onClick={onClose} className="p-2 text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
         </div>
 
-        <div className="flex-shrink-0 flex items-center justify-between mb-4 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+        <div className="flex-shrink-0 flex items-center justify-between mb-4 p-4 bg-gray-50 dark:bg-gray-900/50 rounded-lg">
            {/* Info Section */}
         </div>
 
@@ -164,7 +164,7 @@ const ReconciliationResults: React.FC<ReconciliationResultsProps> = ({
           )}
         </div>
 
-        <div className="flex-shrink-0 flex justify-end pt-6 mt-4 border-t dark:border-gray-600">
+        <div className="flex-shrink-0 flex justify-end pt-6 mt-4 border-t dark:border-gray-700">
           <button onClick={onClose} className="bg-gray-200 text-gray-800 px-6 py-2 rounded-lg hover:bg-gray-300">
             Fechar
           </button>
