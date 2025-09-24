@@ -147,7 +147,7 @@ const ReconciliationResults: React.FC<ReconciliationResultsProps> = ({
           <button onClick={onClose} className="p-2 text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
         </div>
 
-        <div className="flex-shrink-0 flex items-center justify-between mb-4 p-4 bg-gray-50 dark:bg-gray-900/50 rounded-lg">
+        <div className="flex-shrink-0 flex items-center justify-between mb-4 p-4 bg-gray-100 dark:bg-gray-700 rounded-lg">
            {/* Info Section */}
         </div>
 
