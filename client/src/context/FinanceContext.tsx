@@ -278,7 +278,7 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
         if (!isBackgroundRefresh) {
           setIsLoading(false);
         }
-        setIsCacheChecked(true); // Mark cache as checked even if fetch fails
+        setIsCacheChecked(true);
       }
     };
 
@@ -941,7 +941,7 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
   };
 
   // Show loading spinner until cache is checked and initial fetch is complete
-  if (!isCacheChecked || isLoading) {
+  if (!isCacheChecked) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center">
         <div className="text-center">
