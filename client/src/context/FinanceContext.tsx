@@ -51,13 +51,23 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
   const [income, setIncome] = useState<Income[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [transfers, setTransfers] = useState<Transfer[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [loadingError, setLoadingError] = useState<string | null>(null);
+  const [lastLoadTime, setLastLoadTime] = useState<number>(0);
   const [isDataLoaded, setIsDataLoaded] = useState(false);
-  const [isCacheChecked, setIsCacheChecked] = useState(false);
+  const [loadedUserId, setLoadedUserId] = useState<string | null>(null);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const [lastUserInteraction, setLastUserInteraction] = useState<number>(Date.now());
+  const [dataLoadingDisabled, setDataLoadingDisabled] = useState(false);
   const [isLoadingHistorical, setIsLoadingHistorical] = useState(false);
   const [hasAllData, setHasAllData] = useState(false);
   
+  // Global flag to prevent any data loading
+  const isLoadingBlocked = () => {
+    const hasData = expenses.length > 0 && income.length > 0 && categories.length > 0;
+    const isLoaded = isDataLoaded && loadedUserId === currentUser?.id;
+    return hasData && isLoaded && dataLoadingDisabled;
+  };
   // Persistent filters with localStorage
   const getDefaultFilters = (): FilterState => ({
     expenses: {
@@ -145,52 +155,168 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
     return getDefaultFilters();
   });
 
+  // Track page visibility to prevent reload on tab changes
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        // User returned to tab - update interaction time but don't reload
+        setLastUserInteraction(Date.now());
+        console.log('👁️ User returned to tab - preventing unnecessary reload');
+      }
+    };
+
+    const handleUserInteraction = () => {
+      setLastUserInteraction(Date.now());
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    document.addEventListener('click', handleUserInteraction);
+    document.addEventListener('keydown', handleUserInteraction);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      document.removeEventListener('click', handleUserInteraction);
+      document.removeEventListener('keydown', handleUserInteraction);
+    };
+  }, []);
+
   // Memoize current user ID to prevent unnecessary effect triggers
   const currentUserId = useMemo(() => currentUser?.id || null, [currentUser?.id]);
   
-  // Load data from Supabase or cache
+  // Load data from Supabase when user is authenticated (only when necessary)
   useEffect(() => {
-    if (!currentUser) {
-      setExpenses([]);
-      setIncome([]);
-      setCategories([]);
-      setTransfers([]);
-      setIsDataLoaded(false);
-      setIsLoading(false);
+    console.log('🔄 useEffect triggered', {
+      currentUserId,
+      dataLoadingDisabled,
+      isDataLoaded,
+      loadedUserId,
+      expensesCount: expenses.length
+    });
+
+    // FIRST CHECK: If data loading is disabled, exit immediately
+    if (dataLoadingDisabled) {
+      console.log('🚫 DATA LOADING PERMANENTLY DISABLED - useEffect blocked');
       return;
     }
 
-    const CACHE_KEY = `finance_cache_${currentUser.id}`;
-    const CACHE_EXPIRY = 5 * 60 * 1000; // 5 minutes
+    let loadTimeout: NodeJS.Timeout;
 
-    const fetchData = async (isBackgroundRefresh = false) => {
-      if (!isBackgroundRefresh) {
-        setIsLoading(true);
+    const fetchData = async () => {
+      // DOUBLE CHECK: If data loading is disabled, don't load anything
+      if (dataLoadingDisabled) {
+        console.log('🚫 DATA LOADING PERMANENTLY DISABLED - fetchData blocked');
+        return;
       }
-      console.log(isBackgroundRefresh ? '🔄 Performing background data refresh...' : '🔄 Loading financial data for user...');
+
+      if (!currentUser) {
+        // Only clear data if we actually had data before
+        if (isDataLoaded) {
+          console.log('⚠️ User logged out - clearing data');
+          setExpenses([]);
+          setIncome([]);
+          setCategories([]);
+          setTransfers([]);
+          setIsDataLoaded(false);
+          setLoadedUserId(null);
+          setDataLoadingDisabled(false); // Re-enable for next user
+          localStorage.removeItem('finance-data-user-id');
+          // Clear data lock on logout
+          if (currentUser) {
+            localStorage.removeItem(`finance-data-lock-${currentUser.id}`);
+            console.log('🔓 Data lock cleared on logout');
+          }
+        }
+        setIsLoading(false);
+        setLoadingError(null);
+        return;
+      }
+
+      // ABSOLUTE BLOCK: Check data lock first (but only if data was actually loaded)
+      if (isDataLoaded && expenses.length > 0 && isDataLocked()) {
+        console.log('🔒 DATA LOCKED - Absolutely no reload allowed');
+        return;
+      }
+
+      // Check if data is already loaded for this user (STRICT CHECK)
+      const storedUserId = localStorage.getItem('finance-data-user-id');
+      if (storedUserId === currentUser.id && loadedUserId === currentUser.id && expenses.length > 0) {
+        console.log('🛡️ Data already loaded and cached for user:', currentUser.email || currentUser.username, '- BLOCKED reload');
+        createDataLock(); // Create lock to prevent future reloads
+        return;
+      }
+
+      // For subsequent loads after initial, be more restrictive
+      if (!isInitialLoad && isDataLoaded && storedUserId === currentUser.id && expenses.length > 0) {
+        console.log('🛡️ Blocking subsequent reload - data already exists');
+        createDataLock(); // Create lock
+        return;
+      }
+
+      // Don't reload if user just switched tabs recently (within 10 seconds)
+      const timeSinceInteraction = Date.now() - lastUserInteraction;
+      if (timeSinceInteraction < 10000 && !isInitialLoad && expenses.length > 0) {
+        console.log('⏸️ Recent tab switch detected - blocking reload to preserve user experience');
+        createDataLock(); // Create lock
+        return;
+      }
+
+      // Prevent rapid successive loads
+      const now = Date.now();
+      if (isLoading) {
+        console.log('⏸️ Already loading, skipping duplicate request');
+        return;
+      }
+
+      // Debounce: prevent loading if less than 5 seconds since last load (increased)
+      if (now - lastLoadTime < 5000) {
+        console.log('⏸️ Debouncing: skipping load (too soon since last load)');
+        return;
+      }
 
       try {
+        // FINAL BLOCK: Check global loading block
+        if (isLoadingBlocked()) {
+          console.log('🔒 GLOBAL BLOCK: Data already loaded, preventing reload');
+          return;
+        }
+
+        console.log('🔄 Loading financial data for user:', currentUser.username);
+        setIsLoading(true);
+        setLoadingError(null);
+
         // Load categories
+        console.log('📂 Loading categories...');
         const { data: categoriesData, error: categoriesError } = await withSupabaseRetry(() =>
           supabase
             .from('categories')
             .select('*')
             .eq('user_id', currentUser.id)
+            .limit(5000) // Increase limit for categories as well
             .order('created_at', { ascending: true })
         );
-        if (categoriesError) throw categoriesError;
-        const mappedCategories: Category[] = categoriesData.map(cat => ({
-          id: cat.id,
-          name: cat.name,
-          type: cat.type as 'income' | 'expense',
-          createdAt: cat.created_at,
-        }));
 
-        // Load ALL expenses with pagination
+        if (categoriesError) {
+          console.error('❌ Error loading categories:', categoriesError);
+          setLoadingError(`Error loading categories: ${categoriesError.message}`);
+          throw categoriesError;
+        } else {
+          const mappedCategories: Category[] = categoriesData.map(cat => ({
+            id: cat.id,
+            name: cat.name,
+            type: cat.type as 'income' | 'expense',
+            createdAt: cat.created_at,
+          }));
+          setCategories(mappedCategories);
+          console.log('✅ Categories loaded:', mappedCategories.length);
+        }
+
+        // Load ALL expenses - use pagination to ensure we get all records
+        console.log('💳 Loading ALL expenses...');
         let allExpenses: any[] = [];
         let hasMore = true;
         let offset = 0;
         const batchSize = 1000;
+
         while (hasMore) {
           const { data: batchData, error: batchError } = await withSupabaseRetry(() =>
             supabase
@@ -200,16 +326,35 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
               .order('created_at', { ascending: false })
               .range(offset, offset + batchSize - 1)
           );
-          if (batchError) throw batchError;
+
+          if (batchError) {
+            console.error('❌ Error loading expenses batch:', batchError);
+            throw batchError;
+          }
+
           if (batchData && batchData.length > 0) {
             allExpenses = [...allExpenses, ...batchData];
             offset += batchSize;
-            if (batchData.length < batchSize) hasMore = false;
+            console.log(`📦 Loaded batch: ${batchData.length} expenses (total: ${allExpenses.length})`);
+
+            if (batchData.length < batchSize) {
+              hasMore = false;
+            }
           } else {
             hasMore = false;
           }
         }
-        const mappedExpenses: Expense[] = allExpenses.map(exp => ({
+
+        const expensesData = allExpenses;
+        const expensesError = null;
+
+        if (expensesError) {
+          console.error('❌ Error loading expenses:', expensesError);
+          setLoadingError(`Error loading expenses: ${expensesError.message}`);
+          throw expensesError;
+        }
+
+        const mappedExpenses: Expense[] = (expensesData || []).map(exp => ({
           id: exp.id,
           date: exp.date,
           category: exp.category,
@@ -222,99 +367,145 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
           installmentNumber: exp.installment_number,
           totalInstallments: exp.total_installments,
           installmentGroup: exp.installment_group,
+          // Removido dueDate - usando apenas date
           isCreditCard: exp.is_credit_card,
           createdAt: exp.created_at,
         }));
+        setExpenses(mappedExpenses);
+        console.log(`✅ ALL Expenses loaded: ${mappedExpenses.length}`);
+
+        if (mappedExpenses.length < 3000) {
+          console.warn(`⚠️ Loaded fewer expenses than expected! Got ${mappedExpenses.length}, expected 3500+`);
+        }
 
         // Load ALL income
+        console.log('💰 Loading ALL income...');
         const { data: incomeData, error: incomeError } = await withSupabaseRetry(() =>
-          supabase.from('income').select('*').eq('user_id', currentUser.id).order('created_at', { ascending: false }).limit(10000)
+          supabase
+            .from('income')
+            .select('*')
+            .eq('user_id', currentUser.id)
+            .order('created_at', { ascending: false })
+            .limit(10000)
         );
-        if (incomeError) throw incomeError;
-        const mappedIncome: Income[] = incomeData.map(inc => ({
-          id: inc.id,
-          date: inc.date,
-          source: inc.source,
-          amount: parseFloat(inc.amount.toString()),
-          notes: inc.notes,
-          location: inc.location,
-          account: inc.account,
-          createdAt: inc.created_at,
-        }));
+
+        if (incomeError) {
+          console.error('❌ Error loading income:', incomeError);
+          setLoadingError(`Error loading income: ${incomeError.message}`);
+          throw incomeError;
+        } else {
+          const mappedIncome: Income[] = incomeData.map(inc => ({
+            id: inc.id,
+            date: inc.date,
+            source: inc.source,
+            amount: parseFloat(inc.amount.toString()),
+            notes: inc.notes,
+            location: inc.location,
+            account: inc.account,
+            createdAt: inc.created_at,
+          }));
+          setIncome(mappedIncome);
+          console.log('✅ Income loaded:', mappedIncome.length);
+        }
 
         // Load ALL transfers
-        const { data: transfersData, error: transfersError } = await withSupabaseRetry(() =>
-            supabase.from('transfers').select('*').eq('user_id', currentUser.id).order('created_at', { ascending: false }).limit(10000)
-        );
-        if (transfersError && transfersError.code !== '42P01') throw transfersError; // Ignore if table doesn't exist
-        const mappedTransfers: Transfer[] = (transfersData || []).map(trans => ({
-            id: trans.id.toString(),
-            date: trans.date,
-            amount: parseFloat(trans.amount.toString()),
-            fromAccount: trans.from_account,
-            toAccount: trans.to_account,
-            description: trans.description,
-            createdAt: trans.created_at,
-            userId: trans.user_id,
-        }));
+        console.log('🔄 Loading ALL transfers...');
+        try {
+          const { data: transfersData, error: transfersError } = await withSupabaseRetry(() =>
+            supabase
+              .from('transfers')
+              .select('*')
+              .eq('user_id', currentUser.id)
+              .order('created_at', { ascending: false })
+              .limit(10000)
+          );
 
-        // Set state with new data
-        setExpenses(mappedExpenses);
-        setIncome(mappedIncome);
-        setCategories(mappedCategories);
-        setTransfers(mappedTransfers);
+          if (transfersError) {
+            if (transfersError.code === '42P01') {
+              console.log('⚠️ Transfers table does not exist yet - skipping transfer loading');
+              setTransfers([]);
+            } else {
+              console.error('❌ Error loading transfers:', transfersError);
+              setLoadingError(`Error loading transfers: ${transfersError.message}`);
+              throw transfersError;
+            }
+          } else {
+            const mappedTransfers: Transfer[] = (transfersData || []).map(trans => ({
+              id: trans.id.toString(),
+              date: trans.date,
+              amount: parseFloat(trans.amount.toString()),
+              fromAccount: trans.from_account,
+              toAccount: trans.to_account,
+              description: trans.description,
+              createdAt: trans.created_at,
+              userId: trans.user_id,
+            }));
+            setTransfers(mappedTransfers);
+            console.log('✅ Transfers loaded:', mappedTransfers.length);
+          }
+        } catch (transferError) {
+          console.log('⚠️ Transfer loading failed - table may not exist yet');
+          setTransfers([]);
+        }
+
+        console.log('🎉 All financial data loaded successfully!');
         setIsDataLoaded(true);
+        setLastLoadTime(Date.now());
+        setLoadedUserId(currentUser.id);
+        setIsInitialLoad(false);
 
-        // Save new data to cache
-        const newData = { expenses: mappedExpenses, income: mappedIncome, categories: mappedCategories, transfers: mappedTransfers };
-        localStorage.setItem(CACHE_KEY, JSON.stringify({ data: newData, timestamp: Date.now() }));
-        console.log('✅ Data fetched and cache updated');
+        // PERMANENTLY DISABLE data loading for this session
+        setDataLoadingDisabled(true);
+        console.log('🔒 DATA LOADING PERMANENTLY DISABLED for session');
 
+        // Save user ID to prevent unnecessary reloads
+        localStorage.setItem('finance-data-user-id', currentUser.id);
+
+        // Create data lock to absolutely prevent future reloads
+        createDataLock();
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
         console.error('❌ Critical error loading data:', error);
         setLoadingError(`Loading failed: ${errorMessage}`);
+        // Clear data on error to avoid inconsistent state
+        setExpenses([]);
+        setIncome([]);
+        setCategories([]);
+        setTransfers([]);
       } finally {
-        if (!isBackgroundRefresh) {
-          setIsLoading(false);
-        }
-        setIsCacheChecked(true);
+        setIsLoading(false);
       }
     };
 
-    const loadData = () => {
-      const cachedData = localStorage.getItem(CACHE_KEY);
-      const now = Date.now();
+    // Only execute if we have a user and haven't loaded data for this user yet
+    if (currentUserId && (!loadedUserId || loadedUserId !== currentUserId || !isDataLoaded)) {
+      console.log('✅ Conditions met for data loading', {
+        hasUserId: !!currentUserId,
+        loadedUserId,
+        isDataLoaded,
+        dataLoadingDisabled
+      });
 
-      if (cachedData) {
-        try {
-          const { data, timestamp } = JSON.parse(cachedData);
-          if (now - timestamp < CACHE_EXPIRY) {
-            console.log('✅ Loading data from valid cache');
-            setExpenses(data.expenses || []);
-            setIncome(data.income || []);
-            setCategories(data.categories || []);
-            setTransfers(data.transfers || []);
-            setIsDataLoaded(true);
-            setIsLoading(false);
-            setIsCacheChecked(true);
-            return;
-          }
-          console.log('Cache expired, fetching new data...');
-        } catch (e) {
-          console.warn('Invalid cache, fetching new data...');
-        }
+      // Debounce loading to prevent rapid successive calls when tab switching
+      loadTimeout = setTimeout(() => {
+        fetchData();
+      }, 100);
+    } else {
+      console.log('⏸️ Skipping data load - conditions not met', {
+        hasUserId: !!currentUserId,
+        loadedUserId,
+        currentUserId,
+        isDataLoaded,
+        dataLoadingDisabled
+      });
+    }
+
+    return () => {
+      if (loadTimeout) {
+        clearTimeout(loadTimeout);
       }
-      fetchData();
     };
-
-    loadData();
-
-    // Set up silent refresh
-    const intervalId = setInterval(() => fetchData(true), CACHE_EXPIRY);
-    return () => clearInterval(intervalId);
-
-  }, [currentUserId]);
+  }, [currentUserId, dataLoadingDisabled]); // Include dataLoadingDisabled in dependencies
 
   const addExpense = async (expense: Omit<Expense, 'id' | 'createdAt'>): Promise<Expense> => {
     if (!currentUser) {
@@ -940,28 +1131,33 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
     }
   };
 
-  // Show loading spinner until cache is checked and initial fetch is complete
-  if (!isCacheChecked) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600 dark:text-gray-400">Carregando dados financeiros...</p>
-          {loadingError && (
-            <div className="mt-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg max-w-md mx-auto">
-              <p className="text-red-700 dark:text-red-400 text-sm">{loadingError}</p>
-              <button
-                onClick={() => window.location.reload()}
-                className="mt-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm"
-              >
-                Recarregar Página
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  }
+  // Create a data lock system to absolutely prevent reloads after successful load
+  const createDataLock = () => {
+    if (currentUser) {
+      const lockKey = `finance-data-lock-${currentUser.id}`;
+      localStorage.setItem(lockKey, Date.now().toString());
+      console.log('🔒 Data lock created for user:', currentUser.email || currentUser.username);
+    }
+  };
+
+  const isDataLocked = () => {
+    if (!currentUser || !isDataLoaded) return false;
+    const lockKey = `finance-data-lock-${currentUser.id}`;
+    const lockTime = localStorage.getItem(lockKey);
+
+    if (lockTime) {
+      const timeSinceLock = Date.now() - parseInt(lockTime);
+      // Lock expires after 30 minutes to allow eventual refresh
+      if (timeSinceLock < 30 * 60 * 1000) {
+        return true;
+      } else {
+        // Remove expired lock
+        localStorage.removeItem(lockKey);
+        console.log('🔓 Expired data lock removed');
+      }
+    }
+    return false;
+  };
 
   return (
     <FinanceContext.Provider
@@ -991,7 +1187,32 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
         isLoading,
       }}
     >
-      {children}
+      {isLoading ? (
+        <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center">
+          <div className="text-center">
+            <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <p className="text-gray-600 dark:text-gray-400">Carregando dados financeiros...</p>
+            <p className="text-gray-500 dark:text-gray-500 text-sm mt-2">
+              {expenses.length > 0 && `${expenses.length} despesas carregadas`}
+              {income.length > 0 && ` • ${income.length} receitas carregadas`}
+              {categories.length > 0 && ` • ${categories.length} categorias carregadas`}
+            </p>
+            {loadingError && (
+              <div className="mt-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg max-w-md mx-auto">
+                <p className="text-red-700 dark:text-red-400 text-sm">{loadingError}</p>
+                <button
+                  onClick={() => window.location.reload()}
+                  className="mt-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm"
+                >
+                  Recarregar Página
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      ) : (
+        children
+      )}
     </FinanceContext.Provider>
   );
 };
