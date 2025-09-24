@@ -50,10 +50,7 @@ const ReconciliationResults: React.FC<ReconciliationResultsProps> = ({
       const appExpenseIndex = notFoundInStatement.findIndex(ae => {
         const statementAmount = Math.abs(st.amount);
         const appAmount = Math.abs(ae.amount);
-        const amountMatches = Math.abs(statementAmount - appAmount) < 0.01;
-        const descriptionMatches = ae.description.toLowerCase().includes(st.description.toLowerCase()) ||
-                                   st.description.toLowerCase().includes(ae.description.toLowerCase());
-        return amountMatches && descriptionMatches;
+        return Math.abs(statementAmount - appAmount) < 0.01;
       });
 
       if (appExpenseIndex !== -1) {
@@ -143,7 +140,7 @@ const ReconciliationResults: React.FC<ReconciliationResultsProps> = ({
   );
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+    <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center p-4 z-50">
       <div className="bg-white dark:bg-gray-800 rounded-xl p-6 w-full max-w-6xl max-h-[90vh] flex flex-col">
         <div className="flex-shrink-0 flex items-center justify-between mb-4">
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Resultado da Conciliação</h2>
