@@ -75,36 +75,27 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     checkSession();
 
-    // Listen for auth state changes (with redundancy prevention)
+    // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        console.log('🔄 Mudança de autenticação:', event);
+      (event, session) => {
+        console.log('🔄 Auth event:', event);
         setAuthError(null);
-        
-        if (session && session.user) {
-          // Only update if user actually changed
-          const newUserId = session.user.id;
-          const currentUserId = currentUser?.id;
-          
-          if (currentUserId !== newUserId) {
-            console.log('✅ Usuário logado:', session.user.email);
-            const user: User = {
-              id: session.user.id,
-              username: session.user.email || '',
-              password: '',
-              isAdmin: session.user.email === 'droweder@gmail.com',
-              createdAt: session.user.created_at || new Date().toISOString(),
-            };
-            
-            setCurrentUser(user);
-            setAuthToken(session.access_token);
-          } else {
-            console.log('👤 Mesmo usuário detectado - evitando recriação desnecessária');
-          }
-        } else if (currentUser) {
-          console.log('❌ Usuário deslogado');
+
+        if (event === 'SIGNED_OUT') {
           setCurrentUser(null);
           setAuthToken(null);
+          console.log('❌ User signed out');
+        } else if (session?.user) {
+          console.log('✅ User session active:', session.user.email);
+          const user: User = {
+            id: session.user.id,
+            username: session.user.email || '',
+            password: '',
+            isAdmin: session.user.email === 'droweder@gmail.com',
+            createdAt: session.user.created_at || new Date().toISOString(),
+          };
+          setCurrentUser(user);
+          setAuthToken(session.access_token);
         }
       }
     );
