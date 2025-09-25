@@ -197,8 +197,11 @@ const Dashboard: React.FC = () => {
 
   // 3. SEÇÃO: Análises Inteligentes
   const intelligentAnalysis = useMemo(() => {
+    // Combina despesas e gastos do cartão de crédito para a análise de categorias
+    const allSpending = [...expenses, ...creditCards];
+
     // Top 5 categorias de despesa do mês
-    const categorySpending = expenses
+    const categorySpending = allSpending
       .filter(item => {
         const itemDate = parseDate(item.date);
         return itemDate.getMonth() === currentMonth &&
@@ -210,8 +213,8 @@ const Dashboard: React.FC = () => {
         return acc;
       }, {} as Record<string, number>);
 
-    const topCategories = Object.entries(categorySpending)
-      .sort(([,a], [,b]) => b - a)
+    const topCategories = (Object.entries(categorySpending) as [string, number][])
+      .sort(([, a], [, b]) => b - a)
       .slice(0, 5);
 
     // Maiores transações de despesa do mês
@@ -273,7 +276,7 @@ const Dashboard: React.FC = () => {
       minSpendingMonth,
       avgLast6Months
     };
-  }, [expenses, income, transfers, currentMonth, currentYear, financialOverview.totalMonthlySpending, allMonthsSpending, allMonthsIncome]);
+  }, [expenses, creditCards, income, transfers, currentMonth, currentYear, financialOverview.totalMonthlySpending, allMonthsSpending, allMonthsIncome]);
 
   // 4. SEÇÃO: Alertas e Tendências
   const alertsAndTrends = useMemo(() => {
