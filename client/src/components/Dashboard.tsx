@@ -68,6 +68,19 @@ const Dashboard: React.FC = () => {
     return spending;
   }, [expenses]);
 
+  // Calcula todas as receitas mensais para análises de tendência
+  const allMonthsIncome = useMemo(() => {
+    const incomeByMonth = {} as Record<string, number>;
+
+    income.forEach(inc => {
+      const itemDate = parseDate(inc.date);
+      const monthKey = `${itemDate.getFullYear()}-${itemDate.getMonth()}`;
+      incomeByMonth[monthKey] = (incomeByMonth[monthKey] || 0) + inc.amount;
+    });
+
+    return incomeByMonth;
+  }, [income]);
+
   // 1. SEÇÃO: Visão Geral Financeira
   const financialOverview = useMemo(() => {
     const lastDayOfMonth = new Date(currentYear, currentMonth + 1, 0);
@@ -226,27 +239,29 @@ const Dashboard: React.FC = () => {
 
       const monthName = date.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' });
       const spending = allMonthsSpending[monthKey] || 0;
+      const incomeValue = allMonthsIncome[monthKey] || 0;
 
       last6Months.push({
         name: monthName,
-        value: spending,
+        spending: spending,
+        income: incomeValue,
         isCurrentMonth: month === currentMonth && year === currentYear
       });
     }
 
-    // Tendência geral (comparando primeiro com último mês da série)
-    const firstMonthSpending = last6Months[0]?.value || 0;
-    const lastMonthSpending = last6Months[last6Months.length - 1]?.value || 0;
+    // Tendência geral de gastos (comparando primeiro com último mês da série)
+    const firstMonthSpending = last6Months[0]?.spending || 0;
+    const lastMonthSpending = last6Months[last6Months.length - 1]?.spending || 0;
     const overallTrend = firstMonthSpending > 0
       ? ((lastMonthSpending - firstMonthSpending) / firstMonthSpending) * 100
       : 0;
 
     // Mês com maior e menor gasto
-    const maxSpendingMonth = last6Months.reduce((max, month) => month.value > max.value ? month : max, last6Months[0] || { name: '', value: 0 });
-    const minSpendingMonth = last6Months.reduce((min, month) => month.value < min.value && month.value > 0 ? month : min, last6Months[0] || { name: '', value: Infinity });
+    const maxSpendingMonth = last6Months.reduce((max, month) => month.spending > max.spending ? month : max, last6Months[0] || { name: '', spending: 0 });
+    const minSpendingMonth = last6Months.reduce((min, month) => month.spending < min.spending && month.spending > 0 ? month : min, last6Months[0] || { name: '', spending: Infinity });
 
-    // Média dos últimos 6 meses
-    const avgLast6Months = last6Months.reduce((sum, month) => sum + month.value, 0) / last6Months.length;
+    // Média de gastos dos últimos 6 meses
+    const avgLast6Months = last6Months.reduce((sum, month) => sum + month.spending, 0) / last6Months.length;
 
     return {
       topCategories,
@@ -258,7 +273,7 @@ const Dashboard: React.FC = () => {
       minSpendingMonth,
       avgLast6Months
     };
-  }, [expenses, income, transfers, currentMonth, currentYear, financialOverview.totalMonthlySpending, allMonthsSpending]);
+  }, [expenses, income, transfers, currentMonth, currentYear, financialOverview.totalMonthlySpending, allMonthsSpending, allMonthsIncome]);
 
   // 4. SEÇÃO: Alertas e Tendências
   const alertsAndTrends = useMemo(() => {
@@ -567,27 +582,50 @@ const Dashboard: React.FC = () => {
                   Evolução dos Últimos 6 Meses
                 </h3>
 
-                {/* Gráfico de barras simples */}
-                <div className="space-y-3 mb-6">
+                {/* Gráfico de barras horizontal */}
+                <div className="space-y-4 mb-6">
                   {intelligentAnalysis.last6Months.map((month: any, index: number) => {
-                    const maxValue = Math.max(...intelligentAnalysis.last6Months.map((m: any) => m.value));
-                    const percentage = maxValue > 0 ? (month.value / maxValue) * 100 : 0;
+                    const maxAbsValue = Math.max(
+                      ...intelligentAnalysis.last6Months.map((m: any) => m.income),
+                      ...intelligentAnalysis.last6Months.map((m: any) => m.spending)
+                    );
+                    const incomePercentage = maxAbsValue > 0 ? (month.income / maxAbsValue) * 100 : 0;
+                    const spendingPercentage = maxAbsValue > 0 ? (month.spending / maxAbsValue) * 100 : 0;
 
                     return (
-                      <div key={index} className="flex items-center py-1">
-                        <div className="w-12 text-xs text-gray-600 dark:text-gray-400 flex-shrink-0">
+                      <div key={index} className="grid grid-cols-3 items-center gap-2">
+                        {/* Mês */}
+                        <div className="text-xs text-gray-600 dark:text-gray-400 truncate">
                           {month.name}
                         </div>
-                        <div className="flex-1 mx-3">
-                          <div className="bg-gray-200 dark:bg-gray-700 rounded-full h-4 relative">
-                            <div
-                              className={`h-4 rounded-full ${month.isCurrentMonth ? 'bg-blue-500' : 'bg-purple-500'}`}
-                              style={{ width: `${percentage}%` }}
-                            />
+
+                        {/* Barras */}
+                        <div className="col-span-2 space-y-1">
+                          {/* Receita */}
+                          <div className="flex items-center">
+                            <div className="w-full bg-green-100 dark:bg-green-900/30 rounded-full h-3.5">
+                              <div
+                                className="bg-green-500 h-3.5 rounded-full"
+                                style={{ width: `${incomePercentage}%` }}
+                              ></div>
+                            </div>
+                            <div className="w-16 text-right text-xs text-green-600 ml-2">
+                              {formatCurrency(month.income).replace('R$', '')}
+                            </div>
                           </div>
-                        </div>
-                        <div className="w-20 text-xs text-gray-900 dark:text-white text-right flex-shrink-0">
-                          {formatCurrency(Number(month.value)).replace('R$', '')}
+
+                          {/* Despesa */}
+                          <div className="flex items-center">
+                            <div className="w-full bg-red-100 dark:bg-red-900/30 rounded-full h-3.5">
+                              <div
+                                className={`h-3.5 rounded-full ${month.isCurrentMonth ? 'bg-blue-500' : 'bg-red-500'}`}
+                                style={{ width: `${spendingPercentage}%` }}
+                              ></div>
+                            </div>
+                            <div className="w-16 text-right text-xs text-red-600 ml-2">
+                              {formatCurrency(month.spending).replace('R$', '')}
+                            </div>
+                          </div>
                         </div>
                       </div>
                     );
