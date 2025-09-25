@@ -563,7 +563,7 @@ const Dashboard: React.FC = () => {
                   {intelligentAnalysis.topCategories.map(([category, amount], index) => (
                     <div key={category} className="flex items-center justify-between py-2">
                       <div className="flex items-center min-w-0 flex-1 mr-4">
-                        <div className={`w-8 h-8 rounded-full bg-blue-${(index + 1) * 100} flex items-center justify-center text-white text-sm font-bold mr-3 flex-shrink-0`}>
+                        <div className={`w-8 h-8 rounded-full bg-blue-${((index % 9) + 1) * 100} flex items-center justify-center text-white text-sm font-bold mr-3 flex-shrink-0`}>
                           {index + 1}
                         </div>
                         <span className="text-gray-900 dark:text-white text-sm truncate" title={category}>
