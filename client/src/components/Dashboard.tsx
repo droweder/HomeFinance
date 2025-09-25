@@ -140,12 +140,11 @@ const Dashboard: React.FC = () => {
       })
       .reduce((sum, exp) => sum + exp.amount, 0);
 
-    // Faturas Pendentes: Soma do valor das faturas de meses futuros, a partir do mês atual.
+    // Faturas Pendentes: Soma do valor dos lançamentos da tabela expenses, com a "categoria" chamada "Cartão de Crédito" com "data" maior que a data de hoje.
     const pendingInvoicesTotal = creditCardExpenses
       .filter(exp => {
         const expenseDate = parseDate(exp.date);
-        const currentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-        return expenseDate >= currentMonth;
+        return expenseDate > now;
       })
       .reduce((sum, exp) => sum + exp.amount, 0);
 
