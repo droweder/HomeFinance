@@ -17,6 +17,7 @@ import {
   ChevronRight
 } from 'lucide-react';
 import { useFinance } from '../context/FinanceContext';
+import { useCreditCard } from '../context/CreditCardContext';
 import { useAccounts } from '../context/AccountContext';
 import { useSettings } from '../context/SettingsContext';
 
@@ -29,6 +30,7 @@ const parseDate = (dateString: string): Date => {
 
 const Dashboard: React.FC = () => {
   const { expenses, income, transfers } = useFinance();
+  const { creditCards } = useCreditCard();
   const { accounts } = useAccounts();
   const { formatCurrency, settings } = useSettings();
 
@@ -148,27 +150,35 @@ const Dashboard: React.FC = () => {
       .reduce((sum, exp) => sum + exp.amount, 0);
 
     // Maior Fatura: Encontra a maior fatura de qualquer mês.
-    const allInvoices = creditCardExpenses.reduce((acc, exp) => {
+    const allInvoicesByMonth = creditCardExpenses.reduce((acc, exp) => {
       const expenseDate = parseDate(exp.date);
       const monthKey = `${expenseDate.getFullYear()}-${expenseDate.getMonth()}`;
-      acc[monthKey] = (acc[monthKey] || 0) + exp.amount;
+      if (!acc[monthKey]) {
+        acc[monthKey] = {
+          total: 0,
+          month: expenseDate.getMonth(),
+          year: expenseDate.getFullYear(),
+          cards: {}
+        };
+      }
+      acc[monthKey].total += exp.amount;
+      const cardName = exp.paymentMethod || 'Desconhecido';
+      acc[monthKey].cards[cardName] = (acc[monthKey].cards[cardName] || 0) + exp.amount;
       return acc;
-    }, {} as Record<string, number>);
+    }, {} as Record<string, { total: number; month: number; year: number, cards: Record<string, number> }>);
 
-    const largestInvoiceAmount = Math.max(0, ...Object.values(allInvoices));
-    const largestInvoiceKey = Object.keys(allInvoices).find(key => allInvoices[key] === largestInvoiceAmount);
-    const [largestInvoiceYear, largestInvoiceMonth] = largestInvoiceKey
-      ? largestInvoiceKey.split('-').map(Number)
-      : [0, 0];
+    const largestInvoiceData = Object.values(allInvoicesByMonth).reduce((max, inv) => inv.total > max.total ? inv : max, { total: 0, month: 0, year: 0, cards: {} });
+    const largestCardInInvoice = Object.entries(largestInvoiceData.cards).sort(([, a], [, b]) => b - a)[0];
 
     return {
       currentInvoiceAmount,
       upcomingInvoiceAmount,
       pendingInvoicesTotal,
       largestInvoice: {
-        amount: largestInvoiceAmount,
-        month: largestInvoiceMonth,
-        year: largestInvoiceYear
+        amount: largestInvoiceData.total,
+        month: largestInvoiceData.month,
+        year: largestInvoiceData.year,
+        card: largestCardInInvoice ? largestCardInInvoice[0] : 'Nenhum'
       }
     };
   }, [expenses, currentMonth, currentYear, selectedDate]);
@@ -261,40 +271,24 @@ const Dashboard: React.FC = () => {
     const isAboveAverage = financialOverview.totalMonthlySpending > monthlyAverageSpending;
 
     // Parcelamentos ativos - detalhes completos
-    const allInstallmentGroups = expenses
-      .filter(exp => exp.isInstallment)
-      .reduce((acc, exp) => {
-        const key = exp.installmentGroup || `${exp.description}_${exp.date}`; // Fallback key
-        if (!acc[key]) {
-          acc[key] = {
-            description: exp.description,
-            monthlyAmount: exp.amount,
-            category: exp.category,
-            installments: []
-          };
-        }
-        acc[key].installments.push(exp);
-        return acc;
-      }, {} as Record<string, any>);
-
-    const activeInstallmentsList = Object.values(
+    const expenseInstallments = Object.values(
       expenses
-        .filter(exp => exp.isInstallment && exp.installmentGroup) // Garante que temos um grupo
-        .reduce((acc, exp) => {
-          const key = exp.installmentGroup as string;
+        .filter(item => item.isInstallment && item.installmentGroup)
+        .reduce((acc, item) => {
+          const key = item.installmentGroup as string;
           if (!acc[key]) {
             acc[key] = {
-              description: exp.description,
-              monthlyAmount: exp.amount,
-              category: exp.category,
+              description: item.description,
+              monthlyAmount: item.amount,
+              category: item.category,
               installments: []
             };
           }
-          acc[key].installments.push(exp);
+          acc[key].installments.push(item);
           return acc;
         }, {} as Record<string, any>)
     )
-      .map(group => {
+      .map((group: any) => {
         const futureInstallments = group.installments.filter((inst: any) => parseDate(inst.date) >= now);
         return {
           ...group,
@@ -302,7 +296,42 @@ const Dashboard: React.FC = () => {
           totalAmount: futureInstallments.reduce((sum: number, inst: any) => sum + inst.amount, 0),
         };
       })
-      .filter(group => group.remainingInstallments > 0)
+      .filter(group => group.remainingInstallments > 0);
+
+    const creditCardInstallments = Object.values(
+      creditCards
+        .filter(item => item.isInstallment)
+        .map(item => {
+          if (!item.installmentGroup) {
+            return { ...item, installmentGroup: `synth-${item.description}-${item.date}` };
+          }
+          return item;
+        })
+        .reduce((acc, item) => {
+          const key = item.installmentGroup as string;
+          if (!acc[key]) {
+            acc[key] = {
+              description: item.description,
+              monthlyAmount: item.amount,
+              category: item.category,
+              installments: []
+            };
+          }
+          acc[key].installments.push(item);
+          return acc;
+        }, {} as Record<string, any>)
+    )
+      .map((group: any) => {
+        const futureInstallments = group.installments.filter((inst: any) => parseDate(inst.date) >= now);
+        return {
+          ...group,
+          remainingInstallments: futureInstallments.length,
+          totalAmount: futureInstallments.reduce((sum: number, inst: any) => sum + inst.amount, 0),
+        };
+      })
+      .filter(group => group.remainingInstallments > 0);
+
+    const activeInstallmentsList = [...expenseInstallments, ...creditCardInstallments]
       .sort((a, b) => b.totalAmount - a.totalAmount)
       .slice(0, 5);
 
@@ -311,7 +340,7 @@ const Dashboard: React.FC = () => {
       monthlyAverageSpending,
       activeInstallmentsList
     };
-  }, [expenses, transfers, financialOverview.totalMonthlySpending, now]);
+  }, [expenses, creditCards, transfers, financialOverview.totalMonthlySpending, now]);
 
   // Componente Card reutilizável
   const StatCard: React.FC<{
@@ -440,7 +469,7 @@ const Dashboard: React.FC = () => {
             />
             <StatCard
               title="Gastos do Mês"
-              subtitle="Despesas + Cartões"
+              subtitle="Despesas do Mês"
               value={formatCurrency(financialOverview.totalMonthlySpending)}
               icon={<TrendingDown className="w-6 h-6" />}
               color="red"
@@ -489,10 +518,10 @@ const Dashboard: React.FC = () => {
               title="Maior Fatura"
               subtitle={
                 creditCardAnalysis.largestInvoice.amount > 0
-                  ? new Date(
+                  ? `${creditCardAnalysis.largestInvoice.card} - ${new Date(
                       creditCardAnalysis.largestInvoice.year,
                       creditCardAnalysis.largestInvoice.month
-                    ).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
+                    ).toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' })}`
                   : 'Nenhuma fatura encontrada'
               }
               value={formatCurrency(creditCardAnalysis.largestInvoice.amount)}
