@@ -332,7 +332,7 @@ const Dashboard: React.FC = () => {
 
     const activeInstallmentsList = [...expenseInstallments, ...creditCardInstallments]
       .sort((a, b) => b.totalAmount - a.totalAmount)
-      .slice(0, 5);
+      .slice(0, 10);
 
     return {
       isAboveAverage,
