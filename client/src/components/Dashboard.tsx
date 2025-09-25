@@ -23,7 +23,7 @@ import { useSettings } from '../context/SettingsContext';
 
 const Dashboard: React.FC = () => {
   const { expenses, income, transfers } = useFinance();
-  const { creditCards } = useCreditCard();
+  const { creditCards, creditCardAdvances } = useCreditCard();
   const { accounts } = useAccounts();
   const { formatCurrency, settings } = useSettings();
 
@@ -64,10 +64,8 @@ const Dashboard: React.FC = () => {
   const financialOverview = useMemo(() => {
     const lastDayOfMonth = new Date(currentYear, currentMonth + 1, 0);
 
-    // Saldo Total Disponível: saldo no final do mês selecionado
     const initialBalance = accounts.reduce((sum, account) => sum + account.initialBalance, 0);
 
-    // Total de receitas e despesas até o final do mês selecionado (sem filtros de transferência)
     const incomeUpToSelectedMonth = income
       .filter(inc => new Date(`${inc.date}T00:00:00`) <= lastDayOfMonth)
       .reduce((sum, inc) => sum + inc.amount, 0);
@@ -76,10 +74,8 @@ const Dashboard: React.FC = () => {
       .filter(exp => new Date(`${exp.date}T00:00:00`) <= lastDayOfMonth)
       .reduce((sum, exp) => sum + exp.amount, 0);
 
-    // Saldo total é o saldo inicial mais tudo que entrou menos tudo que saiu. Transferências se anulam.
     const totalBalance = initialBalance + incomeUpToSelectedMonth - expensesUpToSelectedMonth;
 
-    // Receitas do Mês: Soma de todos os lançamentos em 'income' para o mês.
     const monthlyIncome = income
       .filter(inc => {
         const incomeDate = new Date(`${inc.date}T00:00:00`);
@@ -88,7 +84,6 @@ const Dashboard: React.FC = () => {
       })
       .reduce((sum, inc) => sum + inc.amount, 0);
 
-    // Gastos do Mês: Soma de todos os lançamentos em 'expenses' para o mês.
     const totalMonthlySpending = expenses
       .filter(exp => {
         const expenseDate = new Date(`${exp.date}T00:00:00`);
@@ -97,7 +92,6 @@ const Dashboard: React.FC = () => {
       })
       .reduce((sum, exp) => sum + exp.amount, 0);
 
-    // Resultado do Mês: Receitas - Despesas
     const monthlyResult = monthlyIncome - totalMonthlySpending;
 
     return {
@@ -110,24 +104,40 @@ const Dashboard: React.FC = () => {
 
   // 2. SEÇÃO: Cartões de Crédito
   const creditCardAnalysis = useMemo(() => {
+    // 1. Agrupa adiantamentos pelo mês em que foram pagos
+    const advancesByPaymentMonth = creditCardAdvances.reduce((acc, advance) => {
+      const paymentDate = new Date(`${advance.date}T00:00:00`);
+      const paymentMonthKey = `${paymentDate.getFullYear()}-${paymentDate.getMonth()}`;
+
+      if (!acc[paymentMonthKey]) {
+        acc[paymentMonthKey] = 0;
+      }
+      acc[paymentMonthKey] += advance.amount;
+      return acc;
+    }, {} as Record<string, number>);
+
+    // 2. Calcula faturas, agrupando transações no mês seguinte
     const allInvoices = creditCards.reduce((acc, card) => {
       const transactionDate = new Date(`${card.date}T00:00:00`);
-      // A fatura agrupa transações que ocorreram no mesmo mês.
-      const invoiceDate = new Date(transactionDate.getFullYear(), transactionDate.getMonth(), 1);
-      const monthKey = `${invoiceDate.getFullYear()}-${invoiceDate.getMonth()}`;
+      const invoiceDate = new Date(transactionDate.getFullYear(), transactionDate.getMonth() + 1, 1);
+      const invoiceMonthKey = `${invoiceDate.getFullYear()}-${invoiceDate.getMonth()}`;
 
-      if (!acc[monthKey]) {
-        acc[monthKey] = {
-          total: 0,
+      if (!acc[invoiceMonthKey]) {
+        // O adiantamento para a fatura de Mês X+1 é pago no Mês X
+        const advancePaymentMonthKey = `${transactionDate.getFullYear()}-${transactionDate.getMonth()}`;
+        const advanceTotal = advancesByPaymentMonth[advancePaymentMonthKey] || 0;
+
+        acc[invoiceMonthKey] = {
+          total: -advanceTotal, // Inicia o total já com o adiantamento subtraído
           month: invoiceDate.getMonth(),
           year: invoiceDate.getFullYear(),
           cards: {}
         };
       }
 
-      acc[monthKey].total += card.amount;
+      acc[invoiceMonthKey].total += card.amount;
       const cardName = card.cardName || 'Desconhecido';
-      acc[monthKey].cards[cardName] = (acc[monthKey].cards[cardName] || 0) + card.amount;
+      acc[invoiceMonthKey].cards[cardName] = (acc[invoiceMonthKey].cards[cardName] || 0) + card.amount;
 
       return acc;
     }, {} as Record<string, { total: number; month: number; year: number, cards: Record<string, number> }>);
@@ -135,30 +145,26 @@ const Dashboard: React.FC = () => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    // Faturas Pendentes: A soma do valor das faturas cuja o dia de pagamento é futuro.
     const pendingInvoices = Object.values(allInvoices)
       .filter(invoice => new Date(invoice.year, invoice.month, 1) >= today)
       .reduce((sum, inv) => sum + inv.total, 0);
 
-    // Próximas Faturas: fatura do mês seguinte ao selecionado.
     const nextMonthDate = new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 1);
     const nextMonthKey = `${nextMonthDate.getFullYear()}-${nextMonthDate.getMonth()}`;
     const upcomingInvoice = allInvoices[nextMonthKey] || { total: 0, month: nextMonthDate.getMonth(), year: nextMonthDate.getFullYear() };
 
-    // Maior Fatura: De todas as faturas existentes.
     const largestInvoice = Object.values(allInvoices).reduce((max, inv) => {
       if (inv.total > max.amount) {
         const sortedCards = Object.entries(inv.cards).sort(([, a], [, b]) => b - a);
-        let cardName = 'Nenhum'; // Default if no cards
+        let cardName = 'Nenhum';
         if (sortedCards.length > 0) {
             const firstValidCard = sortedCards.find(([name]) => name !== 'Desconhecido');
             if (firstValidCard) {
                 cardName = firstValidCard[0];
             } else {
-                cardName = 'Múltiplos Cartões'; // Fallback if all are unknown
+                cardName = 'Múltiplos Cartões';
             }
         }
-
         return {
           amount: inv.total,
           card: cardName,
@@ -174,11 +180,10 @@ const Dashboard: React.FC = () => {
       upcomingInvoice,
       largestInvoice
     };
-  }, [creditCards, selectedDate]);
+  }, [creditCards, creditCardAdvances, selectedDate]);
 
   // 3. SEÇÃO: Análises Inteligentes
   const intelligentAnalysis = useMemo(() => {
-    // Top 5 categorias de despesa do mês
     const categorySpending = expenses
       .filter(item => {
         const itemDate = new Date(`${item.date}T00:00:00`);
@@ -195,7 +200,6 @@ const Dashboard: React.FC = () => {
       .sort(([,a], [,b]) => b - a)
       .slice(0, 5);
 
-    // Maiores transações de despesa do mês
     const biggestTransactions = expenses
       .filter(item => {
         const itemDate = new Date(`${item.date}T00:00:00`);
@@ -205,12 +209,10 @@ const Dashboard: React.FC = () => {
       .sort((a, b) => b.amount - a.amount)
       .slice(0, 3);
 
-    // Análise de economia (comparando com o maior gasto histórico mensal)
     const allMonthlyTotals = Object.values(allMonthsSpending) as number[];
     const maxMonthlySpending = Math.max(...allMonthlyTotals, 0);
     const savingsVsWorstMonth = maxMonthlySpending > 0 ? maxMonthlySpending - financialOverview.totalMonthlySpending : 0;
 
-    // Análise multi-mensal (últimos 6 meses)
     const last6Months = [];
     for (let i = 5; i >= 0; i--) {
       const date = new Date(currentYear, currentMonth - i, 1);
@@ -228,18 +230,15 @@ const Dashboard: React.FC = () => {
       });
     }
 
-    // Tendência geral (comparando primeiro com último mês da série)
     const firstMonthSpending = last6Months[0]?.value || 0;
     const lastMonthSpending = last6Months[last6Months.length - 1]?.value || 0;
     const overallTrend = firstMonthSpending > 0 
       ? ((lastMonthSpending - firstMonthSpending) / firstMonthSpending) * 100
       : 0;
 
-    // Mês com maior e menor gasto
     const maxSpendingMonth = last6Months.reduce((max, month) => month.value > max.value ? month : max, last6Months[0] || { name: '', value: 0 });
     const minSpendingMonth = last6Months.reduce((min, month) => month.value < min.value && month.value > 0 ? month : min, last6Months[0] || { name: '', value: Infinity });
 
-    // Média dos últimos 6 meses
     const avgLast6Months = last6Months.reduce((sum, month) => sum + month.value, 0) / last6Months.length;
 
     return {
@@ -263,7 +262,6 @@ const Dashboard: React.FC = () => {
 
     const isAboveAverage = financialOverview.totalMonthlySpending > monthlyAverageSpending;
 
-    // Parcelamentos ativos - detalhes completos
     const activeInstallmentsDetails = creditCards
       .filter(cc => cc.isInstallment && new Date(`${cc.date}T00:00:00`) > now)
       .reduce((acc, cc) => {
@@ -291,7 +289,6 @@ const Dashboard: React.FC = () => {
     };
   }, [expenses, creditCards, transfers, financialOverview.totalMonthlySpending, now]);
 
-  // Componente Card reutilizável
   const StatCard: React.FC<{
     title: string;
     value: string;
@@ -358,7 +355,6 @@ const Dashboard: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
         <div className="mb-8">
           <div className="flex items-center justify-between">
             <div>
@@ -366,7 +362,6 @@ const Dashboard: React.FC = () => {
               <p className="text-gray-600 dark:text-gray-400 mt-2">Visão completa da sua situação financeira</p>
             </div>
             
-            {/* Seletor de Mês */}
             <div className="flex items-center space-x-4">
               <button
                 onClick={goToPreviousMonth}
@@ -397,7 +392,6 @@ const Dashboard: React.FC = () => {
           </div>
         </div>
 
-        {/* SEÇÃO 1: Visão Geral Financeira */}
         <div className="mb-8">
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Visão Geral Financeira</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
@@ -435,7 +429,6 @@ const Dashboard: React.FC = () => {
           </div>
         </div>
 
-        {/* SEÇÃO 2: Cartões de Crédito */}
         <div className="mb-8">
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Cartões de Crédito</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
@@ -474,11 +467,9 @@ const Dashboard: React.FC = () => {
         </div>
 
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 lg:gap-8 mb-8">
-          {/* SEÇÃO 3: Análises Inteligentes */}
           <div>
             <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Análises Inteligentes</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-6">
-              {/* Top 5 Categorias */}
               <div className="bg-white dark:bg-gray-800 rounded-xl p-6 lg:p-8 border border-gray-200 dark:border-gray-700 min-h-[400px]">
                 <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-6 flex items-center">
                   <PieChart className="w-5 h-5 mr-2 text-blue-600" />
@@ -503,14 +494,12 @@ const Dashboard: React.FC = () => {
                 </div>
               </div>
 
-              {/* Análise Multi-Mensal */}
               <div className="bg-white dark:bg-gray-800 rounded-xl p-6 lg:p-8 border border-gray-200 dark:border-gray-700 min-h-[400px]">
                 <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-6 flex items-center">
                   <BarChart3 className="w-5 h-5 mr-2 text-purple-600" />
                   Evolução dos Últimos 6 Meses
                 </h3>
                 
-                {/* Gráfico de barras simples */}
                 <div className="space-y-3 mb-6">
                   {intelligentAnalysis.last6Months.map((month: any, index: number) => {
                     const maxValue = Math.max(...intelligentAnalysis.last6Months.map((m: any) => m.value));
@@ -537,7 +526,6 @@ const Dashboard: React.FC = () => {
                   })}
                 </div>
 
-                {/* Estatísticas */}
                 <div className="grid grid-cols-2 gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">
                   <div className="text-center">
                     <p className={`text-sm font-bold ${intelligentAnalysis.overallTrend >= 0 ? 'text-red-600' : 'text-green-600'}`}>
@@ -552,7 +540,6 @@ const Dashboard: React.FC = () => {
                 </div>
               </div>
 
-              {/* Maiores Transações do Mês */}
               <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700 md:col-span-2">
                 <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4 flex items-center">
                   <DollarSign className="w-5 h-5 mr-2 text-green-600" />
@@ -581,11 +568,9 @@ const Dashboard: React.FC = () => {
             </div>
           </div>
 
-          {/* SEÇÃO 4: Alertas e Tendências */}
           <div>
             <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Alertas e Tendências</h2>
             <div className="space-y-6">
-              {/* Gastos vs Média Histórica */}
               <StatCard
                 title={alertsAndTrends.isAboveAverage ? "Acima da Média" : "Abaixo da Média"}
                 value={formatCurrency(financialOverview.totalMonthlySpending)}
@@ -595,7 +580,6 @@ const Dashboard: React.FC = () => {
                 trend={alertsAndTrends.isAboveAverage ? "up" : "down"}
               />
 
-              {/* Parcelamentos Ativos */}
               <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
                 <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4 flex items-center">
                   <Clock className="w-5 h-5 mr-2 text-orange-600" />
