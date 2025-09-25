@@ -560,21 +560,30 @@ const Dashboard: React.FC = () => {
                   Top 10 Categorias do Mês
                 </h3>
                 <div className="space-y-4">
-                  {intelligentAnalysis.topCategories.map(([category, amount], index) => (
-                    <div key={category} className="flex items-center justify-between py-2">
-                      <div className="flex items-center min-w-0 flex-1 mr-4">
-                        <div className={`w-8 h-8 rounded-full bg-blue-${((index % 9) + 1) * 100} flex items-center justify-center text-white text-sm font-bold mr-3 flex-shrink-0`}>
-                          {index + 1}
+                  {intelligentAnalysis.topCategories.map(([category, amount], index) => {
+                    // Red (hue 0) for rank 1 (index 0) to Green (hue 120) for rank 10 (index 9)
+                    const hue = (index / 9) * 120;
+                    const color = `hsl(${hue} 70% 45%)`;
+
+                    return (
+                      <div key={category} className="flex items-center justify-between py-2">
+                        <div className="flex items-center min-w-0 flex-1 mr-4">
+                          <div
+                            className="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold mr-3 flex-shrink-0"
+                            style={{ backgroundColor: color }}
+                          >
+                            {index + 1}
+                          </div>
+                          <span className="text-gray-900 dark:text-white text-sm truncate" title={category}>
+                            {category}
+                          </span>
                         </div>
-                        <span className="text-gray-900 dark:text-white text-sm truncate" title={category}>
-                          {category}
+                        <span className="font-semibold text-gray-900 dark:text-white text-sm flex-shrink-0">
+                          {formatCurrency(Number(amount))}
                         </span>
                       </div>
-                      <span className="font-semibold text-gray-900 dark:text-white text-sm flex-shrink-0">
-                        {formatCurrency(Number(amount))}
-                      </span>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
 
