@@ -215,7 +215,7 @@ const Dashboard: React.FC = () => {
 
     const topCategories = (Object.entries(categorySpending) as [string, number][])
       .sort(([, a], [, b]) => b - a)
-      .slice(0, 5);
+      .slice(0, 10);
 
     // Maiores transações de despesa do mês
     const biggestTransactions = expenses
@@ -553,11 +553,11 @@ const Dashboard: React.FC = () => {
           <div>
             <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Análises Inteligentes</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-6">
-              {/* Top 5 Categorias */}
+              {/* Top 10 Categorias */}
               <div className="bg-white dark:bg-gray-800 rounded-xl p-6 lg:p-8 border border-gray-200 dark:border-gray-700 min-h-[400px]">
                 <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-6 flex items-center">
                   <PieChart className="w-5 h-5 mr-2 text-blue-600" />
-                  Top 5 Categorias do Mês
+                  Top 10 Categorias do Mês
                 </h3>
                 <div className="space-y-4">
                   {intelligentAnalysis.topCategories.map(([category, amount], index) => (
