@@ -23,7 +23,7 @@ import { useSettings } from '../context/SettingsContext';
 
 const Dashboard: React.FC = () => {
   const { expenses, income, transfers } = useFinance();
-  const { creditCards, creditCardAdvances } = useCreditCard();
+  const { creditCards } = useCreditCard(); // Note: We will use expenses, not creditCards per user instruction
   const { accounts } = useAccounts();
   const { formatCurrency, settings } = useSettings();
 
@@ -32,7 +32,6 @@ const Dashboard: React.FC = () => {
   const [selectedDate, setSelectedDate] = useState(new Date(now.getFullYear(), now.getMonth(), 1));
   const currentMonth = selectedDate.getMonth();
   const currentYear = selectedDate.getFullYear();
-  const currentDate = now.toISOString().split('T')[0];
 
   // Funções para navegação entre meses
   const goToPreviousMonth = () => {
@@ -50,13 +49,11 @@ const Dashboard: React.FC = () => {
   // Calcula todos os gastos mensais para análises de tendência
   const allMonthsSpending = useMemo(() => {
     const spending = {} as Record<string, number>;
-    
     expenses.forEach(exp => {
       const itemDate = new Date(`${exp.date}T00:00:00`);
       const monthKey = `${itemDate.getFullYear()}-${itemDate.getMonth()}`;
       spending[monthKey] = (spending[monthKey] || 0) + exp.amount;
     });
-
     return spending;
   }, [expenses]);
 
@@ -102,85 +99,58 @@ const Dashboard: React.FC = () => {
     };
   }, [accounts, income, expenses, currentMonth, currentYear]);
 
-  // 2. SEÇÃO: Cartões de Crédito
+  // 2. SEÇÃO: Cartões de Crédito - LOGIC COMPLETELY REWRITTEN
   const creditCardAnalysis = useMemo(() => {
-    // 1. Agrupa adiantamentos pelo mês em que foram pagos
-    const advancesByPaymentMonth = creditCardAdvances.reduce((acc, advance) => {
-      const paymentDate = new Date(`${advance.date}T00:00:00`);
-      const paymentMonthKey = `${paymentDate.getFullYear()}-${paymentDate.getMonth()}`;
-
-      if (!acc[paymentMonthKey]) {
-        acc[paymentMonthKey] = 0;
-      }
-      acc[paymentMonthKey] += advance.amount;
-      return acc;
-    }, {} as Record<string, number>);
-
-    // 2. Calcula faturas, agrupando transações no mês seguinte
-    const allInvoices = creditCards.reduce((acc, card) => {
-      const transactionDate = new Date(`${card.date}T00:00:00`);
-      const invoiceDate = new Date(transactionDate.getFullYear(), transactionDate.getMonth() + 1, 1);
-      const invoiceMonthKey = `${invoiceDate.getFullYear()}-${invoiceDate.getMonth()}`;
-
-      if (!acc[invoiceMonthKey]) {
-        // O adiantamento para a fatura de Mês X+1 é pago no Mês X
-        const advancePaymentMonthKey = `${transactionDate.getFullYear()}-${transactionDate.getMonth()}`;
-        const advanceTotal = advancesByPaymentMonth[advancePaymentMonthKey] || 0;
-
-        acc[invoiceMonthKey] = {
-          total: -advanceTotal, // Inicia o total já com o adiantamento subtraído
-          month: invoiceDate.getMonth(),
-          year: invoiceDate.getFullYear(),
-          cards: {}
-        };
-      }
-
-      acc[invoiceMonthKey].total += card.amount;
-      const cardName = card.cardName || 'Desconhecido';
-      acc[invoiceMonthKey].cards[cardName] = (acc[invoiceMonthKey].cards[cardName] || 0) + card.amount;
-
-      return acc;
-    }, {} as Record<string, { total: number; month: number; year: number, cards: Record<string, number> }>);
+    // A fonte da verdade são as despesas com categoria "Cartão de Crédito"
+    const creditCardInvoices = expenses.filter(e => e.category === 'Cartão de Crédito');
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const pendingInvoices = Object.values(allInvoices)
-      .filter(invoice => new Date(invoice.year, invoice.month, 1) >= today)
-      .reduce((sum, inv) => sum + inv.total, 0);
+    // Faturas Pendentes: Soma de todas as faturas futuras.
+    const pendingInvoices = creditCardInvoices
+      .filter(invoice => new Date(`${invoice.date}T00:00:00`) >= today)
+      .reduce((sum, inv) => sum + inv.amount, 0);
 
+    // Próxima Fatura: A fatura do mês seguinte ao selecionado.
     const nextMonthDate = new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 1);
-    const nextMonthKey = `${nextMonthDate.getFullYear()}-${nextMonthDate.getMonth()}`;
-    const upcomingInvoice = allInvoices[nextMonthKey] || { total: 0, month: nextMonthDate.getMonth(), year: nextMonthDate.getFullYear() };
+    const nextMonth = nextMonthDate.getMonth();
+    const nextYear = nextMonthDate.getFullYear();
 
-    const largestInvoice = Object.values(allInvoices).reduce((max, inv) => {
-      if (inv.total > max.amount) {
-        const sortedCards = Object.entries(inv.cards).sort(([, a], [, b]) => b - a);
-        let cardName = 'Nenhum';
-        if (sortedCards.length > 0) {
-            const firstValidCard = sortedCards.find(([name]) => name !== 'Desconhecido');
-            if (firstValidCard) {
-                cardName = firstValidCard[0];
-            } else {
-                cardName = 'Múltiplos Cartões';
-            }
+    const upcomingInvoice = creditCardInvoices.find(invoice => {
+        const invoiceDate = new Date(`${invoice.date}T00:00:00`);
+        return invoiceDate.getMonth() === nextMonth && invoiceDate.getFullYear() === nextYear;
+    }) || { amount: 0, date: nextMonthDate.toISOString().split('T')[0] };
+
+    // Maior Fatura: De todas as faturas existentes.
+    const largestInvoice = creditCardInvoices.reduce((max, inv) => {
+      return inv.amount > max.amount ? inv : max;
+    }, { amount: 0, description: 'Nenhuma fatura encontrada', date: '' });
+
+    // Extrai o nome do cartão e o mês da descrição da fatura
+    const getInvoiceDetails = (description: string) => {
+        const match = description.match(/Fatura (.*) - (.*)\/\d{4}/);
+        if (match && match[1] && match[2]) {
+            return `${match[1]} - ${match[2]}`;
         }
-        return {
-          amount: inv.total,
-          card: cardName,
-          month: inv.month,
-          year: inv.year
-        };
-      }
-      return max;
-    }, { amount: 0, card: 'Nenhum', month: 0, year: 0 });
+        return description;
+    };
 
     return {
       pendingInvoices,
-      upcomingInvoice,
-      largestInvoice
+      upcomingInvoice: {
+        total: upcomingInvoice.amount,
+        year: new Date(`${upcomingInvoice.date}T00:00:00`).getFullYear(),
+        month: new Date(`${upcomingInvoice.date}T00:00:00`).getMonth(),
+      },
+      largestInvoice: {
+        amount: largestInvoice.amount,
+        card: getInvoiceDetails(largestInvoice.description),
+        year: largestInvoice.date ? new Date(`${largestInvoice.date}T00:00:00`).getFullYear() : 0,
+        month: largestInvoice.date ? new Date(`${largestInvoice.date}T00:00:00`).getMonth() : 0,
+      }
     };
-  }, [creditCards, creditCardAdvances, selectedDate]);
+  }, [expenses, selectedDate]);
 
   // 3. SEÇÃO: Análises Inteligentes
   const intelligentAnalysis = useMemo(() => {
@@ -251,7 +221,7 @@ const Dashboard: React.FC = () => {
       minSpendingMonth,
       avgLast6Months
     };
-  }, [expenses, creditCards, income, transfers, currentMonth, currentYear, financialOverview.totalMonthlySpending, allMonthsSpending]);
+  }, [expenses, currentMonth, currentYear, financialOverview.totalMonthlySpending, allMonthsSpending]);
 
   // 4. SEÇÃO: Alertas e Tendências
   const alertsAndTrends = useMemo(() => {
@@ -287,7 +257,7 @@ const Dashboard: React.FC = () => {
       monthlyAverageSpending,
       activeInstallmentsList
     };
-  }, [expenses, creditCards, transfers, financialOverview.totalMonthlySpending, now]);
+  }, [expenses, creditCards, financialOverview.totalMonthlySpending, now]);
 
   const StatCard: React.FC<{
     title: string;
@@ -453,10 +423,7 @@ const Dashboard: React.FC = () => {
               title="Maior Fatura"
               subtitle={
                 creditCardAnalysis.largestInvoice.amount > 0
-                  ? `${creditCardAnalysis.largestInvoice.card} - ${new Date(
-                      creditCardAnalysis.largestInvoice.year,
-                      creditCardAnalysis.largestInvoice.month
-                    ).toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' })}`
+                  ? `${creditCardAnalysis.largestInvoice.card}`
                   : 'Nenhuma fatura encontrada'
               }
               value={formatCurrency(creditCardAnalysis.largestInvoice.amount)}
