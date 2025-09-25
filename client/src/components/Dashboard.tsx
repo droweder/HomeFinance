@@ -34,6 +34,7 @@ const Dashboard: React.FC = () => {
 
   // Estado para controlar o mês selecionado
   const now = new Date();
+  now.setHours(0, 0, 0, 0); // Normaliza para o início do dia
   const [selectedDate, setSelectedDate] = useState(new Date(now.getFullYear(), now.getMonth(), 1));
   const currentMonth = selectedDate.getMonth();
   const currentYear = selectedDate.getFullYear();
@@ -93,13 +94,12 @@ const Dashboard: React.FC = () => {
       })
       .reduce((sum, inc) => sum + inc.amount, 0);
 
-    // Gastos do Mês: Soma de todos os lançamentos em 'expenses' para o mês, exceto "Cartão de Crédito".
+    // Gastos do Mês: Soma de todos os lançamentos em 'expenses' para o mês.
     const totalMonthlySpending = expenses
       .filter(exp => {
         const expenseDate = parseDate(exp.date);
         return expenseDate.getMonth() === currentMonth &&
-               expenseDate.getFullYear() === currentYear &&
-               exp.category !== 'Cartão de Crédito';
+               expenseDate.getFullYear() === currentYear;
       })
       .reduce((sum, exp) => sum + exp.amount, 0);
 
@@ -138,12 +138,12 @@ const Dashboard: React.FC = () => {
       })
       .reduce((sum, exp) => sum + exp.amount, 0);
 
-    // Faturas Pendentes: Soma do valor das faturas de meses futuros.
+    // Faturas Pendentes: Soma do valor das faturas de meses futuros, a partir do mês atual.
     const pendingInvoicesTotal = creditCardExpenses
       .filter(exp => {
         const expenseDate = parseDate(exp.date);
-        const expenseMonth = new Date(expenseDate.getFullYear(), expenseDate.getMonth(), 1);
-        return expenseMonth > selectedDate;
+        const currentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        return expenseDate >= currentMonth;
       })
       .reduce((sum, exp) => sum + exp.amount, 0);
 
@@ -261,25 +261,50 @@ const Dashboard: React.FC = () => {
     const isAboveAverage = financialOverview.totalMonthlySpending > monthlyAverageSpending;
 
     // Parcelamentos ativos - detalhes completos
-    const activeInstallmentsDetails = expenses
-      .filter(exp => exp.category === 'Cartão de Crédito' && exp.isInstallment && parseDate(exp.date) > now)
+    const allInstallmentGroups = expenses
+      .filter(exp => exp.isInstallment)
       .reduce((acc, exp) => {
-        const key = `${exp.description}_${exp.installmentGroup || 'no-group'}`;
+        const key = exp.installmentGroup || `${exp.description}_${exp.date}`; // Fallback key
         if (!acc[key]) {
           acc[key] = {
             description: exp.description,
-            totalAmount: 0,
-            remainingInstallments: 0,
             monthlyAmount: exp.amount,
-            category: exp.category
+            category: exp.category,
+            installments: []
           };
         }
-        acc[key].totalAmount += exp.amount;
-        acc[key].remainingInstallments += 1;
+        acc[key].installments.push(exp);
         return acc;
       }, {} as Record<string, any>);
 
-    const activeInstallmentsList = Object.values(activeInstallmentsDetails).slice(0, 5);
+    const activeInstallmentsList = Object.values(
+      expenses
+        .filter(exp => exp.isInstallment && exp.installmentGroup) // Garante que temos um grupo
+        .reduce((acc, exp) => {
+          const key = exp.installmentGroup as string;
+          if (!acc[key]) {
+            acc[key] = {
+              description: exp.description,
+              monthlyAmount: exp.amount,
+              category: exp.category,
+              installments: []
+            };
+          }
+          acc[key].installments.push(exp);
+          return acc;
+        }, {} as Record<string, any>)
+    )
+      .map(group => {
+        const futureInstallments = group.installments.filter((inst: any) => parseDate(inst.date) >= now);
+        return {
+          ...group,
+          remainingInstallments: futureInstallments.length,
+          totalAmount: futureInstallments.reduce((sum: number, inst: any) => sum + inst.amount, 0),
+        };
+      })
+      .filter(group => group.remainingInstallments > 0)
+      .sort((a, b) => b.totalAmount - a.totalAmount)
+      .slice(0, 5);
 
     return {
       isAboveAverage,
@@ -415,7 +440,7 @@ const Dashboard: React.FC = () => {
             />
             <StatCard
               title="Gastos do Mês"
-              subtitle="Apenas despesas"
+              subtitle="Despesas + Cartões"
               value={formatCurrency(financialOverview.totalMonthlySpending)}
               icon={<TrendingDown className="w-6 h-6" />}
               color="red"
