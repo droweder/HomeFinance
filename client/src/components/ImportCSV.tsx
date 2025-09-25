@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Upload, Download, FileText, AlertCircle, CheckCircle, XCircle, Info } from 'lucide-react';
 import { useFinance } from '../context/FinanceContext';
 import { useAccounts } from '../context/AccountContext';
+import { useCreditCard } from '../context/CreditCardContext';
 
 interface ImportCSVProps {
   onClose: () => void;
@@ -23,7 +24,8 @@ interface ProcessedRow {
 const ImportCSV: React.FC<ImportCSVProps> = ({ onClose }) => {
   const { addExpense, addIncome, addTransfer, categories } = useFinance();
   const { accounts } = useAccounts();
-  const [importType, setImportType] = useState<'expenses' | 'income' | 'transfers'>('expenses');
+  const { addCreditCard } = useCreditCard();
+  const [importType, setImportType] = useState<'expenses' | 'income' | 'transfers' | 'cards'>('expenses');
   const [csvData, setCsvData] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [isValidating, setIsValidating] = useState(false);
@@ -51,6 +53,9 @@ const ImportCSV: React.FC<ImportCSVProps> = ({ onClose }) => {
 2025-01-20,500.00,Carteira,Conta Corrente,Depósito em dinheiro
 2025-01-25,300.00,Poupança,Conta Corrente,`;
 
+  const cardTemplate = `Date,Category,Description,Amount,PaymentMethod,Location,Paid,IsInstallment,InstallmentNumber,TotalInstallments
+2025-01-15,Compras,Compra no supermercado,150.75,Cartão A,Supermercado,false,true,1,3`;
+
   const downloadTemplate = () => {
     let template;
     switch (importType) {
@@ -62,6 +67,9 @@ const ImportCSV: React.FC<ImportCSVProps> = ({ onClose }) => {
         break;
       case 'transfers':
         template = transferTemplate;
+        break;
+      case 'cards':
+        template = cardTemplate;
         break;
       default:
         template = expenseTemplate;
@@ -116,7 +124,7 @@ const ImportCSV: React.FC<ImportCSVProps> = ({ onClose }) => {
     return { headers, data };
   };
 
-  const validateRow = (row: any, rowNumber: number, type: 'expenses' | 'income' | 'transfers'): ValidationResult => {
+  const validateRow = (row: any, rowNumber: number, type: 'expenses' | 'income' | 'transfers' | 'cards'): ValidationResult => {
     const errors: string[] = [];
     const warnings: string[] = [];
 
@@ -229,6 +237,47 @@ const ImportCSV: React.FC<ImportCSVProps> = ({ onClose }) => {
       // Same account validation
       if (row.FromAccount && row.ToAccount && row.FromAccount === row.ToAccount) {
         errors.push('Conta origem deve ser diferente da conta destino');
+      }
+    } else if (type === 'cards') {
+      // Required fields validation
+      if (!row.Date) errors.push('Data é obrigatória');
+      if (!row.Category) errors.push('Categoria é obrigatória');
+      if (!row.Amount) errors.push('Valor é obrigatório');
+      if (!row.PaymentMethod) errors.push('Método de pagamento é obrigatório');
+
+      // Date validation
+      if (row.Date && !isValidDate(row.Date)) {
+        errors.push(`Data inválida: ${row.Date}. Use formato YYYY-MM-DD`);
+      }
+
+      // Amount validation
+      if (row.Amount) {
+        const amount = parseFloat(row.Amount.toString().replace(/[^\d.,]/g, '').replace(',', '.'));
+        if (isNaN(amount) || amount <= 0) {
+          errors.push(`Valor inválido: ${row.Amount}`);
+        }
+      }
+
+      // Category validation
+      const expenseCategories = categories.filter(cat => cat.type === 'expense');
+      if (row.Category && !expenseCategories.some(cat => cat.name === row.Category)) {
+        warnings.push(`Categoria "${row.Category}" não existe no sistema`);
+      }
+
+      // Installment validation
+      if (row.TotalInstallments) {
+        const installments = parseInt(row.TotalInstallments);
+        if (isNaN(installments) || installments < 1) {
+          errors.push(`Número de parcelas inválido: ${row.TotalInstallments}`);
+        }
+      }
+
+      if (row.InstallmentNumber) {
+        const installmentNumber = parseInt(row.InstallmentNumber);
+        const totalInstallments = parseInt(row.TotalInstallments) || 1;
+        if (isNaN(installmentNumber) || installmentNumber < 1 || installmentNumber > totalInstallments) {
+          errors.push(`Número da parcela inválido: ${row.InstallmentNumber}`);
+        }
       }
     }
 
@@ -402,7 +451,49 @@ const ImportCSV: React.FC<ImportCSVProps> = ({ onClose }) => {
             console.log(`✅ Transferência linha ${processedRow.rowNumber} salva com sucesso`);
 
             successCount++;
+          } else if (importType === 'cards') {
+            const amount = parseFloat(row.Amount.toString().replace(/[^\d.,]/g, '').replace(',', '.'));
+
+            if (isNaN(amount) || amount <= 0) {
+              console.error(`❌ Valor inválido na linha ${processedRow.rowNumber}:`, row.Amount);
+              errors.push(`Linha ${processedRow.rowNumber}: Valor inválido: ${row.Amount}`);
+              continue;
+            }
+
+            const isInstallment = row.IsInstallment ?
+              (row.IsInstallment.toString().toLowerCase() === 'true' ||
+               row.IsInstallment.toString().toLowerCase() === 'sim' ||
+               row.IsInstallment.toString() === '1') : false;
+
+            const paid = row.Paid ?
+              (row.Paid.toString().toLowerCase() === 'true' ||
+               row.Paid.toString().toLowerCase() === 'sim' ||
+               row.Paid.toString() === '1') : false;
+
+            const totalInstallments = parseInt(row.TotalInstallments) || null;
+            const installmentNumber = parseInt(row.InstallmentNumber) || null;
+
+            const cardData = {
+              date: row.Date,
+              category: row.Category,
+              description: row.Description || '',
+              amount: amount,
+              paymentMethod: row.PaymentMethod,
+              location: row.Location || '',
+              paid: paid,
+              isInstallment: isInstallment,
+              installmentNumber: installmentNumber,
+              totalInstallments: totalInstallments,
+            };
+
+            console.log(`💾 Salvando cartão linha ${processedRow.rowNumber}:`, cardData);
+
+            await addCreditCard(cardData);
+            console.log(`✅ Cartão linha ${processedRow.rowNumber} salvo com sucesso`);
+
+            successCount++;
           }
+
 
           // Collect warnings from validation
           if (processedRow.status === 'warning') {
@@ -525,10 +616,20 @@ const ImportCSV: React.FC<ImportCSVProps> = ({ onClose }) => {
                     type="radio"
                     value="transfers"
                     checked={importType === 'transfers'}
-                    onChange={(e) => setImportType(e.target.value as 'expenses' | 'income' | 'transfers')}
+                    onChange={(e) => setImportType(e.target.value as 'expenses' | 'income' | 'transfers' | 'cards')}
                     className="mr-2"
                   />
                   Transferências
+                </label>
+                <label className="flex items-center">
+                  <input
+                    type="radio"
+                    value="cards"
+                    checked={importType === 'cards'}
+                    onChange={(e) => setImportType(e.target.value as 'expenses' | 'income' | 'transfers' | 'cards')}
+                    className="mr-2"
+                  />
+                  Cartão
                 </label>
               </div>
             </div>
@@ -546,6 +647,8 @@ const ImportCSV: React.FC<ImportCSVProps> = ({ onClose }) => {
                       ? 'Date,Category,Description,Amount,PaymentMethod,Location,Installments,InstallmentNumber,IsCreditCard'
                       : importType === 'income'
                       ? 'Date,Source,Amount,Notes,Location,Account'
+                      : importType === 'cards'
+                      ? 'Date,Category,Description,Amount,PaymentMethod,Location,Paid,IsInstallment,InstallmentNumber,TotalInstallments'
                       : 'Date,Amount,FromAccount,ToAccount,Description (Opcional)'
                     }
                   </p>

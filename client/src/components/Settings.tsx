@@ -18,7 +18,7 @@ const Settings: React.FC = () => {
   const { categories, deleteCategory, expenses, income, transfers } = useFinance();
   const { accounts, deleteAccount } = useAccounts();
   const { currentUser } = useAuth();
-  const { syncAllInvoicesToExpenses } = useCreditCard();
+  const { creditCards, syncAllInvoicesToExpenses } = useCreditCard();
   const { showApiKeySuccess, showSuccess, showError } = useToast();
   const { isOnline, syncStatus, lastSyncTime, connectionStatus, syncData } = useSupabaseSync();
   const [showCategoryForm, setShowCategoryForm] = useState(false);
@@ -479,6 +479,34 @@ const Settings: React.FC = () => {
         transferLink.download = `transferencias_${timestamp}.csv`;
         transferLink.click();
         URL.revokeObjectURL(transferUrl);
+      }
+
+      // Export Credit Cards
+      if (creditCards && creditCards.length > 0) {
+        const creditCardHeaders = ['Data', 'Categoria', 'Descrição', 'Valor', 'Método de Pagamento', 'Localização', 'Pago', 'Parcelado', 'Nº da Parcela', 'Total de Parcelas'];
+        const creditCardContent = [
+          creditCardHeaders.join(','),
+          ...creditCards.map(item => [
+            item.date,
+            `"${item.category || ''}"`,
+            `"${item.description || ''}"`,
+            item.amount.toString().replace('.', ','),
+            `"${item.paymentMethod || ''}"`,
+            `"${item.location || ''}"`,
+            item.paid ? 'Sim' : 'Não',
+            item.isInstallment ? 'Sim' : 'Não',
+            `"${item.installmentNumber || ''}"`,
+            `"${item.totalInstallments || ''}"`
+          ].join(','))
+        ].join('\n');
+
+        const creditCardBlob = new Blob(['\uFEFF' + creditCardContent], { type: 'text/csv;charset=utf-8;' });
+        const creditCardUrl = URL.createObjectURL(creditCardBlob);
+        const creditCardLink = document.createElement('a');
+        creditCardLink.href = creditCardUrl;
+        creditCardLink.download = `cartoes_${timestamp}.csv`;
+        creditCardLink.click();
+        URL.revokeObjectURL(creditCardUrl);
       }
 
       showSuccess('Exportação realizada', 'Dados exportados com sucesso!');
