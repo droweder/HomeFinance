@@ -161,9 +161,9 @@ const AppContent: React.FC = () => {
 
   return (
     <ErrorBoundary>
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <div className="h-screen overflow-hidden bg-gray-50 dark:bg-gray-900">
         <Navigation activeTab={activeTab} onTabChange={setActiveTab} />
-        <main>{renderContent()}</main>
+        <main className="h-full overflow-y-auto">{renderContent()}</main>
 
         {/* FAB to open AI Chat */}
         <button
