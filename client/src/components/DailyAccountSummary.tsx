@@ -711,7 +711,7 @@ const DailyAccountSummary: React.FC = () => {
 
           {/* Tabela de Fluxo */}
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden [zoom:0.9]">
-            <div className="overflow-x-auto max-h-[calc(100vh-240px)]">
+            <div className="overflow-x-auto max-h-[calc(100vh-200px)]">
               <table className="w-full">
                 <thead className="bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600 sticky top-0 z-20">
                   <tr>
