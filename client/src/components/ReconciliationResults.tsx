@@ -14,6 +14,7 @@ interface StatementTransaction {
 interface ReconciliationResultsProps {
   isOpen: boolean;
   onClose: () => void;
+  onBack?: () => void;
   creditCards: CreditCard[];
   reconMonth: string;
   reconAccount: string;
@@ -25,6 +26,7 @@ interface ReconciliationResultsProps {
 const ReconciliationResults: React.FC<ReconciliationResultsProps> = ({
   isOpen,
   onClose,
+  onBack,
   creditCards,
   reconMonth,
   reconAccount,
@@ -223,9 +225,14 @@ const ReconciliationResults: React.FC<ReconciliationResultsProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="flex-shrink-0 flex justify-end pt-6 mt-auto">
-          <button onClick={onClose} className="bg-gray-200 text-gray-800 px-6 py-2 rounded-lg hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 transition-colors">
-            Fechar
+        <div className="flex-shrink-0 flex justify-end pt-6 mt-auto gap-4">
+          {onBack && (
+            <button onClick={onBack} className="bg-gray-200 text-gray-800 px-6 py-2 rounded-lg hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 transition-colors">
+              Voltar
+            </button>
+          )}
+          <button onClick={onClose} className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+            Concluir
           </button>
         </div>
       </div>

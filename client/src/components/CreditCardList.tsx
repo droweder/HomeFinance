@@ -105,6 +105,11 @@ const CreditCardList: React.FC = () => {
     setShowResultsModal(true);
   };
 
+  const handleBackToPaste = () => {
+    setShowResultsModal(false);
+    setShowPasteModal(true);
+  };
+
   // Estado para filtros aplicados
   const [appliedFilters, setAppliedFilters] = useState({
     category: '',
@@ -675,6 +680,7 @@ const CreditCardList: React.FC = () => {
           parsedTransactions={reconciliationData.parsedTransactions}
           onAddExpense={handleAddCardFromReconciliation}
           onDeleteExpense={deleteCreditCard}
+          onBack={handleBackToPaste}
         />
       )}
       <ConfirmDialog
