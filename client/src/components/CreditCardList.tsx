@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Plus, Edit2, Trash2, Calendar, CreditCard as CreditCardIcon, Filter, Search, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Edit2, Trash2, Calendar, CreditCard as CreditCardIcon, Filter, Search, X, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
 import { useCreditCard } from '../context/CreditCardContext';
 import { useAccounts } from '../context/AccountContext';
 import { useSettings } from '../context/SettingsContext';
@@ -56,6 +56,20 @@ const CreditCardList: React.FC = () => {
   });
   const [selectedCards, setSelectedCards] = useState<Set<string>>(new Set());
   const [confirmDeleteCard, setConfirmDeleteCard] = useState<CreditCard | null>(null);
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  const handleManualSync = async () => {
+    setIsSyncing(true);
+    showSuccess('Sincronizando...', 'As faturas estão sendo sincronizadas em segundo plano.');
+    try {
+      await syncAllInvoicesToExpenses();
+      showSuccess('Sincronização Concluída', 'As faturas foram sincronizadas com sucesso.');
+    } catch (error) {
+      showError('Erro na Sincronização', 'Ocorreu um erro ao sincronizar as faturas.');
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   // Handler functions
   const handleDeleteCard = async () => {
@@ -477,6 +491,14 @@ const CreditCardList: React.FC = () => {
                   >
                     <Filter className="w-4 h-4" />
                     Filtros
+                  </button>
+                  <button
+                    onClick={handleManualSync}
+                    className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-2 shadow-sm disabled:opacity-50"
+                    disabled={isSyncing}
+                  >
+                    <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
+                    {isSyncing ? 'Sincronizando...' : 'Sincronizar'}
                   </button>
                 </div>
               </div>
