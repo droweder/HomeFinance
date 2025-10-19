@@ -15,8 +15,12 @@ interface ReconciliationPasteProps {
   onClose: () => void;
   accounts: Account[];
   availableMonths: string[];
-  initialMonth: string;
-  // This handler will receive the parsed data and trigger the next modal
+  statementText: string;
+  setStatementText: (text: string) => void;
+  reconMonth: string;
+  setReconMonth: (month: string) => void;
+  reconAccount: string;
+  setReconAccount: (account: string) => void;
   onProcessStatement: (data: {
     parsedTransactions: StatementTransaction[];
     reconMonth: string;
@@ -29,27 +33,26 @@ const ReconciliationPaste: React.FC<ReconciliationPasteProps> = ({
   onClose,
   accounts,
   availableMonths,
-  initialMonth,
+  statementText,
+  setStatementText,
+  reconMonth,
+  setReconMonth,
+  reconAccount,
+  setReconAccount,
   onProcessStatement,
 }) => {
-  const [statementText, setStatementText] = useState('');
-  const [selectedMonth, setSelectedMonth] = useState(initialMonth);
-  const [selectedAccount, setSelectedAccount] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
-      // Initialize with the month from the main screen
-      setSelectedMonth(initialMonth);
-      // Default to the first account if available
-      if (accounts.length > 0 && !selectedAccount) {
-        setSelectedAccount(accounts[0].name);
+      if (accounts.length > 0 && !reconAccount) {
+        setReconAccount(accounts[0].name);
       }
     }
-  }, [isOpen, initialMonth, accounts]);
+  }, [isOpen, accounts, reconAccount, setReconAccount]);
 
   const handleProcess = () => {
-    if (!selectedAccount) {
+    if (!reconAccount) {
         alert('Por favor, selecione um cartão de crédito.');
         return;
     }
@@ -86,8 +89,8 @@ const ReconciliationPaste: React.FC<ReconciliationPasteProps> = ({
     // Pass the data to the parent component to open the next modal
     onProcessStatement({
       parsedTransactions,
-      reconMonth: selectedMonth,
-      reconAccount: selectedAccount,
+      reconMonth: reconMonth,
+      reconAccount: reconAccount,
     });
 
     // No need to set isProcessing to false here, as the component will be closed
@@ -120,8 +123,8 @@ const ReconciliationPaste: React.FC<ReconciliationPasteProps> = ({
                 Selecione a Fatura
               </label>
               <select
-                value={selectedMonth}
-                onChange={(e) => setSelectedMonth(e.target.value)}
+                value={reconMonth}
+                onChange={(e) => setReconMonth(e.target.value)}
                 className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
               >
                 {availableMonths.map(month => {
@@ -141,8 +144,8 @@ const ReconciliationPaste: React.FC<ReconciliationPasteProps> = ({
                 Selecione o Cartão
               </label>
               <select
-                value={selectedAccount}
-                onChange={(e) => setSelectedAccount(e.target.value)}
+                value={reconAccount}
+                onChange={(e) => setReconAccount(e.target.value)}
                 className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
                 required
               >
@@ -169,7 +172,7 @@ const ReconciliationPaste: React.FC<ReconciliationPasteProps> = ({
         <div className="flex-shrink-0 flex justify-end pt-6">
           <button
             onClick={handleProcess}
-            disabled={isProcessing || !statementText || !selectedAccount}
+            disabled={isProcessing || !statementText || !reconAccount}
             className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 shadow-sm disabled:bg-blue-400 disabled:cursor-not-allowed"
           >
             {isProcessing ? 'Processando...' : 'Processar Extrato'}
