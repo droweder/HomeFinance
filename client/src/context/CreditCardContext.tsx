@@ -13,7 +13,7 @@ interface CreditCardContextType {
   updateCreditCardAdvance: (id: string, updates: Partial<CreditCardAdvance>) => Promise<void>;
   deleteCreditCard: (id: string) => Promise<void>;
   deleteCreditCardAdvance: (id: string) => Promise<void>;
-  syncAllInvoicesToExpenses: () => Promise<void>;
+  syncAllInvoicesToExpenses: (currentCards?: CreditCard[], currentAdvances?: CreditCardAdvance[]) => Promise<void>;
   loading: boolean;
 }
 
@@ -160,10 +160,14 @@ export const CreditCardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         createdAt: data.created_at,
       };
 
-      setCreditCards(prev => [newCreditCard, ...prev]);
+      const newCreditCards = [newCreditCard, ...creditCards];
+      setCreditCards(newCreditCards);
       
-      // Sync all invoices to ensure data integrity
-      await syncAllInvoicesToExpenses();
+      // Optimistic update: sync in the background
+      syncAllInvoicesToExpenses(newCreditCards).catch(err => {
+        console.error("Background sync failed after add, reloading to ensure consistency.", err);
+        loadCreditCards(); // Fallback to reload all data on error
+      });
       
       console.log('✅ Credit card added');
     } catch (error) {
@@ -199,12 +203,16 @@ export const CreditCardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
       if (error) throw error;
 
-      setCreditCards(prev => prev.map(cc => 
+      const updatedCreditCards = creditCards.map(cc =>
         cc.id === id ? { ...cc, ...updates } : cc
-      ));
+      );
+      setCreditCards(updatedCreditCards);
 
-      // Sync all invoices to ensure data integrity
-      await syncAllInvoicesToExpenses();
+      // Optimistic update: sync in the background
+      syncAllInvoicesToExpenses(updatedCreditCards).catch(err => {
+        console.error("Background sync failed after update, reloading to ensure consistency.", err);
+        loadCreditCards(); // Fallback to reload all data on error
+      });
 
       console.log('✅ Credit card updated');
     } catch (error) {
@@ -230,10 +238,14 @@ export const CreditCardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
       if (error) throw error;
 
-      setCreditCards(prev => prev.filter(cc => cc.id !== id));
+      const updatedCreditCards = creditCards.filter(cc => cc.id !== id);
+      setCreditCards(updatedCreditCards);
       
-      // Sync all invoices to ensure data integrity
-      await syncAllInvoicesToExpenses();
+      // Optimistic update: sync in the background
+      syncAllInvoicesToExpenses(updatedCreditCards).catch(err => {
+        console.error("Background sync failed after delete, reloading to ensure consistency.", err);
+        loadCreditCards(); // Fallback to reload all data on error
+      });
       
       console.log('✅ Credit card deleted');
     } catch (error) {
@@ -243,14 +255,15 @@ export const CreditCardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   };
 
   // Function to sync ALL existing credit card records to expenses as invoices
-  const syncAllInvoicesToExpenses = async (currentAdvances?: CreditCardAdvance[]) => {
+  const syncAllInvoicesToExpenses = async (currentCards?: CreditCard[], currentAdvances?: CreditCardAdvance[]) => {
     if (!user) return;
 
     try {
       console.log('🔄 Starting bulk sync of ALL credit card invoices...');
       
-      // Use the provided advance list if available, otherwise use state.
-      // This is crucial for operations like deletion where the state might not be updated yet.
+      // Use the provided card/advance lists if available, otherwise use state.
+      // This is crucial for optimistic updates where the state might not be updated yet.
+      const cardsToUse = currentCards || creditCards;
       const advancesToUse = currentAdvances || creditCardAdvances;
 
       // [IDEMPOTENCY FIX V2] Perform a full recalculation from primary data sources.
@@ -263,7 +276,7 @@ export const CreditCardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       }));
 
       // Get all unique invoices (paymentMethod + paymentDate) and sort them chronologically.
-      const invoicePeriods = [...new Set(creditCards.map(cc => {
+      const invoicePeriods = [...new Set(cardsToUse.map(cc => {
         return `${cc.paymentMethod}|${cc.date}`;
       }))].sort((a, b) => {
         const dateA = new Date(a.split('|')[1]);
@@ -278,7 +291,7 @@ export const CreditCardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         const [paymentMethod, invoiceDateStr] = period.split('|');
         const invoiceDate = new Date(invoiceDateStr + 'T00:00:00');
 
-        const monthCards = creditCards.filter(cc => {
+        const monthCards = cardsToUse.filter(cc => {
           return cc.paymentMethod === paymentMethod && cc.date === invoiceDateStr;
         });
 
@@ -343,7 +356,7 @@ export const CreditCardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
             }
           }
 
-          const groupCards = creditCards.filter(cc => cc.paymentMethod === paymentMethod && cc.date === invoiceDateStr);
+          const groupCards = cardsToUse.filter(cc => cc.paymentMethod === paymentMethod && cc.date === invoiceDateStr);
           const representativeCard = groupCards[Math.floor(groupCards.length / 2)];
           const invoicePaymentMethod = representativeCard?.paymentMethod || paymentMethod;
 
@@ -470,7 +483,10 @@ export const CreditCardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
       console.log("Context: Calling syncAllInvoicesToExpenses after adding advance...");
       // Pass the new array directly to the sync function to avoid stale state issues.
-      await syncAllInvoicesToExpenses(nextAdvances);
+      syncAllInvoicesToExpenses(creditCards, nextAdvances).catch(err => {
+        console.error("Background sync failed after adding advance, reloading to ensure consistency.", err);
+        loadCreditCards(); // Fallback to reload all data on error
+      });
       console.log("Context: syncAllInvoicesToExpenses finished.");
     } catch (error) {
       console.error('Context: Erro ao adicionar antecipação de cartão de crédito:', error);
@@ -562,7 +578,10 @@ export const CreditCardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
       // After deleting, we need to resync all invoices to ensure correctness.
       // Pass the updated list directly to avoid using stale state.
-      await syncAllInvoicesToExpenses(newAdvances);
+      syncAllInvoicesToExpenses(creditCards, newAdvances).catch(err => {
+        console.error("Background sync failed after deleting advance, reloading to ensure consistency.", err);
+        loadCreditCards(); // Fallback to reload all data on error
+      });
 
     } catch (error) {
       console.error('Error deleting credit card advance:', error);
