@@ -40,6 +40,9 @@ const CreditCardList: React.FC = () => {
   const [showPasteModal, setShowPasteModal] = useState(false);
   const [showResultsModal, setShowResultsModal] = useState(false);
   const [reconciliationData, setReconciliationData] = useState<ReconciliationData | null>(null);
+  const [statementText, setStatementText] = useState('');
+  const [reconMonth, setReconMonth] = useState('');
+  const [reconAccount, setReconAccount] = useState('');
   const [tempFilters, setTempFilters] = useState({
     category: '',
     account: '',
@@ -666,7 +669,12 @@ const CreditCardList: React.FC = () => {
           onClose={() => setShowPasteModal(false)}
           accounts={accounts}
           availableMonths={availableMonths}
-          initialMonth={selectedMonth}
+          statementText={statementText}
+          setStatementText={setStatementText}
+          reconMonth={reconMonth || selectedMonth}
+          setReconMonth={setReconMonth}
+          reconAccount={reconAccount}
+          setReconAccount={setReconAccount}
           onProcessStatement={handleProcessStatement}
         />
       )}
