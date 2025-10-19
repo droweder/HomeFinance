@@ -719,7 +719,7 @@ const DailyAccountSummary: React.FC = () => {
                       Data
                     </th>
                     {visibleAccounts.map(account => (
-                      <th key={account.id} className="text-center py-2 px-3 font-medium text-gray-900 dark:text-white min-w-[180px]" colSpan={3}>
+                      <th key={account.id} className="text-center py-2 px-3 font-medium text-gray-900 dark:text-white min-w-[120px]" colSpan={3}>
                         {account.name}
                       </th>
                     ))}
