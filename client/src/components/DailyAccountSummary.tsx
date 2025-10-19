@@ -593,7 +593,7 @@ const DailyAccountSummary: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 [zoom:0.9]">
+      <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Fixed Header */}
         <div className="fixed top-16 left-0 right-0 z-30 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
           <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
@@ -661,7 +661,7 @@ const DailyAccountSummary: React.FC = () => {
                   <DollarSign className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                   <div>
                     <span className="text-xs text-blue-600 dark:text-blue-400 font-medium">Saldo Inicial: </span>
-                    <span className="text-sm font-bold text-blue-700 dark:text-blue-300">{formatCurrency(dailySummaries[0]?.totalDailyBalance || 0)}</span>
+                    <span className="text-sm font-bold text-blue-700 dark:text-blue-300">{formatCurrency(dailySummaries[dailySummaries.length - 1]?.totalDailyBalance || 0)}</span>
                   </div>
                 </div>
                 
@@ -669,7 +669,7 @@ const DailyAccountSummary: React.FC = () => {
                   <TrendingUp className="w-4 h-4 text-green-600 dark:text-green-400" />
                   <div>
                     <span className="text-xs text-green-600 dark:text-green-400 font-medium">Saldo Final: </span>
-                    <span className="text-sm font-bold text-green-700 dark:text-green-300">{formatCurrency(dailySummaries[dailySummaries.length - 1]?.totalDailyBalance || 0)}</span>
+                    <span className="text-sm font-bold text-green-700 dark:text-green-300">{formatCurrency(dailySummaries[0]?.totalDailyBalance || 0)}</span>
                   </div>
                 </div>
                 
@@ -719,12 +719,12 @@ const DailyAccountSummary: React.FC = () => {
                       Data
                     </th>
                     {visibleAccounts.map(account => (
-                      <th key={account.id} className="text-center py-2 px-3 font-medium text-gray-900 dark:text-white" colSpan={3}>
+                      <th key={account.id} className="text-center py-2 px-3 font-medium text-gray-900 dark:text-white min-w-[180px]" colSpan={3}>
                         {account.name}
                       </th>
                     ))}
                     <th className="text-left py-2 px-3 font-medium text-gray-900 dark:text-white min-w-[140px] bg-blue-50 dark:bg-blue-900">
-                      Saldo Total Diário
+                      Saldo Total
                     </th>
                   </tr>
                   <tr className="bg-gray-50 dark:bg-gray-700">
