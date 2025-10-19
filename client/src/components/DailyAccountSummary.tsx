@@ -593,7 +593,7 @@ const DailyAccountSummary: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 scale-[.90] origin-top-left">
         {/* Fixed Header */}
         <div className="fixed top-16 left-0 right-0 z-30 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
           <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
