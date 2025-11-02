@@ -6,6 +6,7 @@ import { useSettings } from '../context/SettingsContext';
 import { useToast } from './ui/toast';
 import { Expense } from '../types';
 import { formatDateForInput, formatDateForStorage, getCurrentDateForInput } from '../utils/dateUtils';
+import AutocompleteInput from './ui/AutocompleteInput';
 
 interface ExpenseFormProps {
   expense?: Expense | null;
@@ -14,7 +15,7 @@ interface ExpenseFormProps {
 }
 
 const ExpenseForm: React.FC<ExpenseFormProps> = ({ expense, onClose, onSave }) => {
-  const { addExpense, updateExpense, categories } = useFinance();
+  const { addExpense, updateExpense, categories, locations } = useFinance();
   const { accounts } = useAccounts();
   const { settings } = useSettings();
   const { showSuccess } = useToast();
@@ -385,10 +386,10 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ expense, onClose, onSave }) =
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               {labels.location}
             </label>
-            <input
-              type="text"
+            <AutocompleteInput
+              suggestions={locations}
               value={formData.location}
-              onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+              onChange={(value) => setFormData({ ...formData, location: value })}
               className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
               placeholder="Ex: Supermercado, João Silva, etc."
             />
