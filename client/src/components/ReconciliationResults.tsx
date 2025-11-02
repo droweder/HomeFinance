@@ -34,6 +34,8 @@ const ReconciliationResults: React.FC<ReconciliationResultsProps> = ({
   onAddExpense,
   onDeleteExpense,
 }) => {
+  const [statementTransactions, setStatementTransactions] = useState(parsedTransactions);
+
   const { matched, missingInApp, missingInStatement } = useMemo(() => {
     if (!isOpen) return { matched: [], missingInApp: [], missingInStatement: [] };
 
@@ -46,7 +48,7 @@ const ReconciliationResults: React.FC<ReconciliationResultsProps> = ({
     const notFoundInApp: StatementTransaction[] = [];
     const notFoundInStatement = [...appTransactions];
 
-    for (const st of parsedTransactions) {
+    for (const st of statementTransactions) {
       const appExpenseIndex = notFoundInStatement.findIndex(ae => {
         const statementAmount = Math.abs(st.amount);
         const appAmount = Math.abs(ae.amount);
@@ -62,7 +64,7 @@ const ReconciliationResults: React.FC<ReconciliationResultsProps> = ({
     }
 
     return { matched: matchedPairs, missingInApp: notFoundInApp, missingInStatement: notFoundInStatement };
-  }, [isOpen, parsedTransactions, creditCards, reconMonth, reconAccount]);
+  }, [isOpen, statementTransactions, creditCards, reconMonth, reconAccount]);
 
   const handleAddClick = (transaction: StatementTransaction) => {
     const [day, month, year] = transaction.date.split('/');
@@ -75,6 +77,10 @@ const ReconciliationResults: React.FC<ReconciliationResultsProps> = ({
       paymentMethod: reconAccount,
       category: 'Cartão de Crédito',
     });
+  };
+
+  const handleDeleteStatementTransaction = (transaction: StatementTransaction) => {
+    setStatementTransactions(prev => prev.filter(t => t !== transaction));
   };
 
   if (!isOpen) {
@@ -147,24 +153,29 @@ const ReconciliationResults: React.FC<ReconciliationResultsProps> = ({
                   <table className="w-full">
                     <thead className="bg-gray-100 dark:bg-gray-600 sticky top-0">
                       <tr>
-                        <th className="text-left py-3 px-4 font-medium text-gray-900 dark:text-white">Data</th>
-                        <th className="text-left py-3 px-4 font-medium text-gray-900 dark:text-white">Descrição</th>
-                        <th className="text-right py-3 px-4 font-medium text-gray-900 dark:text-white">Valor</th>
-                        <th className="text-center py-3 px-4 font-medium text-gray-900 dark:text-white">Ação</th>
+                        <th className="text-left py-1.5 px-4 font-medium text-gray-900 dark:text-white">Data</th>
+                        <th className="text-left py-1.5 px-4 font-medium text-gray-900 dark:text-white">Descrição</th>
+                        <th className="text-right py-1.5 px-4 font-medium text-gray-900 dark:text-white">Valor</th>
+                        <th className="text-center py-1.5 px-4 font-medium text-gray-900 dark:text-white">Ação</th>
                       </tr>
                     </thead>
                     <tbody>
                       {missingInApp.map((t, i) => (
                         <tr key={`missing-app-${i}`} className="border-b border-gray-200 dark:border-gray-600 hover:bg-white dark:hover:bg-gray-600">
-                          <td className="py-3 px-4 text-sm text-gray-700 dark:text-gray-300 whitespace-nowrap">{t.date}</td>
-                          <td className="py-3 px-4 text-sm text-gray-700 dark:text-gray-300">{t.description}</td>
-                          <td className="py-3 px-4 text-sm text-right font-mono text-red-600 dark:text-red-400 whitespace-nowrap">
+                          <td className="py-1.5 px-4 text-sm text-gray-700 dark:text-gray-300 whitespace-nowrap">{t.date}</td>
+                          <td className="py-1.5 px-4 text-sm text-gray-700 dark:text-gray-300">{t.description}</td>
+                          <td className="py-1.5 px-4 text-sm text-right font-mono text-red-600 dark:text-red-400 whitespace-nowrap">
                             {t.amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                           </td>
-                          <td className="py-3 px-4 text-center">
-                            <button onClick={() => handleAddClick(t)} className="text-blue-500 hover:text-blue-700 p-1">
-                              <PlusCircle className="w-5 h-5" />
-                            </button>
+                          <td className="py-1.5 px-4 text-center">
+                            <div className="flex justify-center gap-2">
+                              <button onClick={() => handleAddClick(t)} className="text-blue-500 hover:text-blue-700 p-1" title="Adicionar ao App">
+                                <PlusCircle className="w-5 h-5" />
+                              </button>
+                              <button onClick={() => handleDeleteStatementTransaction(t)} className="text-gray-400 hover:text-gray-600 p-1" title="Ignorar este lançamento">
+                                <Trash2 className="w-5 h-5" />
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -185,21 +196,21 @@ const ReconciliationResults: React.FC<ReconciliationResultsProps> = ({
                   <table className="w-full">
                     <thead className="bg-gray-100 dark:bg-gray-600 sticky top-0">
                       <tr>
-                        <th className="text-left py-3 px-4 font-medium text-gray-900 dark:text-white">Data</th>
-                        <th className="text-left py-3 px-4 font-medium text-gray-900 dark:text-white">Descrição</th>
-                        <th className="text-right py-3 px-4 font-medium text-gray-900 dark:text-white">Valor</th>
-                        <th className="text-center py-3 px-4 font-medium text-gray-900 dark:text-white">Ação</th>
+                        <th className="text-left py-1.5 px-4 font-medium text-gray-900 dark:text-white">Data</th>
+                        <th className="text-left py-1.5 px-4 font-medium text-gray-900 dark:text-white">Descrição</th>
+                        <th className="text-right py-1.5 px-4 font-medium text-gray-900 dark:text-white">Valor</th>
+                        <th className="text-center py-1.5 px-4 font-medium text-gray-900 dark:text-white">Ação</th>
                       </tr>
                     </thead>
                     <tbody>
                       {missingInStatement.map((e, i) => (
                         <tr key={`missing-stmt-${i}`} className="border-b border-gray-200 dark:border-gray-600 hover:bg-white dark:hover:bg-gray-600">
-                          <td className="py-3 px-4 text-sm text-gray-700 dark:text-gray-300 whitespace-nowrap">{format(new Date(e.date), 'dd/MM/yyyy', { locale: ptBR })}</td>
-                          <td className="py-3 px-4 text-sm text-gray-700 dark:text-gray-300">{e.description}</td>
-                          <td className="py-3 px-4 text-sm text-right font-mono text-yellow-600 dark:text-yellow-400 whitespace-nowrap">
+                          <td className="py-1.5 px-4 text-sm text-gray-700 dark:text-gray-300 whitespace-nowrap">{format(new Date(e.date), 'dd/MM/yyyy', { locale: ptBR })}</td>
+                          <td className="py-1.5 px-4 text-sm text-gray-700 dark:text-gray-300">{e.description}</td>
+                          <td className="py-1.5 px-4 text-sm text-right font-mono text-yellow-600 dark:text-yellow-400 whitespace-nowrap">
                             {e.amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                           </td>
-                          <td className="py-3 px-4 text-center">
+                          <td className="py-1.5 px-4 text-center">
                             {onDeleteExpense && (
                               <button onClick={() => onDeleteExpense(e.id)} className="text-red-500 hover:text-red-700 p-1">
                                 <Trash2 className="w-5 h-5" />
