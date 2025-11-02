@@ -5,6 +5,7 @@ import { useAccounts } from '../context/AccountContext';
 import { useSettings } from '../context/SettingsContext';
 import { useToast } from './ui/toast';
 import { Income } from '../types';
+import AutocompleteInput from './ui/AutocompleteInput';
 
 interface IncomeFormProps {
   income?: Income | null;
@@ -12,7 +13,7 @@ interface IncomeFormProps {
 }
 
 const IncomeForm: React.FC<IncomeFormProps> = ({ income, onClose }) => {
-  const { addIncome, updateIncome, categories } = useFinance();
+  const { addIncome, updateIncome, categories, locations } = useFinance();
   const { accounts } = useAccounts();
   const { settings } = useSettings();
   const { showSuccess } = useToast();
@@ -248,10 +249,10 @@ const IncomeForm: React.FC<IncomeFormProps> = ({ income, onClose }) => {
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               {labels.location}
             </label>
-            <input
-              type="text"
+            <AutocompleteInput
+              suggestions={locations}
               value={formData.location}
-              onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+              onChange={(value) => setFormData({ ...formData, location: value })}
               className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-gray-700 dark:text-white"
               placeholder="Ex: Empresa, Cliente, João Silva, etc."
             />

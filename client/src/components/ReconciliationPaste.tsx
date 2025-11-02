@@ -118,52 +118,54 @@ const ReconciliationPaste: React.FC<ReconciliationPasteProps> = ({
         <div className="flex-grow space-y-6 overflow-y-auto">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-gray-50 dark:bg-gray-900/50 rounded-lg border dark:border-gray-700">
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center">
-                <Calendar className="w-4 h-4 mr-2" />
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Selecione a Fatura
               </label>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => {
-                    const currentIndex = availableMonths.findIndex(month => month === reconMonth);
-                    if (currentIndex > 0) {
-                      setReconMonth(availableMonths[currentIndex - 1]);
-                    }
-                  }}
-                  disabled={availableMonths.findIndex(month => month === reconMonth) <= 0}
-                  className="p-1 hover:bg-blue-100 dark:hover:bg-blue-800 rounded disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <ChevronLeft className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                </button>
+              <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                <Calendar className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => {
+                      const currentIndex = availableMonths.findIndex(month => month === reconMonth);
+                      if (currentIndex > 0) {
+                        setReconMonth(availableMonths[currentIndex - 1]);
+                      }
+                    }}
+                    disabled={availableMonths.findIndex(month => month === reconMonth) <= 0}
+                    className="p-1 hover:bg-blue-100 dark:hover:bg-blue-800 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <ChevronLeft className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                  </button>
 
-                <select
-                  value={reconMonth}
-                  onChange={(e) => setReconMonth(e.target.value)}
-                  className="text-sm font-medium text-blue-700 dark:text-blue-300 bg-transparent border-none focus:outline-none"
-                >
-                  {availableMonths.map(month => {
-                    const [year, monthNum] = month.split('-');
-                    const monthName = new Date(parseInt(year), parseInt(monthNum) - 1).toLocaleDateString('pt-BR', { year: 'numeric', month: 'long' });
-                    return (
-                      <option key={month} value={month}>
-                        {monthName}
-                      </option>
-                    );
-                  })}
-                </select>
+                  <select
+                    value={reconMonth}
+                    onChange={(e) => setReconMonth(e.target.value)}
+                    className="text-sm font-medium text-blue-700 dark:text-blue-300 bg-transparent border-none focus:outline-none"
+                  >
+                    {availableMonths.map(month => {
+                      const [year, monthNum] = month.split('-');
+                      const monthName = new Date(parseInt(year), parseInt(monthNum) - 1).toLocaleDateString('pt-BR', { year: 'numeric', month: 'long' });
+                      return (
+                        <option key={month} value={month}>
+                          {monthName}
+                        </option>
+                      );
+                    })}
+                  </select>
 
-                <button
-                  onClick={() => {
-                    const currentIndex = availableMonths.findIndex(month => month === reconMonth);
-                    if (currentIndex < availableMonths.length - 1) {
-                      setReconMonth(availableMonths[currentIndex + 1]);
-                    }
-                  }}
-                  disabled={availableMonths.findIndex(month => month === reconMonth) >= availableMonths.length - 1}
-                  className="p-1 hover:bg-blue-100 dark:hover:bg-blue-800 rounded disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <ChevronRight className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                </button>
+                  <button
+                    onClick={() => {
+                      const currentIndex = availableMonths.findIndex(month => month === reconMonth);
+                      if (currentIndex < availableMonths.length - 1) {
+                        setReconMonth(availableMonths[currentIndex + 1]);
+                      }
+                    }}
+                    disabled={availableMonths.findIndex(month => month === reconMonth) >= availableMonths.length - 1}
+                    className="p-1 hover:bg-blue-100 dark:hover:bg-blue-800 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <ChevronRight className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                  </button>
+                </div>
               </div>
             </div>
             <div>

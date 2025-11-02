@@ -13,6 +13,7 @@ interface FinanceContextType {
   income: Income[];
   categories: Category[];
   transfers: Transfer[];
+  locations: string[];
   filters: FilterState;
   addExpense: (expense: Omit<Expense, 'id' | 'createdAt'>) => Promise<Expense>;
   addIncome: (income: Omit<Income, 'id' | 'createdAt'>) => void;
@@ -51,6 +52,7 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
   const [income, setIncome] = useState<Income[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [transfers, setTransfers] = useState<Transfer[]>([]);
+  const [locations, setLocations] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [loadingError, setLoadingError] = useState<string | null>(null);
   const [lastLoadTime, setLastLoadTime] = useState<number>(0);
@@ -463,6 +465,18 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
 
         // Create data lock to absolutely prevent future reloads
         createDataLock();
+
+        // Fetch locations
+        const fetchLocations = async () => {
+          if (!currentUser) return;
+          const { data, error } = await supabase.rpc('get_unique_locations', { user_id_param: currentUser.id });
+          if (error) {
+            console.error('Error fetching locations:', error);
+          } else {
+            setLocations(data);
+          }
+        };
+        fetchLocations();
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
         console.error('❌ Critical error loading data:', error);
@@ -1166,6 +1180,7 @@ export const FinanceProvider: React.FC<FinanceProviderProps> = ({ children }) =>
         income,
         categories,
         transfers,
+        locations,
         filters,
         addExpense,
         addIncome,

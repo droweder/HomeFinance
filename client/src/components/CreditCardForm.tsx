@@ -6,6 +6,7 @@ import { useAccounts } from '../context/AccountContext';
 import { useSettings } from '../context/SettingsContext';
 import { useToast } from './ui/toast';
 import type { CreditCard } from '../types/index';
+import AutocompleteInput from './ui/AutocompleteInput';
 
 interface CreditCardFormProps {
   creditCard?: CreditCard | null;
@@ -35,7 +36,7 @@ const formatDateForStorage = (dateStr: string) => {
 
 const CreditCardForm: React.FC<CreditCardFormProps> = ({ creditCard, refundData, initialData, onClose, onSave, onAddRefund }) => {
   const { addCreditCard, updateCreditCard } = useCreditCard();
-  const { categories } = useFinance();
+  const { categories, locations } = useFinance();
   const { accounts } = useAccounts();
   const { settings } = useSettings();
   const { showSuccess } = useToast();
@@ -439,10 +440,10 @@ const CreditCardForm: React.FC<CreditCardFormProps> = ({ creditCard, refundData,
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               {labels.location}
             </label>
-            <input
-              type="text"
+            <AutocompleteInput
+              suggestions={locations}
               value={formData.location}
-              onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+              onChange={(value) => setFormData({ ...formData, location: value })}
               className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500 dark:bg-gray-700 dark:text-white"
               placeholder="Local ou pessoa (opcional)"
             />
