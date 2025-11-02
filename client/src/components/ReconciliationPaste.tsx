@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, ArrowRight, Calendar, CreditCard as CreditCardIcon } from 'lucide-react';
+import { X, ArrowRight, Calendar, CreditCard as CreditCardIcon, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { Account } from '../types/index';
 
 // This is the structured transaction object we will pass to the next modal
@@ -122,21 +122,49 @@ const ReconciliationPaste: React.FC<ReconciliationPasteProps> = ({
                 <Calendar className="w-4 h-4 mr-2" />
                 Selecione a Fatura
               </label>
-              <select
-                value={reconMonth}
-                onChange={(e) => setReconMonth(e.target.value)}
-                className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-              >
-                {availableMonths.map(month => {
-                  const [year, monthNum] = month.split('-');
-                  const monthName = new Date(parseInt(year), parseInt(monthNum) - 1).toLocaleDateString('pt-BR', { year: 'numeric', month: 'long' });
-                  return (
-                    <option key={month} value={month}>
-                      {monthName}
-                    </option>
-                  );
-                })}
-              </select>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    const currentIndex = availableMonths.findIndex(month => month === reconMonth);
+                    if (currentIndex > 0) {
+                      setReconMonth(availableMonths[currentIndex - 1]);
+                    }
+                  }}
+                  disabled={availableMonths.findIndex(month => month === reconMonth) <= 0}
+                  className="p-1 hover:bg-blue-100 dark:hover:bg-blue-800 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <ChevronLeft className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                </button>
+
+                <select
+                  value={reconMonth}
+                  onChange={(e) => setReconMonth(e.target.value)}
+                  className="text-sm font-medium text-blue-700 dark:text-blue-300 bg-transparent border-none focus:outline-none"
+                >
+                  {availableMonths.map(month => {
+                    const [year, monthNum] = month.split('-');
+                    const monthName = new Date(parseInt(year), parseInt(monthNum) - 1).toLocaleDateString('pt-BR', { year: 'numeric', month: 'long' });
+                    return (
+                      <option key={month} value={month}>
+                        {monthName}
+                      </option>
+                    );
+                  })}
+                </select>
+
+                <button
+                  onClick={() => {
+                    const currentIndex = availableMonths.findIndex(month => month === reconMonth);
+                    if (currentIndex < availableMonths.length - 1) {
+                      setReconMonth(availableMonths[currentIndex + 1]);
+                    }
+                  }}
+                  disabled={availableMonths.findIndex(month => month === reconMonth) >= availableMonths.length - 1}
+                  className="p-1 hover:bg-blue-100 dark:hover:bg-blue-800 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <ChevronRight className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                </button>
+              </div>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center">
