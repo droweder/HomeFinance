@@ -1,7 +1,7 @@
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { supabase } from '../lib/supabase';
-import { useAuth } from './AuthContext';
+import React, { createContext, useContext, useMemo } from 'react';
+import { useFinance } from './FinanceContext';
+import { useCreditCard } from './CreditCardContext';
 
 interface LocationContextType {
   locations: string[];
@@ -18,31 +18,32 @@ export const useLocations = () => {
 };
 
 export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { currentUser } = useAuth();
-  const [locations, setLocations] = useState<string[]>([]);
+  const { expenses, income } = useFinance();
+  const { creditCards } = useCreditCard();
 
-  useEffect(() => {
-    const fetchLocations = async () => {
-      if (!currentUser) return;
+  const locations = useMemo(() => {
+    const allLocations = new Set<string>();
 
-      try {
-        const { data, error } = await supabase.rpc('get_unique_locations', { user_id_param: currentUser.id });
-
-        if (error) {
-          console.error('Error fetching unique locations:', error);
-          throw error;
-        }
-
-        if (data) {
-          setLocations(data.sort());
-        }
-      } catch (error) {
-        console.error('An unexpected error occurred while fetching locations:', error);
+    expenses.forEach(expense => {
+      if (expense.location) {
+        allLocations.add(expense.location);
       }
-    };
+    });
 
-    fetchLocations();
-  }, [currentUser]);
+    income.forEach(i => {
+      if (i.location) {
+        allLocations.add(i.location);
+      }
+    });
+
+    creditCards.forEach(cc => {
+      if (cc.location) {
+        allLocations.add(cc.location);
+      }
+    });
+
+    return Array.from(allLocations).sort();
+  }, [expenses, income, creditCards]);
 
   return (
     <LocationContext.Provider value={{ locations }}>
