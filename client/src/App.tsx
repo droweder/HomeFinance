@@ -6,6 +6,7 @@ import { SettingsProvider } from './context/SettingsContext';
 import { AccountProvider } from './context/AccountContext';
 import { FinanceProvider } from './context/FinanceContext';
 import { CreditCardProvider } from './context/CreditCardContext';
+import { LocationProvider } from './context/LocationContext';
 import { useSupabaseSync } from './hooks/useSupabaseSync';
 import Navigation from './components/Navigation';
 import Dashboard from './components/Dashboard';
@@ -211,7 +212,9 @@ function App() {
             <AccountProvider>
               <FinanceProvider>
                 <CreditCardProvider>
-                  <AppContent />
+                  <LocationProvider>
+                    <AppContent />
+                  </LocationProvider>
                 </CreditCardProvider>
               </FinanceProvider>
             </AccountProvider>
