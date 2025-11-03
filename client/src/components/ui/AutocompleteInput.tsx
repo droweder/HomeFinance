@@ -18,6 +18,7 @@ const AutocompleteInput: React.FC<AutocompleteInputProps> = ({
 }) => {
   const [filteredSuggestions, setFilteredSuggestions] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -40,6 +41,7 @@ const AutocompleteInput: React.FC<AutocompleteInputProps> = ({
     );
     setFilteredSuggestions(filtered);
     setShowSuggestions(true);
+    setActiveSuggestionIndex(0); // Reset active suggestion on change
     onChange(userInput);
   };
 
@@ -49,13 +51,45 @@ const AutocompleteInput: React.FC<AutocompleteInputProps> = ({
     onChange(suggestion);
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // User pressed the enter key
+    if (e.key === 'Enter') {
+      e.preventDefault(); // Stop form submission
+      if (filteredSuggestions.length > 0) {
+        handleClick(filteredSuggestions[activeSuggestionIndex]);
+      }
+    }
+    // User pressed the up arrow
+    else if (e.key === 'ArrowUp') {
+      if (activeSuggestionIndex === 0) {
+        return;
+      }
+      setActiveSuggestionIndex(activeSuggestionIndex - 1);
+    }
+    // User pressed the down arrow
+    else if (e.key === 'ArrowDown') {
+      if (activeSuggestionIndex + 1 === filteredSuggestions.length) {
+        return;
+      }
+      setActiveSuggestionIndex(activeSuggestionIndex + 1);
+    }
+    // User pressed the escape key
+    else if (e.key === 'Escape') {
+      setShowSuggestions(false);
+    }
+  };
+
   const SuggestionsListComponent = () => {
     return filteredSuggestions.length ? (
       <ul className="absolute z-10 w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg mt-1 max-h-60 overflow-y-auto">
         {filteredSuggestions.map((suggestion, index) => {
+          let className = "px-3 py-2 cursor-pointer";
+          if (index === activeSuggestionIndex) {
+            className += " bg-gray-100 dark:bg-gray-600";
+          }
           return (
             <li
-              className="px-3 py-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
+              className={className}
               key={suggestion + index}
               onClick={() => handleClick(suggestion)}
             >
@@ -72,12 +106,13 @@ const AutocompleteInput: React.FC<AutocompleteInputProps> = ({
       <input
         type="text"
         onChange={handleChange}
+        onKeyDown={handleKeyDown}
         value={value}
         placeholder={placeholder}
         className={className}
         onFocus={() => setShowSuggestions(true)}
       />
-      {showSuggestions && <SuggestionsListComponent />}
+      {showSuggestions && value && <SuggestionsListComponent />}
     </div>
   );
 };
