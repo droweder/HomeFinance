@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Calendar, CreditCard as CreditCardIcon, Plus, Minus } from 'lucide-react';
 import { useCreditCard } from '../context/CreditCardContext';
 import { useFinance } from '../context/FinanceContext';
+import { useLocations } from '../context/LocationContext';
 import { useAccounts } from '../context/AccountContext';
 import { useSettings } from '../context/SettingsContext';
 import { useToast } from './ui/toast';
@@ -36,7 +37,8 @@ const formatDateForStorage = (dateStr: string) => {
 
 const CreditCardForm: React.FC<CreditCardFormProps> = ({ creditCard, refundData, initialData, onClose, onSave, onAddRefund }) => {
   const { addCreditCard, updateCreditCard } = useCreditCard();
-  const { categories, locations } = useFinance();
+  const { categories } = useFinance();
+  const { locations } = useLocations();
   const { accounts } = useAccounts();
   const { settings } = useSettings();
   const { showSuccess } = useToast();

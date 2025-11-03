@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Calendar, Plus, Minus } from 'lucide-react';
 import { useFinance } from '../context/FinanceContext';
+import { useLocations } from '../context/LocationContext';
 import { useAccounts } from '../context/AccountContext';
 import { useSettings } from '../context/SettingsContext';
 import { useToast } from './ui/toast';
@@ -15,7 +16,8 @@ interface ExpenseFormProps {
 }
 
 const ExpenseForm: React.FC<ExpenseFormProps> = ({ expense, onClose, onSave }) => {
-  const { addExpense, updateExpense, categories, locations } = useFinance();
+  const { addExpense, updateExpense, categories } = useFinance();
+  const { locations } = useLocations();
   const { accounts } = useAccounts();
   const { settings } = useSettings();
   const { showSuccess } = useToast();

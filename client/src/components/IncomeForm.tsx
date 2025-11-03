@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Calendar, Plus, Minus } from 'lucide-react';
 import { useFinance } from '../context/FinanceContext';
+import { useLocations } from '../context/LocationContext';
 import { useAccounts } from '../context/AccountContext';
 import { useSettings } from '../context/SettingsContext';
 import { useToast } from './ui/toast';
@@ -13,7 +14,8 @@ interface IncomeFormProps {
 }
 
 const IncomeForm: React.FC<IncomeFormProps> = ({ income, onClose }) => {
-  const { addIncome, updateIncome, categories, locations } = useFinance();
+  const { addIncome, updateIncome, categories } = useFinance();
+  const { locations } = useLocations();
   const { accounts } = useAccounts();
   const { settings } = useSettings();
   const { showSuccess } = useToast();
