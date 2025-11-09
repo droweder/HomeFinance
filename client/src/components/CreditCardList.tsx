@@ -688,6 +688,7 @@ const CreditCardList: React.FC = () => {
           parsedTransactions={reconciliationData.parsedTransactions}
           onAddExpense={handleAddCardFromReconciliation}
           onDeleteExpense={deleteCreditCard}
+          onEditExpense={handleEditCard}
           onBack={handleBackToPaste}
         />
       )}
