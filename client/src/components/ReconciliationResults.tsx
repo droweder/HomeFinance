@@ -155,10 +155,10 @@ const ReconciliationResults: React.FC<ReconciliationResultsProps> = ({
                   <table className="w-full">
                     <thead className="bg-gray-100 dark:bg-gray-600 sticky top-0">
                       <tr>
-                        <th className="text-left py-1.5 px-4 font-medium text-gray-900 dark:text-white">Data</th>
+                        <th className="text-left py-1.5 px-4 font-medium text-gray-900 dark:text-white w-24">Data</th>
                         <th className="text-left py-1.5 px-4 font-medium text-gray-900 dark:text-white">Descrição</th>
-                        <th className="text-right py-1.5 px-4 font-medium text-gray-900 dark:text-white">Valor</th>
-                        <th className="text-center py-1.5 px-4 font-medium text-gray-900 dark:text-white">Ação</th>
+                        <th className="text-right py-1.5 px-4 font-medium text-gray-900 dark:text-white w-24">Valor</th>
+                        <th className="text-center py-1.5 px-4 font-medium text-gray-900 dark:text-white w-32">Ação</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -198,10 +198,10 @@ const ReconciliationResults: React.FC<ReconciliationResultsProps> = ({
                   <table className="w-full">
                     <thead className="bg-gray-100 dark:bg-gray-600 sticky top-0">
                       <tr>
-                        <th className="text-left py-1.5 px-4 font-medium text-gray-900 dark:text-white">Data</th>
+                        <th className="text-left py-1.5 px-4 font-medium text-gray-900 dark:text-white w-24">Data</th>
                         <th className="text-left py-1.5 px-4 font-medium text-gray-900 dark:text-white">Descrição</th>
-                        <th className="text-right py-1.5 px-4 font-medium text-gray-900 dark:text-white">Valor</th>
-                        <th className="text-center py-1.5 px-4 font-medium text-gray-900 dark:text-white">Ação</th>
+                        <th className="text-right py-1.5 px-4 font-medium text-gray-900 dark:text-white w-24">Valor</th>
+                        <th className="text-center py-1.5 px-4 font-medium text-gray-900 dark:text-white w-32">Ação</th>
                       </tr>
                     </thead>
                     <tbody>
