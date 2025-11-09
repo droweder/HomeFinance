@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { X, AlertTriangle, CheckCircle, PlusCircle, Trash2, Banknote, FileWarning, FileCheck, Calendar, Wallet } from 'lucide-react';
+import { X, AlertTriangle, CheckCircle, PlusCircle, Trash2, Banknote, FileWarning, FileCheck, Calendar, Wallet, Edit2 } from 'lucide-react';
 import type { CreditCard } from '../types/index';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -21,6 +21,7 @@ interface ReconciliationResultsProps {
   parsedTransactions: StatementTransaction[];
   onAddExpense: (expense: Partial<CreditCard>) => void;
   onDeleteExpense?: (expenseId: string) => void;
+  onEditExpense?: (expense: CreditCard) => void;
 }
 
 const ReconciliationResults: React.FC<ReconciliationResultsProps> = ({
@@ -33,6 +34,7 @@ const ReconciliationResults: React.FC<ReconciliationResultsProps> = ({
   parsedTransactions,
   onAddExpense,
   onDeleteExpense,
+  onEditExpense,
 }) => {
   const [statementTransactions, setStatementTransactions] = useState(parsedTransactions);
 
@@ -211,11 +213,18 @@ const ReconciliationResults: React.FC<ReconciliationResultsProps> = ({
                             {e.amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                           </td>
                           <td className="py-1.5 px-4 text-center">
-                            {onDeleteExpense && (
-                              <button onClick={() => onDeleteExpense(e.id)} className="text-red-500 hover:text-red-700 p-1">
-                                <Trash2 className="w-5 h-5" />
-                              </button>
-                            )}
+                            <div className="flex justify-center gap-2">
+                              {onEditExpense && (
+                                <button onClick={() => onEditExpense(e)} className="text-blue-500 hover:text-blue-700 p-1" title="Editar Lançamento">
+                                  <Edit2 className="w-5 h-5" />
+                                </button>
+                              )}
+                              {onDeleteExpense && (
+                                <button onClick={() => onDeleteExpense(e.id)} className="text-red-500 hover:text-red-700 p-1" title="Excluir Lançamento">
+                                  <Trash2 className="w-5 h-5" />
+                                </button>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       ))}
