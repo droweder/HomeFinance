@@ -2,7 +2,7 @@
 
 ## Visão Geral
 
-Este é um aplicativo completo de gestão financeira pessoal desenvolvido para ajudar usuários a controlar, analisar e otimizar suas finanças de forma inteligente e eficiente. O sistema oferece uma interface moderna e intuitiva que permite o acompanhamento detalhado de receitas, despesas, transferências e cartões de crédito, com recursos avançados de análise e insights financeiros.
+Este é um sistema de gestão financeira pessoal, de código aberto, projetado para simplificar o controle das suas finanças. Com ele, você pode acompanhar despesas, receitas, cartões de crédito e transferências de forma centralizada. A plataforma oferece uma interface moderna e intuitiva, aliada a ferramentas de análise e um assistente de IA, para fornecer insights valiosos e ajudar você a tomar decisões financeiras mais inteligentes.
 
 ## Principais Funcionalidades
 
