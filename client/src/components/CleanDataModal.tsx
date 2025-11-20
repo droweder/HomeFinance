@@ -13,6 +13,7 @@ const CleanDataModal: React.FC<CleanDataModalProps> = ({ onClose }) => {
   const [selectedValues, setSelectedValues] = useState<string[]>([]);
   const [newValue, setNewValue] = useState('');
   const [loading, setLoading] = useState(false);
+  const [filter, setFilter] = useState('');
   const [listKey, setListKey] = useState(0);
   const { showToast } = useToast();
 
@@ -69,44 +70,58 @@ const CleanDataModal: React.FC<CleanDataModalProps> = ({ onClose }) => {
     fetchGroupedValues();
   }, [table, column]);
 
+  const filteredValues = groupedValues.filter(
+    (item) => item.value && item.value.toLowerCase().includes(filter.toLowerCase())
+  );
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 w-full max-w-2xl">
-        <h2 className="text-xl font-bold mb-4">Limpeza de Dados</h2>
-        <div className="grid grid-cols-2 gap-4 mb-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Tabela
-            </label>
-            <select
-              value={table}
-              onChange={(e) => setTable(e.target.value)}
-              className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-            >
-              <option value="expenses">Despesas</option>
-              <option value="income">Receitas</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Coluna
-            </label>
-            <select
-              value={column}
-              onChange={(e) => setColumn(e.target.value)}
-              className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-            >
-              <option value="description">Descrição</option>
-              <option value="location">Localização</option>
-            </select>
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-bold">Limpeza de Dados</h2>
+          <div className="flex gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Tabela
+              </label>
+              <select
+                value={table}
+                onChange={(e) => setTable(e.target.value)}
+                className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+              >
+                <option value="expenses">Despesas</option>
+                <option value="income">Receitas</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Coluna
+              </label>
+              <select
+                value={column}
+                onChange={(e) => setColumn(e.target.value)}
+                className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+              >
+                <option value="description">Descrição</option>
+                <option value="location">Localização</option>
+              </select>
+            </div>
           </div>
         </div>
-
+        <div className="mb-4">
+          <input
+            type="text"
+            placeholder="Filtrar..."
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+            className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+          />
+        </div>
         <div key={listKey} className="max-h-64 overflow-y-auto border border-gray-200 dark:border-gray-700 rounded-lg p-2 mb-4">
           {loading ? (
             <p>Carregando...</p>
           ) : (
-            groupedValues.map((item, index) => (
+            filteredValues.map((item, index) => (
               <div key={index} className="flex items-center justify-between p-2 hover:bg-gray-50 dark:hover:bg-gray-700">
                 <div className="flex items-center">
                   <input
@@ -130,7 +145,30 @@ const CleanDataModal: React.FC<CleanDataModalProps> = ({ onClose }) => {
             ))
           )}
         </div>
-
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-4">
+            <input
+              type="checkbox"
+              onChange={(e) => {
+                if (e.target.checked) {
+                  setSelectedValues(filteredValues.map((v) => v.value));
+                } else {
+                  setSelectedValues([]);
+                }
+              }}
+              className="mr-2"
+            />
+            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+              Selecionar todos ({selectedValues.length})
+            </label>
+          </div>
+          <button
+            onClick={() => setSelectedValues([])}
+            className="text-sm text-blue-600 hover:underline"
+          >
+            Limpar seleção
+          </button>
+        </div>
         <div className="flex items-center gap-4 mb-4">
           <input
             type="text"
