@@ -12,6 +12,7 @@ import { Category, Account } from '../types';
 import CategoryForm from './CategoryForm';
 import AccountForm from './AccountForm';
 import ImportCSV from './ImportCSV';
+import CleanDataModal from './CleanDataModal';
 
 const Settings: React.FC = () => {
   const { settings, updateSettings } = useSettings();
@@ -24,6 +25,7 @@ const Settings: React.FC = () => {
   const [showCategoryForm, setShowCategoryForm] = useState(false);
   const [showAccountForm, setShowAccountForm] = useState(false);
   const [showImport, setShowImport] = useState(false);
+  const [showCleanData, setShowCleanData] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
   const [categorySearch, setCategorySearch] = useState('');
@@ -1315,6 +1317,13 @@ const Settings: React.FC = () => {
         <Download className="w-4 h-4" />
         Exportar Dados
       </button>
+      <button
+        onClick={() => setShowCleanData(true)}
+        className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+      >
+        <Trash2 className="w-4 h-4" />
+        Limpar Dados Duplicados
+      </button>
     </div>
   );
 
@@ -1534,6 +1543,10 @@ const Settings: React.FC = () => {
 
       {showImport && (
         <ImportCSV onClose={() => setShowImport(false)} />
+      )}
+
+      {showCleanData && (
+        <CleanDataModal onClose={() => setShowCleanData(false)} />
       )}
     </div>
   );
