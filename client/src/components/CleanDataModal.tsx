@@ -123,7 +123,7 @@ const CleanDataModal: React.FC<CleanDataModalProps> = ({ onClose }) => {
                     }}
                     className="mr-2"
                   />
-                  <span>{item.value}</span>
+                  <span className="dark:text-white">{item.value}</span>
                 </div>
                 <span className="text-sm text-gray-500">{item.count}</span>
               </div>
@@ -137,7 +137,7 @@ const CleanDataModal: React.FC<CleanDataModalProps> = ({ onClose }) => {
             value={newValue}
             onChange={(e) => setNewValue(e.target.value)}
             placeholder="Novo valor"
-            className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+            className="w-full border border-곰 kor-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
           />
           <button
             onClick={handleReplace}

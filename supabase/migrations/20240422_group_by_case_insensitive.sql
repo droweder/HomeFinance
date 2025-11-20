@@ -1,7 +1,7 @@
 CREATE OR REPLACE FUNCTION group_by_case_insensitive(
   table_name TEXT,
   column_name TEXT
-) RETURNS TABLE(value TEXT, count BIGINT) 
+) RETURNS TABLE(value TEXT, count BIGINT)
 AS $$
 BEGIN
   RETURN QUERY EXECUTE format(
