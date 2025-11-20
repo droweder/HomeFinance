@@ -46,7 +46,7 @@ const CleanDataModal: React.FC<CleanDataModalProps> = ({ onClose }) => {
     }
 
     setLoading(true);
-    const { error } = await supabase.rpc('update_case_insensitive', {
+    const { data, error } = await supabase.rpc('update_case_insensitive', {
       table_name: table,
       column_name: column,
       old_values: selectedValues,
