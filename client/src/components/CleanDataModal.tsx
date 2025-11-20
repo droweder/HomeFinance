@@ -70,8 +70,8 @@ const CleanDataModal: React.FC<CleanDataModalProps> = ({ onClose }) => {
     fetchGroupedValues();
   }, [table, column]);
 
-  const filteredValues = groupedValues.filter((item) =>
-    item.value.toLowerCase().includes(filter.toLowerCase())
+  const filteredValues = groupedValues.filter(
+    (item) => item.value && item.value.toLowerCase().includes(filter.toLowerCase())
   );
 
   return (
