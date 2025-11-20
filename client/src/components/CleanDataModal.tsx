@@ -71,7 +71,9 @@ const CleanDataModal: React.FC<CleanDataModalProps> = ({ onClose }) => {
   }, [table, column]);
 
   const filteredValues = groupedValues.filter(
-    (item) => item.value && item.value.toLowerCase().includes(filter.toLowerCase())
+    (item) =>
+      typeof item.value === 'string' &&
+      item.value.toLowerCase().includes(filter.toLowerCase())
   );
 
   return (
