@@ -13,6 +13,7 @@ const CleanDataModal: React.FC<CleanDataModalProps> = ({ onClose }) => {
   const [selectedValues, setSelectedValues] = useState<string[]>([]);
   const [newValue, setNewValue] = useState('');
   const [loading, setLoading] = useState(false);
+  const [listKey, setListKey] = useState(0);
   const { showToast } = useToast();
 
   const fetchGroupedValues = async () => {
@@ -59,6 +60,7 @@ const CleanDataModal: React.FC<CleanDataModalProps> = ({ onClose }) => {
       fetchGroupedValues();
       setSelectedValues([]);
       setNewValue('');
+      setListKey(prevKey => prevKey + 1);
     }
     setLoading(false);
   };
@@ -95,11 +97,12 @@ const CleanDataModal: React.FC<CleanDataModalProps> = ({ onClose }) => {
               className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
             >
               <option value="description">Descrição</option>
+              <option value="location">Localização</option>
             </select>
           </div>
         </div>
 
-        <div className="max-h-64 overflow-y-auto border border-gray-200 dark:border-gray-700 rounded-lg p-2 mb-4">
+        <div key={listKey} className="max-h-64 overflow-y-auto border border-gray-200 dark:border-gray-700 rounded-lg p-2 mb-4">
           {loading ? (
             <p>Carregando...</p>
           ) : (

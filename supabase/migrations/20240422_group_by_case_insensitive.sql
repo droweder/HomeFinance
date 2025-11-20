@@ -1,16 +1,17 @@
 CREATE OR REPLACE FUNCTION group_by_case_insensitive(
   table_name TEXT,
   column_name TEXT
-) RETURNS TABLE(value TEXT, count BIGINT) AS $$
+) RETURNS TABLE(value TEXT, count BIGINT)
+AS $$
 BEGIN
   RETURN QUERY EXECUTE format(
-    'SELECT lower(%I) AS value, count(*) AS count
+    'SELECT mode() WITHIN GROUP (ORDER BY %I) AS value, count(*) AS count
      FROM %I
      GROUP BY lower(%I)
-     ORDER BY count DESC',
+     ORDER BY count DESC, lower(value) ASC',
     column_name,
     table_name,
     column_name
   );
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql SECURITY DEFINER;

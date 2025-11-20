@@ -3,7 +3,9 @@ CREATE OR REPLACE FUNCTION update_case_insensitive(
   column_name TEXT,
   old_values TEXT[],
   new_value TEXT
-) RETURNS VOID AS $$
+) RETURNS integer AS $$
+DECLARE
+  rows_affected integer;
 BEGIN
   EXECUTE format(
     'UPDATE %I
@@ -15,5 +17,7 @@ BEGIN
     column_name,
     old_values
   );
+  GET DIAGNOSTICS rows_affected = ROW_COUNT;
+  RETURN rows_affected;
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
